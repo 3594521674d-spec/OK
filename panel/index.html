@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>page算力池 · free-llm-router</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="shell">
+<aside class="sidebar">
+  <div class="brand"><img class="brand-mark" src="data:image/webp;base64,UklGRqgSAABXRUJQVlA4IJwSAABwSQCdASrAAMAAPlEij0WjoaETCOXEOAUEs7dwulBlMC6l2VfdGcnn5bO/Hvwemf+47t7niPT7/h9+K3qnIc5RXKDFe0SuF7MvZb+z+IW8PtC7/v8Tzc+0OuZ+k+wP/Rv836yf+z5VPsP2E/Lj9mPo+fsyaHekcSuuSajR8nO+PIt2QoGpdeUExkJTUOLxxmgP6dlqXZCf7mt+w5hgDCeJkTOMzvusl70NAvqu0imHbcL7oW+R3JssjAzuoXAftRphWxmY4N3yO3W7/SGeduf3oGsWEd8fy+1lvK7c+Xitf5E5+JJ3HkzGe6O5vgH41e7qYsgFCC63z968S0dOBwajFufzHnP68oyBrocu1eyqti3uF9hxCB36JRGpgj6tTdp5Jq6m+JLPjQkEqdTQWOxZfHkYMPEhRUv2bbZL9E773aPwKuSEk3XanIwWoENeb8KpnRZ31SZd/0NneF6NOaiaGTZP86+u+LL2JE6yBj/GoKwRS+Vj8mdqLn5da5OMA4w9G5SJAQ5UZ7G5ZA0vI4hPIYPc1KaNVDl4eeWwXjRtn6DEfGdlbuC/vx8dLxhtW70WaNkAh7TehyC33q1TElaJE9ORzpb7G+5XeUUL7eZnILriiBCOnt+yP7CEXAj/Jgu7IXJTpwVcOMXSiEWm+g7fNxZWrhSZixjfAL9meAt3VKmxQl4PJUY7ScWDrlzNjYSR6GwrPXeZcMfI/lXufH+N6Rg1YUkukkfokuK2K9VKBEQCHnqSGO0amf3B3PohAudN3tU5nnhoggwyN3/fGk5/GuIniAD+/8h8Ej0Wj73zOEPAGjVTAP0fb6/jG3VXfXsagM++lA9DVnQhqT/OeHj+XpZB9+b5xY4Px9NfL5RWL0vHZTQoMxpXVXdV9ZkUv87z3z57Pus4uKYM6w401dvbt21EjRvr7AS98hmFDD4S4ZQ6ImGvDWHshshVjrEPC2MOkt8p2p+nwR3BmX4A3hTzi9C3c4Q3+FL6TCDlox2QWpgKx9vcsT+FtfeW/TiMzA5rkOdjopIWzJGejkhTt/45xQmZvgkrq9A7bkNWJ5uHDKceeZchkB4zYe8aNzY9BV7A37C7eQnwRr4tp3s+/21oPyaYoFoBGjEc7cCCukkK65XGqyBl79Kwye7QfxTutImQe9/N0D1o4jjH7thyeWoDMg/C8aU/JoxT7zW0LuMzdvm8nJTg5Xat3mwxlC1yxBB06k3mrksvktCTGbRgrWtzBEZT1Pr2rfGTlCp7LQvMRUtDh8+LjaAlL6dqHRQoaQ3hNPmhWcqdYFJ9LSz7vnqrbn9iWZWgD1aT5Uzffsr0zZKJlYNUBTanvysTyUgVHXM46+RUUTAaU2S45cKvnbnMW5JU4DEMtbRZHN3Uq9FdjtlbYQEOlhl7PFBH3jDdMXJwfzbvlxMbr3hIFEok3TOnqN0eDtvRqdJDZF+c2/C4yyYvq5nh438nS8iGZ0GJtBdsy2JltdLkpW5cpKyEzK447ItgBlQhP7yrL6xsZJ+CZwo/kVj1lc0mSHjq4bXh3oeIpqv9ybGQY32hKKqodF1RDU+Il1+BGhV8DV/tCoVmL0g2KgWfG2zn0ebDJ+mOJY+/14cS3CCOmRjigaso3T26tOhldDiIQMxaARWYR58qzpaHr0850X7MZZb7zYuH26FOeFJKwozYCwA54D5tlIfrvQlx0NwKH4gOMmvXbi+eiougguLlX9jTDIbR/H27rXBzw//aTxndFfR3blx46oSymZFxbK5Tbdz3PAAtqcFOMzgnOyT1UFRgtj9rAbyqx9fcuJ7s70VAk1jIrA/+f4T0g/ObFvKYKu5vsrpwpP6eSM70qgua/1ubBmfaPYEGk5KXf5/dB7ZQrJ6fOxDKyUWqXiXA5cpGsEIw6i9Vk3CXdm/WnfpIYoK8Mr5Q3HoS/BYtqgdeLBYF3E3ffkDla7mGak0fBhWatCsrWwRaPEedxnUff3F/LB1TxMtCUe7aYDAW+DsadeS/7f8dqiijsGFwWIItPr3my0PO3SaqgCCqdeezV+qaMAVQrrus+T+Q2MIXkaTr7Dk7NqGJJxQwTFdv1YvegiQLGLNzGNZiZTO4xfJc3xu2d4ftISZL3bhk0LBYlgNQ6+mRn8RpHV/KXF2ZvDjKqML3ufAEM6IjFgg+TLShYmnENTihggG6xV1xREyNlDvcAUyuSV2wLOddF1BjVXPJ9Ctn3FoMw5NetRa2MsefLT1tQYkHKWr8jVlE3oTk4MnDTZ9aqa98vf2dSeJe1OUYO1tjc6oQMmWMLAwLTEqIg19lWhj+oyyWV6ZCxlq1Eo5XehvURPe+gG+3eE61mI4UHvVr/McIrsxeZBn7qLRVAdjPXMTAUH08c4RDK5JP1PDFU/HtsIvDuP4Ibu0LC5vZ72Nlk87nyBOSK9ZL9oogqWnBJEbSsPjWF5ANU8wAlftmvlowsqxU7zZZ2NqNF5nfmm8HS9hNIWWw0LPIwTDj9klrYEZP0YpLQcRwhJCBhXy2XJEXkhS3CQdX6Y/hkgZ5GtYFCVdbOgW9r4fBzbKIP2zDNSTBN35QRQ8j7tX5CrZ0xijqLFFvJo1+6uoYARU9NqGmzm+h8RYCHnpoXARimN91wMK4s+h8Tay2eehIRKudenNVDO5rdGLkiJ7gfoP2svvF1hyFPUTK+XVj7QEGkP1CBGxW2WWkjTC0PM+cEwvZZqRvn8RHW2LcTpcBg6eXtveZrZcu4uSAOSBITMF9e1SdByyp1gDbuv6/C14JXzfyf9zGh4ufIeHXSSrYfpMsOLtELPqFxjZPFMZIB8eTKi5knuUXOxWlGVBEavzjjQq+/F0w12LvUgXTgM38iSYW8UQNkvumRXEQw/nBantUDwAIXG3xvLu9x+3A0R7AXFR/jY1TDemDu+L91FlaVugAWoaocnv3ZV7/0lLzJ7ZKaq9BVVoJyVH4iBPYjco3BC0FbAxmDLC0tmlTCp9WAIbSO9qAgCX7yCceR6atWjJYdwWIFyl/i5STFDDYCutaSklnRINIZn1eOyqMvTjh8vYasjS7JZ2FS1Nmd+DIRKGrJ2HgB7i2elgcHAX8rZyHdbJJxVtoaSFhrSNfsUjz3scAFRAL/uLu5sN55x7wSkig9nBtbji7557J8eXujvw8Rzy1EnXhuCAKPWS7AGWMBiPxIlakmED/O1bvXPAUTlO4NAZJgXQaILwwrWf86cqbEU6eIqHL1wIxqebqTa6ioYeVmoE50uaHN7T/YNboqeXu/juzhznHXDvGvyi3R+ZCm8mZGQ4OyazgcwNKdRqH13BIjHgzdDmkGtEcuh8gxNAKkTo+fxeUx60cLBB/eMtNb7nVviYupVoWcH4UsFvmE+vKWMr4C6pG+n0HkGQvorABF1350ooiXUwpUq1I7UOL59amQDAKjTxHsaMhRqkvIa9M3jmazzoNxFW0Is2JmiWJIwm2IIwsEl0CxssoLj65hlbzceSwMV1JDthSZxv0VaQEmd1xYjAPr+/w1ladGGmq98kDw9gqEHa+5Ztz9q6ZXB5EhpvruGWBpo/QbRAqpLsf9tjGDa3H1VUs19Usa7o/cWN+Sngy/eMi8bvagXzx9fczvvTwHQbFf6O2V6F8DQy9Y3BssOfz5QAI+qPLVLewwnotPFrLpxWfiPdz7M3cUKd/5H7jdKUVt7vlLaNqFWwI6e2XxeHqUNFgGxN6FJDRHMyRZJq2LQpoA5I8waXXvFLZFZxXf5Xmzm43Z/+9sn4mnIjaX1y+yhfyY+j2Z/ST/wa+YTeczvdtMfvxQsiSWaRqI5Bj6mGjTIxldApdN9BQEgmwPbwlE6DqsVt/hMk+mW5OnxtiyWd8PK+kIV2zzvupKaAs9yicC4+rxV8pRLvsxHnI6CHJNOJHwXguHYJ/El+yJwbfHXNFm1oBKijZVUBgourOsCPpnhkRmFAXQbfBJ7oCAHNN+gUOOPRpBKv20pB7+Awo7pXMYHzi9ppY2bAMyak5r1FiUrZwyhDz8NoduT3PYQtYv5jZ09PAhEFAbzySEPKtUvKt+pxxG65tPWFjZ0UZQNw0lIyRmxw1AWYNJjB2Ror3fYWenDGRMudauTwUK9JcZ8lLa5g0zA4oMYbS9sUmlBkR3oBsjvXytb243dLbzYPL4aavePtRWJhr3aabjmqAXCG6LlHPbxcvrBuojKr8xeXvx2lhUPv5epHXSf98se0WzyNP4z1srGW1xqiV0DPjo6h15BOcrDnreaj37nVHuZr+zIc6GrrgQ1P8FxsFyJWri2aFEyXY42Cx487e4UxMqj5gbb1b3zxwJZj9R9idfIzWbU0DnIh2EfILXq6DTZDyTG2EmyJ2q5WdxCnMg2Vds6wmSk1qjBHX3NZ8ehpbhcp+VsQWQ7560Ee+wfvQ3zlauWdgwxYgk05KsUG39TpfQYkEMg3YrmuGATjJdPugFUAdgt1e1kL9BHDJasvq6XaGUtHGGM2u9kx8L08hQ6r6YT0zOhtNuR8/qqXiJ1WAWV89U1GUZ5OBBF8jjqnzQlSPFhc/R/uQJydJpN87fLZSvlO4Am928kLOJELm3sAlj7XS1D94E5HhO0XDiphO81SY084R3UVAPjVgQM9aF90i997QnS6KKpFpq+KqgijdG5aNyIwqbu4ObLjEC8VNEj9p8HLUTveP/XLvqgLOGbSOnJBFHrGnssipl5tVy0OYpAAKSv1mLftE+eK1kcTneqxbmvD45Y2e81VAMBy9C9Gx52ihDK1iXYBkmcg7l7y0pC9AYh0OTTiwu4Z8kPqDzsh07VEDZHH15aftnAZcITPfnVC6p4Ohoo6NwDpCaHmFmB4IKUzZUxfrRSsuCA/AkpzlGxt9mJBj29qUEdG36iXM2xcD46viR5RT2H2uaXnYhWON2vxSd2Kj3oUs4J/yMDUFc36I58tfCD6bYyw33/tiqHEK05FX9rdPoa+vAqsEBJpgxyNGPIs18YqYsalHqKqQHOi0cH47nMQw5j4PfPeR7acDFZCdzMZRvfGNpqJnwGxWWo8ms4/xwZrTTFeD8MKf+m8nNchtCYBfX58EBpMVIF3lKvvqfffbHtlL5iHygxVbRSPrSxPH3SMr2ecC/LG3q9PRO/niqgYC0y99+5u3HWqQTXrfadw6JGtQXQWUB9Ah2CFnbTKmJYa0W6GSQrIOiCY/7a/1Ha7lv1pKs+9uIMc/US2hL8tR7FsFYvle8rxifRdxmrh8EoJEueBhzkaFVhm57vhRrec0x6SsS2Z+E0OlIDEEfD7zTjnPTzwugaKH6UolSgjgJhXvQgxeUWoeEBpOK8NeIEz6oAHvz6ly+sgz4cBT8mODhfOeoY9FPUc6pRDDOiSHwJz8GNu+/MikvRQmnJATIbgtasmyw9fR/R1aZKnRBceJ2+BuqGvfDU/l64O3B/DQrRnsymKPgjque3FkfAMKA3TnOySiPCuhpCsnpVjb32VeJl0i9HLJFJyfhP+6AIpXX8CwKzMWuAQSh89z4dQLzDxjQ8A5JaZTgfktMi8k1fgvJbbVhE8TlCigf+W6ACloki2K4j3LV1Uc/1w9T51kHjt+pyrr68rUTXkVOT0H+gXaZVCOkxQzUFgb2vun5flA/kEaVy32EcV5dWLMdQc94dnAMVL2SEEIeFPWIBiPXe0YC2zv2Xb17/JWuumm1JjjjAvya9AX04X7DaEkF85ByWoWHThK2X1+DCgG4vjgCcvKCe8u9McyQNcor1bzix8KE3JGgD22WaCYNh0bAmpyK4wApwXNGviNDmEjS05/QIbom0waHYPU4RUq8ekMW2yEHnSdftBplW5m1Hn5k9GG+GyTf96q5uH28ZwxB8+4H5YvmG2USP7Z1hR6B7QNMHDuEXFUwFbEffhIQBoAla8C9CAdRN3TRL2GsKpzB9HOPIB7BVNV0DU5fElEvusS7HNgIOWYfgjC1GXmDv8oaM0EvV38UtbMAXOecvIwX4j9G5CdjdlluKve3mL9yI1BYQPYSU/9A8bITqOwSNVKtDAAoIGF4pN5czpSY7S9rCwz9rCFZVfk6XtYVbQAeoHBYS03wqahojTyS43K4wNkQ2c6r1h6YLcbtksl8CsOQnHVE//fufTNTb+aifLRA+RNgMwD/Xvck4vdUKGhbrDOvldYFeqa8k2FkI/3oQ6pzUJLHB115ENPw98X2V8xTb+av2e6sezobek6erOLyN1mK7KaYmBtkG65o8n+C8xk+h2KucLfKSzURvJh369Man60Un6DYWQUR9UwgdcrFb8aURmhuAQhbvfDRmJWHAtUg2vW1swimNS5QJCIA1To27vdNSyYENtYIIyHWYIQZ04vG+ZxR4/3KO4PWCg4e2uuFnXQSglOWmqygl8NpVTAAAA=" alt="小pa"><h1>page算力池</h1><span id="auth-status" class="pill" hidden></span></div>
+  <nav id="nav">
+    <button class="nav-item active" data-view="dashboard"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>仪表盘</span></button>
+    <button class="nav-item" data-view="apikeys"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>API Key</span></button>
+    <button class="nav-item" data-view="usage"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg><span>用量</span></button>
+    <button class="nav-item" data-view="providers"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>供应商与账号</span></button>
+    <button class="nav-item" data-view="tasks"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>任务中心</span></button>
+    <button class="nav-item" data-view="models"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>模型</span></button>
+    <button class="nav-item" data-view="logs"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg><span>日志</span></button>
+    <button class="nav-item" data-view="config"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4M4.2 4.2l2.8 2.8m10 10l2.8 2.8M1 12h4m14 0h4M4.2 19.8l2.8-2.8m10-10l2.8-2.8"/></svg><span>配置</span></button>
+  </nav>
+  <div class="side-foot"><span>WorkBuddy 账号池</span></div>
+</aside>
+<div class="content">
+<header>
+  <button id="menu-toggle" class="ghost icon-btn" title="菜单" aria-label="打开菜单">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  </button>
+  <div class="page-title"><h1>管理面板</h1><span class="hint">一个入口 · 全部账号</span></div>
+  <div class="auth">
+    <!--
+  ⚠️ 主题图标用 SVG 而不是 emoji：emoji 的字形随系统差异很大（大小、基线、
+  颜色都可能不同），在手机上容易与相邻按钮不齐。SVG 尺寸完全可控。
+-->
+<button id="toggle-theme" class="ghost icon-btn" title="切换主题（自动/浅色/深色）" aria-label="切换主题">
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+       stroke-width="2" stroke-linecap="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none" />
+  </svg>
+</button>
+    <!--
+  ⚠️ 图标用**内联 SVG**，不用 `⏻` 这类 Unicode 字符。
+  实测：`⏻`（U+23FB）在很多手机字体里缺字形，渲染成一个**空方框** ——
+  用户看到的就是「右上角只有一个框」。SVG 不依赖系统字体，到哪都一样。
+-->
+<button id="logout" class="ghost icon-btn" title="退出登录" aria-label="退出登录">
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+       stroke-width="2" stroke-linecap="round" aria-hidden="true">
+    <path d="M12 3v9" />
+    <path d="M6.5 6.8a8 8 0 1 0 11 0" />
+  </svg>
+</button>
+  </div>
+</header>
+
+<main>
+  <div id="waf-banner" class="banner" hidden>
+    <strong>⚠️ 出口 IP 疑似被上游 WAF 拦截</strong>
+    <span id="waf-detail"></span>
+    <button id="clear-waf" class="ghost">立即解除</button>
+  </div>
+
+  <!-- ───────── 仪表盘（照观澜 AI 的版式：统计卡 → 筛选条 → 图表行 → 最近使用 + 快捷操作） ───────── -->
+  <section class="view" id="view-dashboard" hidden>
+    <div class="page-head">
+      <h2>仪表盘</h2>
+    </div>
+    <p class="hint">欢迎回来！这是您账号池的概览。</p>
+
+    <!-- 统计卡片网格：2 行 × 4 列（照观澜：图标 + 标题 + 大数值 + 明细行） -->
+    <div id="dash-summary" class="kpi-grid"></div>
+
+    <!-- 筛选条：照观澜是一张独立的白色卡（时间范围 + 刷新） -->
+    <section class="panel dash-filter">
+      <span class="dash-filter-label">时间范围：</span>
+      <div id="dash-range" class="seg" role="tablist" aria-label="时间范围"></div>
+      <button class="ghost" id="refresh-dashboard">刷新</button>
+    </section>
+
+    <!-- 图表行：左宽右窄（按天趋势 + 按模型） -->
+    <div class="dash-charts">
+      <section class="panel" id="dash-trend-panel">
+        <div class="panel-head">
+          <h3 id="dash-trend-title">按天趋势</h3>
+          <span class="hint" id="dash-trend-note"></span>
+        </div>
+        <div id="dash-trend" class="trend"></div>
+        <div id="dash-hours" class="bars"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h3>按模型</h3></div>
+        <div id="dash-models"></div>
+      </section>
+    </div>
+
+    <!-- 底部行：最近使用（宽）+ 快捷操作（窄） -->
+    <div class="dash-bottom">
+      <section class="panel">
+        <div class="panel-head">
+          <h3>最近使用</h3>
+          <span class="hint" id="dash-recent-note"></span>
+        </div>
+        <div id="dash-recent"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h3>快捷操作</h3></div>
+        <div class="quick-actions">
+          <button class="ghost quick-action" id="qa-create-key">
+            <span class="qa-icon">＋</span>
+            <span class="qa-text"><b>新建 API Key</b><i>生成新的 API 密钥</i></span>
+            <span class="qa-arrow">›</span>
+          </button>
+          <button class="ghost quick-action" id="qa-checkin">
+            <span class="qa-icon">✓</span>
+            <span class="qa-text"><b>一键签到</b><i>对所有账号逐个签到</i></span>
+            <span class="qa-arrow">›</span>
+          </button>
+          <button class="ghost quick-action" id="qa-usage">
+            <span class="qa-icon">≡</span>
+            <span class="qa-text"><b>查看用量</b><i>查看详细的使用记录</i></span>
+            <span class="qa-arrow">›</span>
+          </button>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <!-- ───────── 任务中心 ───────── -->
+  <section class="view" id="view-tasks" hidden>
+    <div class="page-head">
+      <h2>任务中心</h2>
+    </div>
+    <p class="hint">点一下就跑完，不用选。所有任务都是幂等的，重复点安全。</p>
+
+    <div class="task-cards">
+      <div class="task-card">
+        <h3>全部供应商一键签到</h3>
+        <p class="hint">对所有账号逐个签到（串行，避免触发风控）。
+        不支持的供应商会说明原因，不会静默跳过。</p>
+        <button id="run-checkin-all">一键签到</button>
+      </div>
+
+      <div class="task-card">
+        <h3>Buddy 每日任务</h3>
+        <p class="hint">对国内版（buddy）全部账号执行：签到 → 全部成长任务 →
+        真实对话任务（专家召唤 / 技能加载 / 夜猫子，这些才给积分）→ 自动领奖。</p>
+        <p class="hint">真实对话会消耗极少量配额（每次都是最短对话，且已达标的任务自动跳过，
+        不会重复消耗）。重复点按钮安全。</p>
+        <button id="run-daily-all">执行每日任务</button>
+      </div>
+
+      <div class="task-card">
+        <h3>星巴克运营活动</h3>
+        <p class="hint">活动期 11 月 12 日 ~ 16 日：对国内版（buddy）全部账号读活动进度，
+        已达标的任务先标记已看再领奖。进度由服务端算（只认小程序里的真实会话，
+        这里做不了任务），只能领已经达标的。</p>
+        <p class="hint">先点「查进度」看哪些任务已达标，确认后再点「一键领奖」。
+        重复点安全（已领过的不会重复领）。</p>
+        <button id="run-campaign-status">查进度</button>
+        <button id="run-campaign-claim" class="ghost">一键领奖</button>
+      </div>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head"><h3>执行结果</h3></div>
+      <div id="task-result" class="out"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h3>任务进度</h3>
+        <div class="row">
+          <label>账号 <select id="task-uid"></select></label>
+          <button id="refresh-status" class="ghost">查进度</button>
+        </div>
+      </div>
+      <pre id="task-status" class="out"></pre>
+    </section>
+  </section>
+
+  <!-- ───────── 用量 ───────── -->
+  <section class="view" id="view-usage" hidden>
+    <!-- 工具行：标题 + 时间窗 + 操作（照参考项目把「筛选」与「操作」放一行） -->
+    <div class="page-head">
+      <h2>用量</h2>
+      <div class="page-tools">
+        <div id="usage-range" class="seg" role="tablist" aria-label="时间范围"></div>
+        <button class="ghost" id="refresh-usage">刷新</button>
+      </div>
+    </div>
+
+    <!-- KPI 卡片网格（照参考项目：大数字 + 彩色图标章 + 带单位的副标题） -->
+    <div id="usage-summary" class="kpi-grid"></div>
+
+    <!-- 按天趋势（**今日窗口不显示** —— 单根柱没有意义，见 JS 说明） -->
+    <section class="panel" id="usage-trend-panel">
+      <div class="panel-head">
+        <h3 id="usage-trend-title">按天趋势</h3>
+        <span class="hint" id="usage-trend-note"></span>
+      </div>
+      <div id="usage-trend" class="trend"></div>
+    </section>
+
+    <!-- 按小时（只对「今日」有意义） -->
+    <section class="panel" id="usage-hours-panel">
+      <div class="panel-head">
+        <h3 id="usage-hours-title">按小时</h3>
+        <span class="hint" id="usage-hours-note"></span>
+      </div>
+      <div id="usage-hours" class="bars"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h3>按模型</h3></div>
+      <div id="usage-models"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h3>按账号</h3></div>
+      <div id="usage-accounts"></div>
+    </section>
+  </section>
+
+  <!-- ───────── API Key ───────── -->
+  <!--
+    ⚠️ 这一页管理的是**子密钥**（发给外部调用方的受限密钥），
+    与登录面板用的主密钥（`API_KEY`）是两件事。页面顶部会明确说清这点 ——
+    否则用户会以为「这里显示的是我登录用的那个密钥」。
+  -->
+  <section class="view" id="view-apikeys" hidden>
+    <div class="page-head">
+      <h2>API Key</h2>
+      <div class="page-tools">
+        <button class="ghost" id="refresh-apikeys">刷新</button>
+        <button id="create-apikey">新建 API Key</button>
+      </div>
+    </div>
+
+    <p class="hint">
+      这里的密钥用于外部应用调用本服务的 <code>/v1/*</code> 接口，
+      可以逐个限制用量、来源 IP 与可用模型。
+      它<b>只能</b>调 <code>/v1/*</code>，不能登录面板、不能改账号。
+    </p>
+
+    <!-- 新建 / 重置后的一次性明文展示（**只出现一次**） -->
+    <section class="panel" id="apikey-reveal" hidden>
+      <div class="panel-head">
+        <h3 id="apikey-reveal-title">密钥已生成</h3>
+      </div>
+      <p class="hint">
+        ⚠️ 请立刻复制保存 —— 关闭后<b>无法再次查看</b>（服务端只存哈希）。
+      </p>
+      <div class="key-reveal">
+        <code id="apikey-reveal-value"></code>
+        <button class="ghost" id="apikey-copy">复制</button>
+      </div>
+      <p class="hint" id="apikey-reveal-note"></p>
+    </section>
+
+    <div id="apikeys" class="key-grid"></div>
+  </section>
+
+  <!-- ───────── 模型 ───────── -->
+  <section class="view" id="view-models" hidden>
+    <div class="page-head">
+      <h2>模型目录</h2>
+      <div class="page-tools"><button class="ghost" id="load-models">刷新目录</button></div>
+    </div>
+    <section class="panel"><div id="models" class="out"></div></section>
+  </section>
+
+  <!-- ───────── 供应商 ───────── -->
+  <section class="view" id="view-providers" hidden>
+    <div class="page-head">
+      <h2>供应商与账号</h2>
+    </div>
+    <div id="pool-counts" class="counts"></div>
+    <p class="hint">点任意一家可管理它的账号与模型。</p>
+    <div id="providers" class="prov-grid"></div>
+    <div id="gen-quota"></div>
+
+  </section>
+
+  <!-- ───────── 配置 ───────── -->
+  <section class="view" id="view-config" hidden>
+    <div class="page-head"><h2>配置与状态</h2></div>
+    <section class="panel"><div id="config"></div></section>
+  </section>
+
+  <!-- ───────── 日志 ───────── -->
+  <section class="view" id="view-logs" hidden>
+    <div class="page-head">
+      <h2>请求日志</h2>
+      <div class="page-tools">
+        <button class="ghost" id="refresh-logs">刷新</button>
+        <button class="ghost" id="clear-logs">清空</button>
+      </div>
+    </div>
+    <section class="panel"><div id="logs" class="out"></div></section>
+  </section>
+</main>
+</div>
+</div>
+<div id="nav-scrim" class="scrim" hidden></div>
+
+<!-- ───────── 供应商详情弹窗 ───────── -->
+<!--
+  ⚠️ 通用信息弹窗（与供应商弹窗分开）。
+  用途：把「冷却中 / 模型限流」这类**计数**点开，列出具体是哪些账号、哪些模型。
+  用户报障：「冷却中和模型限流支持点击弹窗查看具体哪个账号和模型」。
+  分开的原因：供应商弹窗的标签页与数据都是按 provider 组织的，
+  而池计数是**跨供应商**的，硬塞进去会污染那套结构。
+-->
+<!--
+  ⚠️ `role="dialog"` + `aria-modal="true"` + `aria-labelledby`：
+  这两个弹窗此前只有**视觉**上的弹窗形态，对辅助技术而言只是普通 `div` ——
+  屏幕阅读器不会宣告「对话框已打开」，也不会报出标题。
+  `aria-labelledby` 指向已有的 `<h3>`（两者都在页面上，无需重复文字）。
+-->
+<div id="info-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="info-title" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="info-title"></h3>
+      <button id="info-close" class="ghost icon-btn" title="关闭" aria-label="关闭"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M5 5l14 14M19 5L5 19" />
+    </svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="info-body"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="modal-title"></h3>
+      <button id="modal-close" class="ghost icon-btn" title="关闭" aria-label="关闭"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M5 5l14 14M19 5L5 19" />
+    </svg></button>
+    </div>
+    <div class="modal-tabs">
+      <button class="mtab active" data-mtab="accounts">账号</button>
+      <button class="mtab" data-mtab="models">模型</button>
+      <button class="mtab" data-mtab="add">添加账号</button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-accounts" class="mtab-panel"></div>
+      <div id="modal-models" class="mtab-panel" hidden></div>
+      <div id="modal-add" class="mtab-panel" hidden>
+        <div id="modal-add-body"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
