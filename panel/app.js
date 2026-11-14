@@ -683,8 +683,8 @@ async function runCheckinAll() {
   for (const r of d.results) {
     // ⚠️ 跳过用 `⏭`（U+23ED，杂项技术符号区）在部分手机字体里**缺字形**，
     // 会渲染成空框。这里改用文字标记，语义更清楚且不依赖字体。
-    // （✅ / ❌ 是 emoji，覆盖广，保留。）
-    const mark = r.ok ? '✅' : (r.skipped ? '－' : '❌')
+    // （✓ / ✕ 是文字标记，不依赖 emoji 字体，覆盖广。）
+    const mark = r.ok ? '✓' : (r.skipped ? '－' : '✕')
     lines.push(mark + ' [' + r.provider + '] ' + (r.nickname || r.uid.slice(0, 16)))
     if (r.detail) lines.push('     ' + r.detail)
   }
@@ -708,8 +708,8 @@ async function runDailyAll() {
 
   const lines = []
   for (const st of res.body.started) {
-    if (st.error) { lines.push('❌ ' + (st.nickname || st.uid.slice(0, 16)) + '：' + st.error); continue }
-    lines.push('✅ ' + (st.nickname || st.uid.slice(0, 16)) + '：已入队 ' + st.queued + ' 步')
+    if (st.error) { lines.push('✕ ' + (st.nickname || st.uid.slice(0, 16)) + '：' + st.error); continue }
+    lines.push('✓ ' + (st.nickname || st.uid.slice(0, 16)) + '：已入队 ' + st.queued + ' 步')
   }
   lines.push('')
   lines.push('任务由 Durable Object 按 alarm 逐步执行（每步间隔 1s+），稍后点「查进度」看结果。')
@@ -736,16 +736,16 @@ async function runCampaignStatus() {
   for (const a of d.accounts) {
     const name = a.nickname || (a.uid || '').slice(0, 16)
     if (a.skipped) { lines.push('－ ' + name + '：' + a.detail); continue }
-    if (a.error) { lines.push('❌ ' + name + '：' + a.error); continue }
-    lines.push((a.ready && a.ready.length > 0 ? '✅ ' : '· ') + name +
+    if (a.error) { lines.push('✕ ' + name + '：' + a.error); continue }
+    lines.push((a.ready && a.ready.length > 0 ? '✓ ' : '· ') + name +
       '（' + (a.inPeriod ? '进行中' : '不在活动期') + '）')
     for (const t of a.tasks || []) {
-      const mark = (a.ready || []).includes(t.taskCode) ? '✅ 可领' : (t.progress >= t.target && t.target > 0 ? '✅ 已领' : '')
+      const mark = (a.ready || []).includes(t.taskCode) ? '✓ 可领' : (t.progress >= t.target && t.target > 0 ? '✓ 已领' : '')
       lines.push('     ' + t.taskCode + ' ' + t.progress + '/' + t.target +
         '（+' + t.rewardCredit + ' 积分）' + (mark ? ' ' + mark : ''))
     }
     for (const v of a.vouchers || []) {
-      lines.push('     🎟 ' + v.title + '：' + v.status + (v.claimable ? '（可领）' : ''))
+      lines.push('     ' + v.title + '：' + v.status + (v.claimable ? '（可领）' : ''))
     }
   }
   show('task-result', lines.join('\n'))
@@ -767,8 +767,8 @@ async function runCampaignClaim() {
   const lines = ['领到 ' + d.claimedTotal + ' 个任务 · 共 +' + d.claimedCreditTotal + ' 积分', '']
   for (const r of d.rows) {
     const name = r.nickname || (r.uid || '').slice(0, 16)
-    if (r.errors && r.errors.length > 0) lines.push('❌ ' + name + '：' + r.errors.join('；'))
-    if (r.claimed && r.claimed.length > 0) lines.push('✅ ' + name + '：领了 ' + r.claimed.join('、') + '（+' + r.claimedCredit + ' 积分）')
+    if (r.errors && r.errors.length > 0) lines.push('✕ ' + name + '：' + r.errors.join('；'))
+    if (r.claimed && r.claimed.length > 0) lines.push('✓ ' + name + '：领了 ' + r.claimed.join('、') + '（+' + r.claimedCredit + ' 积分）')
     if (r.skipped && r.skipped.length > 0) lines.push('－ ' + name + '：' + r.skipped.join('；'))
     if ((!r.claimed || r.claimed.length === 0) && (!r.errors || r.errors.length === 0) && (!r.skipped || r.skipped.length === 0)) {
       lines.push('· ' + name + '：没有已达标的任务')
@@ -792,7 +792,7 @@ async function loadTaskStatus(continuePolling) {
   if (status.lastError) lines.push('最后错误：' + status.lastError)
   lines.push('')
   for (const item of status.done) {
-    lines.push((item.ok ? '✅ ' : '❌ ') + item.code + ' → ' + item.action)
+    lines.push((item.ok ? '✓ ' : '✕ ') + item.code + ' → ' + item.action)
     if (item.detail) lines.push('     ' + item.detail)
   }
   show('task-status', lines.join('\n'))
@@ -1244,7 +1244,7 @@ async function loadUsage() {
     fmtNum(inputTokens) + ' tokens', sparkInput))
   box.appendChild(kpiCard('pink', '↑', '输出 token', fmtTokensShort(outputTokens),
     fmtNum(outputTokens) + ' tokens', sparkOutput))
-  box.appendChild(kpiCard('orange', '⏱', '平均耗时', fmtDuration(avgMs),
+  box.appendChild(kpiCard('orange', '时', '平均耗时', fmtDuration(avgMs),
     fmtNum(total) + ' 次请求的平均'))
   // ⚠️ 耗时**故意不给 sparkline**：我们只存了「按天的合计耗时」，
   // 而卡上显示的是**均值** —— 拿合计画趋势会把「请求多的一天」画成
@@ -1475,7 +1475,7 @@ async function loadDashboard() {
     `成功率 ${successRate.toFixed(1)}%`, sparkRate))
   box.appendChild(kpiCard('purple', '↓', rangeLabel + ' Token', fmtTokensShort(inputTokens + outputTokens),
     `输入 ${fmtNum(inputTokens)} · 输出 ${fmtNum(outputTokens)}`, sparkTok))
-  box.appendChild(kpiCard('orange', '⏱', '平均耗时', fmtDuration(avgMs),
+  box.appendChild(kpiCard('orange', '时', '平均耗时', fmtDuration(avgMs),
     fmtNum(total) + ' 次请求的平均'))
   // ⚠️ 图标用汉字单字（户/钥/型）：符号区字符在部分手机字体会缺字形变空框，
   // 汉字在中文用户手机上一定有字形，且一眼能读懂。
@@ -2409,7 +2409,7 @@ async function loadModalAccounts() {
         const exp = p === undefined ? undefined : p.expiring
         const earliest = p === undefined ? undefined : p.earliestExpiry
         if (typeof exp === 'number' && exp > 0) {
-          let txt = '⚠️ 7天内过期 ' + exp.toLocaleString('zh-CN') + ' 积分'
+          let txt = '7天内过期 ' + exp.toLocaleString('zh-CN') + ' 积分'
           if (typeof earliest === 'number' && earliest > 0) {
             txt += '，最早 ' + new Date(earliest).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }) + ' 到期'
           }
@@ -3498,7 +3498,7 @@ async function loadConfig() {
   box.appendChild(wrapTable(buildTable(['项', '值'], pairs)))
 
   const note = document.createElement('p'); note.className = 'hint'
-  note.textContent = '⚠️ 运行时配置目前通过阿里云 FC 函数的环境变量管理，面板暂不支持在线修改。QQ 机器人配置（见下方）可直接在本页修改，存在账号池加密存储。'
+  note.textContent = '运行时配置目前通过阿里云 FC 函数的环境变量管理，面板暂不支持在线修改。QQ 机器人配置（见下方）可直接在本页修改，存在账号池加密存储。'
   box.appendChild(note)
 
   await loadQqSettings()
