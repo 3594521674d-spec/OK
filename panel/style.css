@@ -39,6 +39,9 @@
   --ok: #4cc38a; --warn: #e0a33e; --err: #e5484d;
   /* 主按钮：深色下米白底 + 深色字（unslop 深色做法，比彩色按钮更讲究）。 */
   --btn-bg: #efe9de; --btn-text: #161513;
+  /* 多序列曲线图的序列色（unslop 仪表盘 after：每种颜色代表一个序列）。
+   * 总计用强调色领头，输入琥珀、输出绿；三色在暖底上都可读。 */
+  --series-total: #ff6b61; --series-in: #e5a83b; --series-out: #4cc38a;
   /*
    * ⚠️ `--err-solid`：**当底色用**的错误色（白字压在上面）。
    *
@@ -782,6 +785,7 @@ html[data-theme='light'] {
   --text: #1f1b16; --dim: #5e554a; --accent: #c1272d; --accent-text: #c1272d;
   --ok: #16a34a; --warn: #e0a33e; --err: #dc2626;
   --btn-bg: #1f1b16; --btn-text: #fdfbf7;
+  --series-total: #c1272d; --series-in: #b7791f; --series-out: #16a34a;
 }
 html[data-theme='light'] input,
 html[data-theme='light'] select,
@@ -967,6 +971,7 @@ html[data-theme='light'] .prov-card .prov-credits { background: rgba(22,163,74,.
     --text: #1f1b16; --dim: #5e554a; --accent: #c1272d; --accent-text: #c1272d;
     --ok: #16a34a; --warn: #e0a33e; --err: #dc2626;
     --btn-bg: #1f1b16; --btn-text: #fdfbf7;
+    --series-total: #c1272d; --series-in: #b7791f; --series-out: #16a34a;
   }
   html:not([data-theme]) input,
   html:not([data-theme]) select,
@@ -1444,3 +1449,89 @@ body.nav-open .scrim { display: block; }
 }
 .dash-filter-label { font-size: 12px; color: var(--dim); }
 .dash-filter .seg { margin-bottom: 0; }
+
+/* ─────────── 两大 moment（unslop 仪表盘 after 的做法） ───────────
+ * 颜色与工艺只集中在两处：① 一张用代码建的算力池卡（渲染的实物）；
+ * ② 主图表画成多序列彩色曲线（每种颜色代表一个序列）。
+ * 其余 chrome 保持安静，moment 才显眼。 */
+
+/* ① 算力池卡：放在仪表盘第一张 KPI 卡（总请求）里，两张叠放、微转，
+ * 有芯片与卡号，像一张真实的卡。只作装饰，不拦截点击。 */
+.kpi.has-poolcard { padding-right: 172px; }
+.pool-card {
+  position: absolute; right: 14px; top: 50%;
+  width: 150px; height: 98px;
+  transform: translateY(-50%);
+  pointer-events: none; z-index: 1;
+}
+.pool-card-back,
+.pool-card-front {
+  position: absolute; inset: 0; border-radius: 10px;
+  border: 1px solid rgba(239, 233, 222, 0.14);
+}
+.pool-card-back {
+  background: var(--panel2);
+  transform: rotate(7deg) translate(8px, -6px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+.pool-card-front {
+  /* 卡面：同一中性里的小色调变化（unslop 允许的渐变，只限这一种）。 */
+  background: linear-gradient(180deg, #2b2521, #211d19);
+  transform: rotate(-5deg);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  padding: 10px 12px;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.pool-card-top { display: flex; align-items: center; gap: 8px; }
+.pool-chip { flex: none; display: inline-flex; }
+.pool-name { font-size: 11px; font-weight: 600; color: var(--text); letter-spacing: 0.02em; }
+.pool-num {
+  font-family: var(--font-mono); font-size: 12px; color: var(--text);
+  letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
+}
+.pool-card-bottom { display: flex; align-items: center; justify-content: space-between; }
+.pool-kind { font-family: var(--font-mono); font-size: 10px; color: var(--dim); letter-spacing: 0.12em; }
+/* 卡上的小红印：与侧栏品牌印同一枚「算」，是卡的凭证戳。 */
+.pool-seal {
+  flex: none; width: 20px; height: 20px; border-radius: 3px;
+  background: var(--accent); color: #fff;
+  font-family: "Songti SC", "Noto Serif SC", serif; font-size: 12px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center;
+  transform: rotate(-3deg);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15);
+}
+/* 浅色下卡面换暖纸色（显式 light 与跟随系统 auto 是两套独立规则，都要写）。 */
+html[data-theme='light'] .pool-card-front { background: linear-gradient(180deg, #fffdf8, #f3ece1); border-color: rgba(31, 27, 22, 0.14); }
+html[data-theme='light'] .pool-card-back { background: #efe9df; border-color: rgba(31, 27, 22, 0.14); }
+@media (prefers-color-scheme: light) {
+  html:not([data-theme]) .pool-card-front { background: linear-gradient(180deg, #fffdf8, #f3ece1); border-color: rgba(31, 27, 22, 0.14); }
+  html:not([data-theme]) .pool-card-back { background: #efe9df; border-color: rgba(31, 27, 22, 0.14); }
+}
+
+/* ② 多序列曲线图：三条曲线各代表一个序列（总计/输入/输出），
+ * 下方是同数据的灰色镜像。图例在图上方。 */
+.trend.series { display: block; overflow-x: visible; padding: 6px 0 0; }
+.series-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 4px; }
+.series-item { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dim); font-family: var(--font-mono); }
+.series-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dot-total { background: var(--series-total); }
+.dot-in { background: var(--series-in); }
+.dot-out { background: var(--series-out); }
+.series-chart { width: 100%; height: auto; display: block; }
+.sp-total { stroke: var(--series-total); }
+.sp-in { stroke: var(--series-in); }
+.sp-out { stroke: var(--series-out); }
+.sa-total { fill: var(--series-total); }
+.sa-in { fill: var(--series-in); }
+.sa-out { fill: var(--series-out); }
+.s-mirror { stroke: var(--dim); }
+.series-grid { stroke: var(--line); stroke-width: 1; }
+.series-axis { stroke: var(--line); stroke-width: 1; }
+.series-lab { font-family: var(--font-mono); font-size: 11px; fill: var(--dim); }
+
+/* 窄屏：算力池卡收一档，文字不被压到换行。 */
+@media (max-width: 420px) {
+  .pool-card { width: 128px; height: 84px; right: 10px; }
+  .kpi.has-poolcard { padding-right: 148px; }
+  .pool-num { font-size: 10px; }
+}

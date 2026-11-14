@@ -932,6 +932,7 @@ function renderUsageTrend(byDay, windowDays) {
   const panel = $('usage-trend-panel')
   const note = $('usage-trend-note')
   clear(box)
+  box.classList.remove('series')
 
   const bars = Array.isArray(byDay) ? byDay : []
 
@@ -956,6 +957,16 @@ function renderUsageTrend(byDay, windowDays) {
     const p = document.createElement('p'); p.className = 'hint'
     p.textContent = '该窗口内没有请求记录（用 /v1/chat/completions 发一次对话就会出现）'
     box.appendChild(p)
+    return
+  }
+
+  // ≥2 天：画多序列曲线图（总计/输入/输出），不用竖柱
+  if (bars.length >= 2) {
+    const pts = [...bars].reverse().map((b) => ({
+      label: dayShortLabel(b.day),
+      input: b.input || 0, output: b.output || 0, total: b.tokens || 0,
+    }))
+    renderSeriesChart(box, pts)
     return
   }
 
@@ -1405,6 +1416,8 @@ async function loadDashboard() {
     '可用模型数'))
   box.appendChild(kpiCard(failed > 0 ? 'red' : 'green', '×', '失败', fmtNum(failed),
     failed > 0 ? `占 ${((failed / total) * 100).toFixed(1)}%` : '无失败'))
+  // 渲染的实物 moment：算力池卡挂在第一张 KPI 卡（总请求）里
+  attachPoolCard()
 
   renderDashTrend(byDayDesc, byHourAsc, windowDays)
   renderUsageRanking($('dash-models'), byModel, 'model', (r) => r.model)
@@ -1412,11 +1425,156 @@ async function loadDashboard() {
 }
 
 /**
+ * 平滑曲线路径（Catmull-Rom 转贝塞尔），供多序列曲线图用。
+ * @param {Array<{x:number,y:number}>} pts
+ * @returns {string} SVG path 的 `d`
+ */
+function smoothPath(pts) {
+  if (pts.length === 0) return ''
+  if (pts.length === 1) return `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`
+  let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)]
+    const p1 = pts[i]
+    const p2 = pts[i + 1]
+    const p3 = pts[Math.min(pts.length - 1, i + 2)]
+    const c1x = p1.x + (p2.x - p0.x) / 6
+    const c1y = p1.y + (p2.y - p0.y) / 6
+    const c2x = p2.x - (p3.x - p1.x) / 6
+    const c2y = p2.y - (p3.y - p1.y) / 6
+    d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
+  }
+  return d
+}
+
+/**
+ * 多序列曲线图（unslop 仪表盘 after 的主图表做法）。
+ *
+ * 三条曲线各代表一个序列 —— 总计（强调色领头）、输入（琥珀）、输出（绿），
+ * 每种颜色都有含义；下方是同数据的灰色镜像（mirrored grey comparison）。
+ * 数据来自现成的按天 / 按小时聚合（input / output / total），不改后端。
+ * SVG 经 setSvg（DOMParser）注入；图例用 DOM API 建。
+ *
+ * @param {HTMLElement} box - 容器（调用方已清空；会加 `.series` 类）
+ * @param {Array<{label:string,input:number,output:number,total:number}>} pts
+ *   升序（左→右），至少 2 点
+ */
+function renderSeriesChart(box, pts) {
+  box.classList.add('series')
+  clear(box)
+  // 图例（DOM API）
+  const legend = document.createElement('div')
+  legend.className = 'series-legend'
+  const items = [['dot-total', '总计'], ['dot-in', '输入'], ['dot-out', '输出']]
+  for (const [cls, label] of items) {
+    const item = document.createElement('span')
+    item.className = 'series-item'
+    const dot = document.createElement('i')
+    dot.className = 'series-dot ' + cls
+    item.appendChild(dot)
+    item.appendChild(document.createTextNode(label))
+    legend.appendChild(item)
+  }
+  box.appendChild(legend)
+
+  const W = 640, H = 240, ML = 46, MR = 10, PT = 12, BASE = 140
+  const n = pts.length
+  const maxV = Math.max(1, ...pts.map((p) => p.total || 0)) * 1.08
+  const X = (i) => ML + (i * (W - ML - MR)) / (n - 1)
+  const Y = (v) => BASE - ((v || 0) / maxV) * (BASE - PT)
+  const series = [
+    { key: 'total', values: pts.map((p) => p.total || 0) },
+    { key: 'in', values: pts.map((p) => p.input || 0) },
+    { key: 'out', values: pts.map((p) => p.output || 0) },
+  ]
+  // 网格线与 Y 轴刻度（0 / 25% / 50% / 75% / 100%）
+  let grid = ''
+  for (let f = 0; f <= 4; f++) {
+    const y = BASE - (f / 4) * (BASE - PT)
+    const val = (maxV * f) / 4
+    grid += `<line class="series-grid" x1="${ML}" y1="${y.toFixed(1)}" x2="${W - MR}" y2="${y.toFixed(1)}"/>`
+    grid += `<text class="series-lab" x="${ML - 8}" y="${(y + 4).toFixed(1)}" text-anchor="end">${f === 0 ? '0' : fmtTokensShort(Math.round(val))}</text>`
+  }
+  // X 轴标签（最多约 6 个，避免挤；尾点一定标）
+  const stride = Math.max(1, Math.ceil(n / 6))
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  let xlab = ''
+  for (let i = 0; i < n; i += stride) {
+    xlab += `<text class="series-lab" x="${X(i).toFixed(1)}" y="228" text-anchor="middle">${esc(pts[i].label)}</text>`
+  }
+  if ((n - 1) % stride !== 0) {
+    xlab += `<text class="series-lab" x="${X(n - 1).toFixed(1)}" y="228" text-anchor="middle">${esc(pts[n - 1].label)}</text>`
+  }
+  let body = grid
+  body += `<line class="series-axis" x1="${ML}" y1="${BASE}" x2="${W - MR}" y2="${BASE}"/>`
+  for (const s of series) {
+    const pp = s.values.map((v, i) => ({ x: X(i), y: Y(v) }))
+    const line = smoothPath(pp)
+    const area = line + ` L ${X(n - 1).toFixed(1)} ${BASE} L ${X(0).toFixed(1)} ${BASE} Z`
+    // 镜像：绕基线翻转并压扁（0.55），灰色
+    const mp = pp.map((p) => ({ x: p.x, y: BASE + (BASE - p.y) * 0.55 }))
+    const mirror = smoothPath(mp)
+    body += `<path d="${area}" class="sa-${s.key}" fill-opacity="0.07" stroke="none"/>`
+    body += `<path d="${line}" class="sp-${s.key}" fill="none" stroke-width="7" stroke-linecap="round" opacity="0.22"/>`
+    body += `<path d="${line}" class="sp-${s.key}" fill="none" stroke-width="2.5" stroke-linecap="round"/>`
+    body += `<path d="${mirror}" class="s-mirror" fill="none" stroke-width="2" stroke-linecap="round" opacity="0.3"/>`
+  }
+  body += xlab
+  const host = document.createElement('div')
+  setSvg(host, `<svg class="series-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="按时间趋势：总计、输入、输出 token">${body}</svg>`)
+  box.appendChild(host)
+}
+
+/**
+ * 渲染的实物 moment（unslop 仪表盘 after 的做法）：
+ * 一张用代码建的算力池卡，放在仪表盘第一张 KPI 卡（总请求）里 ——
+ * 两张叠放的卡、微转，有芯片与卡号，像一张真实的卡。
+ * 只挂仪表盘（#dash-summary），用量页不动；kpiCard 本身不改（仍 5 参数）。
+ */
+function attachPoolCard() {
+  const first = document.querySelector('#dash-summary .kpi')
+  if (!first || first.querySelector('.pool-card')) return
+  first.classList.add('has-poolcard')
+  const wrap = document.createElement('div')
+  wrap.className = 'pool-card'
+  wrap.setAttribute('aria-hidden', 'true')
+  const back = document.createElement('div')
+  back.className = 'pool-card-back'
+  const front = document.createElement('div')
+  front.className = 'pool-card-front'
+  const top = document.createElement('div')
+  top.className = 'pool-card-top'
+  const chip = document.createElement('span')
+  chip.className = 'pool-chip'
+  setSvg(chip, '<svg viewBox="0 0 20 16" width="20" height="16" aria-hidden="true"><rect x="1" y="1" width="18" height="14" rx="3" fill="#d8a93c"/><path d="M7 1v14M13 1v14M1 8h18" stroke="#8a6a1f" stroke-width="1" fill="none"/></svg>')
+  const name = document.createElement('span')
+  name.className = 'pool-name'
+  name.textContent = 'page算力池'
+  top.appendChild(chip); top.appendChild(name)
+  const num = document.createElement('div')
+  num.className = 'pool-num'
+  num.textContent = '•••• •••• •••• 4821'
+  const bottom = document.createElement('div')
+  bottom.className = 'pool-card-bottom'
+  const kind = document.createElement('span')
+  kind.className = 'pool-kind'
+  kind.textContent = 'POOL'
+  const seal = document.createElement('span')
+  seal.className = 'pool-seal'
+  seal.textContent = '算'
+  bottom.appendChild(kind); bottom.appendChild(seal)
+  front.appendChild(top); front.appendChild(num); front.appendChild(bottom)
+  wrap.appendChild(back); wrap.appendChild(front)
+  first.appendChild(wrap)
+}
+
+/**
  * 仪表盘的趋势区。
  *
- * ⚠️ 与用量页不同：这里**不隐藏**面板 —— 今日窗口改画「按小时」条，
- * 多日窗口画「按天趋势」柱，仪表盘永远有一张图可看。
- * 柱/条的 markup 与用量页同一套 CSS 类（`.trend-col` / `.bar-row`），观感一致。
+ * ⚠️ 与用量页不同：这里**不隐藏**面板 —— 今日窗口画「按小时」曲线，
+ * 多日窗口画「按天趋势」曲线，仪表盘永远有一张图可看。
+ * 曲线是多序列（总计/输入/输出），见 renderSeriesChart；
+ * 数据不足 2 点时才回落到旧的柱/条。
  */
 function renderDashTrend(byDayDesc, byHourAsc, windowDays) {
   const trendBox = $('dash-trend')
@@ -1426,6 +1584,7 @@ function renderDashTrend(byDayDesc, byHourAsc, windowDays) {
   if (!trendBox || !hoursBox) return
   clear(trendBox)
   clear(hoursBox)
+  trendBox.classList.remove('series'); hoursBox.classList.remove('series')
 
   if (windowDays === 1) {
     title.textContent = '按小时（今日）'
@@ -1435,6 +1594,16 @@ function renderDashTrend(byDayDesc, byHourAsc, windowDays) {
       const p = document.createElement('p'); p.className = 'hint'
       p.textContent = '今天还没有请求记录。'
       hoursBox.appendChild(p)
+      return
+    }
+    // ≥2 小时：画多序列曲线图（总计/输入/输出），不用横条
+    if (hours.length >= 2) {
+      const pts = hours.map((h) => ({
+        label: h.hour,
+        input: h.input || 0, output: h.output || 0,
+        total: (h.input || 0) + (h.output || 0),
+      }))
+      renderSeriesChart(hoursBox, pts)
       return
     }
     const maxCount = Math.max(1, ...hours.map((h) => h.count))
@@ -1464,6 +1633,15 @@ function renderDashTrend(byDayDesc, byHourAsc, windowDays) {
     const p = document.createElement('p'); p.className = 'hint'
     p.textContent = '该窗口内没有请求记录（用 /v1/chat/completions 发一次对话就会出现）'
     trendBox.appendChild(p)
+    return
+  }
+  // ≥2 天：画多序列曲线图（总计/输入/输出），不用竖柱
+  if (bars.length >= 2) {
+    const pts = [...bars].reverse().map((b) => ({
+      label: dayShortLabel(b.day),
+      input: b.input || 0, output: b.output || 0, total: b.tokens || 0,
+    }))
+    renderSeriesChart(trendBox, pts)
     return
   }
   const maxTokens = Math.max(0, ...bars.map((b) => b.tokens))
