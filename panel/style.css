@@ -1,14 +1,22 @@
-/* free-llm-router 管理面板样式 —— 安静高级深色（2026-11-15 unslop 深色版）
- * 按 heydamir/unslop（CC BY 4.0，Damir Sokolovsky）深色做法：
- *   底面走石墨 ramp（#0f0f10 / #141415 / #19191b / #232325），
- *   酒红只当 accent（选中、关键数字、至多主按钮），不再铺满大面；
+/* free-llm-router 管理面板样式 —— 全改（2026-11-15 unslop 全改版）
+ * 按 heydamir/unslop（CC BY 4.0，Damir Sokolovsky）九遍流程重做：
+ *   方向：快、技术、活泼；世界 纸与墨；亮点 一个渲染的实物（侧栏印章）；
+ *   签名 钥匙帽（.cap / .key-prefix）；字体 Geist / Inter / IBM Plex Sans
+ *   + JetBrains Mono（Google Fonts，display=swap， robust fallback）。
+ *   底面走 Warm 深色 ramp（#12110f / #161513 / #1c1a18 / #262421），
+ *   酒红只当 accent（选中、关键数字、用量条），不再铺满大面；
  *   深度靠表面台阶 + 细线，不靠阴影；主按钮米白底 + 深色字。
  * 只改视觉层：所有类名、id、JS 钩子、双主题结构一律不动，功能不受影响。
  * 品牌（酒红 accent + page算力池）与全部功能原样保留。 */
 :root {
-  --bg: #141415; --panel: #19191b; --panel2: #232325; --line: rgba(237, 237, 237, 0.08);
+  --bg: #161513; --panel: #1c1a18; --panel2: #262421; --line: rgba(239, 233, 222, 0.08);
   /* 一条缓动曲线管全部动效（unslop tokens）。 */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* 字体：精确、技术（Geist / Inter / IBM Plex Sans），数字与元数据用等宽。
+   * Geist 不在 Google Fonts 上，只放进栈里（本机有就用，没有落到 Inter）；
+   * Inter + JetBrains Mono 从 Google Fonts 加载（display=swap，失败也不坏页）。 */
+  --font-sans: "Geist", "Inter", "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Noto Sans SC", sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   /*
    * ## 圆角令牌（仪表盘风格：大圆角卡片）
    *   · `--radius`    卡片/面板/弹窗等**大容器**（20px，照参考图的圆角卡片）
@@ -16,8 +24,8 @@
    * ⚠️ 药丸形（`999px`，`.tag` / `.credits-pill`）**不动** ——
    * 它是另一种设计语言（全圆），不是「圆角没统一」。
    */
-  --radius: 20px; --radius-sm: 10px;
-  --text: #ededed; --dim: #a1a1a6;
+  --radius: 16px; --radius-sm: 10px;
+  --text: #efe9de; --dim: #aaa398;
   /*
    * ⚠️ accent **拆成两个令牌** —— 它们对底色的要求相反。
    *
@@ -30,7 +38,7 @@
   --accent: #c1272d; --accent-text: #ff6b61;
   --ok: #4cc38a; --warn: #e0a33e; --err: #e5484d;
   /* 主按钮：深色下米白底 + 深色字（unslop 深色做法，比彩色按钮更讲究）。 */
-  --btn-bg: #ededed; --btn-text: #141415;
+  --btn-bg: #efe9de; --btn-text: #161513;
   /*
    * ⚠️ `--err-solid`：**当底色用**的错误色（白字压在上面）。
    *
@@ -59,37 +67,52 @@
  * 不必记得给每个设了 `display` 的类补一条 `[hidden]` 规则。
  */
 [hidden] { display: none !important; }
+/* 键盘用户的可见焦点环（unslop Details 遍）。 */
+:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
-  font: 14px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Noto Sans SC", sans-serif;
+  font: 14px/1.55 var(--font-sans);
 }
 /* ─────────── 仪表盘布局：深色侧边栏 + 内容区 ───────────
  * 左侧一条石墨深色导航栏（图标 + 文字），右侧是石墨内容区。
  * 手机上侧边栏收成顶栏，导航横向滚动。 */
 .shell { display: flex; min-height: 100vh; align-items: stretch; }
 .sidebar {
-  flex: none; width: 232px; background: #0f0f10; color: var(--text);
+  flex: none; width: 240px; background: #12110f; color: var(--text);
   display: flex; flex-direction: column; gap: 16px;
   padding: 20px 16px; position: sticky; top: 0; height: 100vh;
 }
 .sidebar .brand { display: flex; gap: 10px; align-items: center; padding: 2px 8px; }
 .brand-mark { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; display: block; flex: none; }
-.sidebar h1 { font-size: 15px; margin: 0; letter-spacing: .3px; color: var(--text); }
+.sidebar h1 { font-size: 16px; margin: 0; color: var(--text); }
+/* 印章（渲染的实物 · 纸与墨世界的 moment，unslop Visuals 遍）。
+ * 一枚手盖的红印，字是品牌里的「算」：实色 accent 做印泥，
+ * 白字、微转 -3°、软阴影落在 ramp 最深色上。只此一处，不用到别处。 */
+.brand-seal {
+  flex: none; width: 26px; height: 26px; border-radius: 4px;
+  background: var(--accent); color: #fff;
+  font-family: "Songti SC", "Noto Serif SC", serif; font-size: 15px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center;
+  transform: rotate(-3deg);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15), 0 2px 6px rgba(0, 0, 0, .35);
+}
 .side-foot {
   margin-top: auto; padding: 10px 12px; font-size: 11px; color: var(--dim);
-  border-top: 1px solid rgba(255,255,255,.08);
+  border-top: 1px solid var(--line);
 }
 .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 header {
   display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
-  padding: 14px 24px; border-bottom: 1px solid var(--line); background: var(--panel);
+  padding: 16px 24px; border-bottom: 1px solid var(--line); background: var(--panel);
   position: sticky; top: 0; z-index: 10;
 }
 .page-title { display: flex; align-items: baseline; gap: 10px; }
 .page-title h1 { font-size: 17px; margin: 0; }
 .brand { display: flex; gap: 12px; align-items: center; }
-/* ⚠️ `h1` 已不在页面上（站名移到导航条内），但保留规则以防后续复用 */
-h1 { font-size: 15px; margin: 0; letter-spacing: .3px; }
+/* ⚠️ `h1` 已不在页面上（站名移到导航条内），但保留规则以防后续复用。
+ * 字重 500（浏览器默认 h1 是 700，属 AI 味重标题）；16px 是 logo 字标尺寸；
+ * 16px 以下不用负字距（tokens）。 */
+h1 { font-size: 16px; margin: 0; font-weight: 500; }
 /*
  * 标题
  *
@@ -100,7 +123,7 @@ h1 { font-size: 15px; margin: 0; letter-spacing: .3px; }
  * ⚠️ 但 `h3` **保留非布局场景的下边距**（少数地方 h3 是直接子元素，
  * 如任务页的「执行结果」），故用 `:only-child` 之外的场景保留。
  */
-h2 { font-size: 19px; margin: 0; display: flex; gap: 10px; align-items: center; font-weight: 600; }
+h2 { font-size: 19px; margin: 0; display: flex; gap: 10px; align-items: center; font-weight: 500; }
 h3 { font-size: 13px; margin: 0; color: var(--dim); font-weight: 500; }
 /* 直接坐在视图里的 h3（不在 .panel-head 内）仍需要上下间距 */
 section.view > h3 { margin: 16px 0 8px; }
@@ -118,9 +141,9 @@ nav#nav {
 }
 .nav-item svg { flex: none; }
 /* 图标统一：16px、1.5 线宽（unslop tokens）。CSS 覆盖 SVG 的 width/height
- * 与 stroke-width 属性，一处管住导航、顶栏与弹窗的全部行内图标。 */
-.nav-item svg, .icon-btn svg { width: 16px; height: 16px; stroke-width: 1.5; }
-.nav-item:hover { color: var(--text); background: rgba(255,255,255,.06); }
+ * 与 stroke-width 属性，一处管住导航、顶栏、快捷操作与弹窗的全部行内图标。 */
+.nav-item svg, .icon-btn svg, .qa-icon svg { width: 16px; height: 16px; stroke-width: 1.5; }
+.nav-item:hover { color: var(--text); background: rgba(239, 233, 222, .06); }
 .nav-item.active { color: #fff; background: var(--accent); border-color: transparent; }
 
 /*
@@ -130,7 +153,7 @@ nav#nav {
  * 而 KPI 卡在 1180 时刚好排成 **5 列**（我们正好 5 张卡）——
  * 每张被压到约 210px，数字稍长就折行。放宽后是 4 列，读起来舒服得多。
  */
-main { padding: 24px; max-width: 1240px; margin: 0 auto; width: 100%; display: grid; gap: 16px; align-content: start; }
+main { padding: 24px; max-width: 1440px; margin: 0 auto; width: 100%; display: grid; gap: 16px; align-content: start; }
 /*
  * ⚠️⚠️ **视图容器本身不再是「一张卡」**（用户报「按天趋势里面不要再套一个框」）。
  *
@@ -158,7 +181,7 @@ main { padding: 24px; max-width: 1240px; margin: 0 auto; width: 100%; display: g
  * ⚠️ `display: grid; gap` 让视图内的多个面板有统一间距
  *（容器不再有 padding，间距得自己给）。
  */
-section.view { min-width: 0; display: grid; gap: 14px; align-content: start; }
+section.view { min-width: 0; display: grid; gap: 16px; align-content: start; }
 /*
  * ⚠️⚠️ **`section.view` 的子元素也必须能收缩**（用户报「配置与状态页面在手机上
  * 挤出屏幕了」）。
@@ -181,15 +204,17 @@ input, select, textarea, button {
   font: inherit; color: var(--text); background: var(--bg);
   border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 9px;
 }
-textarea { width: 100%; font-family: ui-monospace, monospace; font-size: 12px; }
-/* 主按钮：米白药丸（深色）/ 深色药丸（浅色），ghost 保持透明 */
-button { cursor: pointer; background: var(--btn-bg); border-color: var(--btn-bg); color: var(--btn-text); border-radius: 999px; padding: 8px 16px; }
+textarea { width: 100%; font-family: var(--font-mono); font-size: 12px; }
+/* 主按钮：米白药丸（深色）/ 深色药丸（浅色），ghost 保持透明。
+ * 按压给一个极小的 scale（0.98，tokens 允许的按压回馈，配活泼气质）。 */
+button { cursor: pointer; background: var(--btn-bg); border-color: var(--btn-bg); color: var(--btn-text); border-radius: 999px; padding: 8px 16px; transition: filter .12s var(--ease), transform .12s var(--ease); }
+button:active { transform: scale(.98); }
 button.ghost { background: transparent; border-color: var(--line); color: var(--text); }
 button:hover { filter: brightness(1.12); }
 button.danger { background: var(--err-solid); border-color: var(--err-solid); }
 button:disabled { opacity: .5; cursor: not-allowed; }
 
-.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 12px; }
 .row label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--dim); }
 .pill { font-size: 12px; color: var(--dim); }
 .pill.ok { color: var(--ok); } .pill.err { color: var(--err); }
@@ -204,7 +229,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 
 .out {
   background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 10px; font-family: ui-monospace, monospace; font-size: 12px;
+  padding: 12px; font-family: var(--font-mono); font-size: 12px;
   white-space: pre-wrap; word-break: break-word; max-height: 420px; overflow: auto;
 }
 /*
@@ -276,7 +301,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
  *   这与 `.kpi-grid` 是同一套做法，观感统一。
  */
 .counts {
-  display: grid; gap: 10px;
+  display: grid; gap: 12px;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 .count {
@@ -311,7 +336,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 }
 /* ⚠️ uid 是长串（如 `raccoon:raccoon-9696afc62b16c498`），窄屏会撑破卡片 */
 .card .uid {
-  font-family: ui-monospace, monospace; font-size: 12px; color: var(--dim);
+  font-family: var(--font-mono); font-size: 12px; color: var(--dim);
   overflow-wrap: anywhere;
 }
 .card .grow { flex: 1 1 220px; }
@@ -324,7 +349,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .tag.ok { color: var(--ok); border-color: #1e5b3a; background: rgba(76, 195, 138, .12); }
 .tag.warn { color: var(--warn); border-color: #5b4a1e; }
 .tag.err { color: var(--err); border-color: rgba(229, 72, 77, 0.45); }
-.metrics { color: var(--dim); font-size: 11px; font-family: ui-monospace, monospace; }
+.metrics { color: var(--dim); font-size: 11px; font-family: var(--font-mono); }
 
 /*
  * ⚠️ 整段错误文案（积分包页）。
@@ -364,7 +389,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .bar-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
 /* ⚠️ 时段标签是 `10-03 20:00` 这类固定宽度文本，断行会破坏对齐 ⇒ 用 nowrap */
 .bar-label {
-  width: 78px; color: var(--dim); font-family: ui-monospace, monospace;
+  width: 78px; color: var(--dim); font-family: var(--font-mono);
   white-space: nowrap;
 }
 .bar-track { flex: 1; background: var(--bg); border-radius: 3px; height: 14px; position: relative; overflow: hidden; }
@@ -393,10 +418,11 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
  */
 .kpi-grid {
   display: grid; gap: 12px;
-  /* ⚠️ 自适应列数由 `minmax` 决定（窄屏 1 列 → 宽屏 4~5 列）。
-     ⚠️ 不写 `margin-bottom`：它总是放在 `section.view`（`gap: 14px`）里，
+  /* ⚠️ 自适应列数由 `minmax` 决定。280px 下 1440 宽正好 4 列（8 张卡两行），
+     200px 时会排成 5~6 列、第二行只剩两张，看着不齐。
+     ⚠️ 不写 `margin-bottom`：它总是放在 `section.view`（`gap: 16px`）里，
      再加下边距就是**双重间距**（本项目改布局时反复踩到这一点）。 */
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 .kpi {
   position: relative;
@@ -415,9 +441,9 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   color: var(--kpi, var(--dim));
 }
 .kpi-label { font-size: 11px; color: var(--dim); margin-bottom: 3px; }
-/* ⚠️ 数字要大：这是整张卡的主体 */
+/* ⚠️ 数字要大：这是整张卡的主体。28px 是 tokens 的卡片数字尺寸。 */
 .kpi-value {
-  font-size: 25px; font-weight: 500; line-height: 1.15;
+  font-size: 28px; font-weight: 500; line-height: 1.15;
   font-variant-numeric: tabular-nums;
   /* ⚠️ 用 `overflow-wrap` 而不是 `word-break: break-all` —— 后者会把正常
      英文单词也拦腰截断（项目单测明确禁止，见 tests/panel.test.ts）。 */
@@ -442,23 +468,6 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .kpi.green .kpi-chip {
   background: var(--panel2); color: var(--dim);
 }
-.kpi.green .spark path { stroke: var(--dim); }
-
-/* ─────────── KPI 卡内的迷你趋势线（sparkline） ─────────── */
-/*
- * 照参考项目：KPI 卡底部一条细折线，让「数字」带上「走向」。
- * ⚠️ `preserveAspectRatio: none`（在 JS 里设）+ `height` 固定、
- * `width: 100%` ⇒ 折线自适应卡片宽度而不留边距。
- * ⚠️ `vector-effect: non-scaling-stroke`（在 JS 里设）保证横向拉伸时
- * **描边粗细不变**，否则宽卡上的线会被拉成一片色块。
- */
-.spark {
-  display: block; width: 100%; height: 28px;
-  margin-top: 8px; overflow: visible;
-}
-.spark path { stroke: var(--kpi, var(--dim)); }
-/* 迷你线默认用中性色；只有失败卡（语义红）和强调卡（白线）例外。 */
-.spark-red path    { stroke: var(--err); }
 
 /* ─────────── 用量页：排名列表（照参考项目的 Top Models） ─────────── */
 .rank-row {
@@ -501,8 +510,8 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .rank-failed { color: var(--err); }
 /* ⚠️ 浅色主题下轨道底色要换 —— **两套都要覆盖**（见 AGENTS.md §9.1b ②g：
    显式 light 与「跟随系统」是两套独立规则，漏一处就只在某种模式下出错）。 */
-html[data-theme='light'] .rank-track { background: #f4f4f5; }
-html[data-theme='light'] .rank-idx { background: #f4f4f5; }
+html[data-theme='light'] .rank-track { background: #efe9df; }
+html[data-theme='light'] .rank-idx { background: #efe9df; }
 
 /* ─────────── 用量页：通用面板容器 ─────────── */
 .panel {
@@ -563,20 +572,9 @@ html[data-theme='light'] .kpi {
   /* ⚠️ **不要再套一层框**（用户报「按天趋势里面不要再套一个框」）。
      它本身已经在一个 `.panel`（有边框/圆角/底色）里了，
      再加一层就是「框里套框」—— 视觉上冗余，也让层级变模糊。
-     ⇒ 去掉 `border` / `background` / `margin-bottom`（外层 panel 已有内边距）。 */
-  /* ## 🔴 必须限宽（用户报「太宽不好看」）
-   *
-   * `.trend-col` 的 `flex-basis` 是 26px（为了让窄窗口的柱子不至于细到看不见），
-   * 而列**只多不少**：30 天窗口 ⇒ 30 列 ⇒ 光柱子就要 780px+，
-   * 在 1180px 的主容器里被 `flex-grow` 拉得更宽，整条图横铺满屏、很难看。
-   *
-   * ⇒ 给整块一个**上限**，超过就横向滚动（`overflow-x: auto` 已有）。
-   * 只加 `max-width` 而不动 `flex-basis`：前者限制**整块**的观感，
-   * 后者保证**单根柱**在窄屏仍可见 —— 两件事互不冲突。
-   *
-   * ⚠️ 用 `max-width: 100%` 兜底窄屏：不能让它溢出容器。
-   */
-  max-width: 760px;
+     ⇒ 去掉 `border` / `background` / `margin-bottom`（外层 panel 已有内边距）。
+   * 宽度交给面板（2fr 列）：单根柱有 `max-width: 56px` 封顶，
+     不会因为面板变宽被拉胖，窄了就横向滚动。 */
   width: 100%;
 }
 .trend-col {
@@ -607,19 +605,19 @@ html[data-theme='light'] .kpi {
 /* 无数据的那天：一条极矮的底衬，表示「这天存在但没请求」 */
 .trend-fill.empty { background: var(--line); }
 .trend-label {
-  font-size: 10px; color: var(--dim); font-family: ui-monospace, monospace;
+  font-size: 10px; color: var(--dim); font-family: var(--font-mono);
   white-space: nowrap;
 }
 .trend-label.today { color: var(--accent-text); font-weight: 600; }
-html[data-theme='light'] .trend-track { background: #f4f4f5; }
+html[data-theme='light'] .trend-track { background: #efe9df; }
 
 /* ─────────── 供应商网格 ─────────── */
-.prov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.prov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
 .prov-card {
   border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 16px;
   cursor: pointer; background: var(--panel); transition: border-color .12s var(--ease);
 }
-.prov-card:hover { border-color: rgba(237, 237, 237, 0.2); }
+.prov-card:hover { border-color: rgba(239, 233, 222, 0.2); }
 .prov-card .prov-name {
   font-weight: 600; font-size: 13px;
   min-width: 0; overflow-wrap: anywhere;
@@ -636,11 +634,25 @@ html[data-theme='light'] .trend-track { background: #f4f4f5; }
 .prov-card:has(.prov-credits:not([hidden])) .prov-name { padding-right: 96px; }
 /* ⚠️ 同上（provider id 也是长串）；顺带补断行 */
 .prov-card .prov-id {
-  font-family: ui-monospace, monospace; font-size: 11px; color: var(--dim);
+  font-family: var(--font-mono); font-size: 11px; color: var(--dim);
   margin-bottom: 6px; overflow-wrap: anywhere;
 }
 .prov-card .caps { display: flex; flex-wrap: wrap; gap: 4px; }
-.cap { font-size: 10px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line); color: var(--dim); }
+/* 钥匙帽（签名 · unslop Details 遍：键盘快捷键变小钥匙帽）。
+ * 能力标签与密钥前缀都用同一套钥匙帽：4~6px 圆角、等宽字体、
+ * 底边加粗一档（像键帽的底沿）。只用在这两处，不扩到别处。 */
+.keycap {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; padding: 0 5px;
+  border-radius: 5px; background: var(--panel2);
+  border: 1px solid var(--line); border-bottom-width: 2px;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--dim);
+}
+.cap {
+  font-family: var(--font-mono); font-size: 10px; padding: 2px 6px;
+  border-radius: 5px; border: 1px solid var(--line); border-bottom-width: 2px;
+  background: var(--panel2); color: var(--dim);
+}
 .cap.on { color: var(--ok); border-color: #1e5b3a; }
 /*
  * ⚠️ 未具备的能力标签的颜色**必须能在两种主题下都读清**。
@@ -739,16 +751,16 @@ html[data-theme='light'] .trend-track { background: #f4f4f5; }
 
 /* ─────────── 模型开关 ─────────── */
 .model-row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-bottom: 1px solid var(--line); font-size: 12px; }
-.model-row .mid { flex: 1; font-family: ui-monospace, monospace; }
+.model-row .mid { flex: 1; font-family: var(--font-mono); }
 .model-row .mname { color: var(--dim); width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.model-row.off .mid, .model-row.off .mname { color: #5b6472; text-decoration: line-through; }
+.model-row.off .mid, .model-row.off .mname { color: #8a847a; text-decoration: line-through; }
 .switch {
   width: 38px; height: 20px; border-radius: 999px; border: 1px solid var(--line);
   background: var(--bg); position: relative; cursor: pointer; flex: none; padding: 0;
 }
 .switch::after {
   content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
-  border-radius: 50%; background: #6b7280; transition: transform .12s var(--ease), background .12s var(--ease);
+  border-radius: 50%; background: #8a847a; transition: transform .12s var(--ease), background .12s var(--ease);
 }
 .switch.on { background: #1e5b3a; border-color: #1e5b3a; }
 .switch.on::after { transform: translateX(18px); background: var(--ok); }
@@ -764,32 +776,32 @@ html[data-theme='light'] .trend-track { background: #f4f4f5; }
  * ⚠️ 所有颜色都走 CSS 变量，故浅色模式只需覆盖 `:root` 的变量值 ——
  * 不必给每个组件写一份浅色样式（那会立刻产生两份需要同步维护的规则）。
  * 少数几个硬编码的深色值（如 `var(--bg)` 的输入框背景）单独覆盖。
- */
+ * 浅色同样走 Warm（纸）ramp，与深色的纸墨世界同源。 */
 html[data-theme='light'] {
-  --bg: #fafafa; --panel: #ffffff; --panel2: #f4f4f5; --line: rgba(23, 23, 23, 0.08);
-  --text: #171717; --dim: #525252; --accent: #c1272d; --accent-text: #c1272d;
+  --bg: #f7f4ee; --panel: #fdfbf7; --panel2: #efe9df; --line: rgba(31, 27, 22, 0.08);
+  --text: #1f1b16; --dim: #5e554a; --accent: #c1272d; --accent-text: #c1272d;
   --ok: #16a34a; --warn: #e0a33e; --err: #dc2626;
-  --btn-bg: #171717; --btn-text: #ffffff;
+  --btn-bg: #1f1b16; --btn-text: #fdfbf7;
 }
 html[data-theme='light'] input,
 html[data-theme='light'] select,
 html[data-theme='light'] textarea,
-html[data-theme='light'] button.ghost { background: #f4f4f5; }
-html[data-theme='light'] .out { background: #f4f4f5; }
-html[data-theme='light'] .bar-track { background: #f4f4f5; }
-html[data-theme='light'] .switch { background: #f4f4f5; }
+html[data-theme='light'] button.ghost { background: #efe9df; }
+html[data-theme='light'] .out { background: #efe9df; }
+html[data-theme='light'] .bar-track { background: #efe9df; }
+html[data-theme='light'] .switch { background: #efe9df; }
 html[data-theme='light'] .tag.ok { border-color: rgba(22,163,74,.45); background: rgba(22,163,74,.16); }
 html[data-theme='light'] .tag.warn { border-color: #e0b878; }
 html[data-theme='light'] .tag.err { border-color: rgba(220,38,38,.35); }
 html[data-theme='light'] .credits-pill { background: rgba(22,163,74,.16); border-color: rgba(22,163,74,.45); }
-html[data-theme='light'] .banner { background: #fef2f2; border-color: rgba(220,38,38,.3); color: #991b1b; }
+html[data-theme='light'] .banner { background: #fbe9e7; border-color: rgba(220,38,38,.3); color: #991b1b; }
 html[data-theme='light'] .banner button { border-color: rgba(220,38,38,.4); color: #991b1b; }
 html[data-theme='light'] .notice { background: rgba(245,158,11,.10); border-color: rgba(245,158,11,.4); color: #92400e; }
 /* ⚠️ 与上方 `.cap.off` 的浅色覆盖**成对**（见该规则说明）。
  * 浅色下 `--dim` 已是 #5c6675（5.4:1），无需再单独指定颜色；
  * 这里只删掉原先不达标的硬编码覆盖。 */
 html[data-theme='light'] .model-row.off .mid,
-html[data-theme='light'] .model-row.off .mname { color: #737373; }
+html[data-theme='light'] .model-row.off .mname { color: #7b7266; }
 
 /* ─────────── 自定义 API Key ─────────── */
 /*
@@ -821,8 +833,9 @@ html[data-theme='light'] .model-row.off .mname { color: #737373; }
   overflow-wrap: anywhere;
 }
 .key-prefix {
-  font-family: ui-monospace, monospace; font-size: 12px; color: var(--dim);
-  background: var(--panel2); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  font-family: var(--font-mono); font-size: 12px; color: var(--dim);
+  background: var(--panel2); border: 1px solid var(--line); border-bottom-width: 2px;
+  border-radius: 5px;
   padding: 3px 8px; align-self: flex-start;
   overflow-wrap: anywhere;
 }
@@ -876,7 +889,7 @@ html[data-theme='light'] .model-row.off .mname { color: #737373; }
 }
 .key-reveal code {
   flex: 1 1 240px; min-width: 0;
-  font-family: ui-monospace, monospace; font-size: 12px;
+  font-family: var(--font-mono); font-size: 12px;
   background: var(--panel2); border: 1px solid var(--line); border-radius: var(--radius-sm);
   padding: 10px 12px; overflow-wrap: anywhere; user-select: all;
 }
@@ -886,10 +899,10 @@ html[data-theme='light'] .model-row.off .mname { color: #737373; }
 .key-editor { display: flex; flex-direction: column; gap: 10px; }
 .key-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--dim); }
 .key-field input, .key-field textarea { font-family: inherit; }
-.key-field textarea { font-family: ui-monospace, monospace; font-size: 12px; resize: vertical; }
+.key-field textarea { font-family: var(--font-mono); font-size: 12px; resize: vertical; }
 
-html[data-theme='light'] .key-prefix { background: #f4f4f5; }
-html[data-theme='light'] .key-reveal code { background: #f4f4f5; }
+html[data-theme='light'] .key-prefix { background: #efe9df; }
+html[data-theme='light'] .key-reveal code { background: #efe9df; }
 
 @media (max-width: 720px) {
   /* 手机：卡片撑满一行（两列会把 KV 行挤到几乎不可读） */
@@ -950,16 +963,16 @@ html[data-theme='light'] .prov-card .prov-credits { background: rgba(22,163,74,.
  */
 @media (prefers-color-scheme: light) {
   html:not([data-theme]) {
-    --bg: #fafafa; --panel: #ffffff; --panel2: #f4f4f5; --line: rgba(23, 23, 23, 0.08);
-    --text: #171717; --dim: #525252; --accent: #c1272d; --accent-text: #c1272d;
+    --bg: #f7f4ee; --panel: #fdfbf7; --panel2: #efe9df; --line: rgba(31, 27, 22, 0.08);
+    --text: #1f1b16; --dim: #5e554a; --accent: #c1272d; --accent-text: #c1272d;
     --ok: #16a34a; --warn: #e0a33e; --err: #dc2626;
-    --btn-bg: #171717; --btn-text: #ffffff;
+    --btn-bg: #1f1b16; --btn-text: #fdfbf7;
   }
   html:not([data-theme]) input,
   html:not([data-theme]) select,
   html:not([data-theme]) textarea,
-  html:not([data-theme]) button.ghost { background: #f4f4f5; }
-  html:not([data-theme]) .out { background: #f4f4f5; }
+  html:not([data-theme]) button.ghost { background: #efe9df; }
+  html:not([data-theme]) .out { background: #efe9df; }
   /* ⚠️ `.bar-track` 与 `.trend-track` 是**两个**元素，都要覆盖。
      实测缺陷（用户报「浅色主题下柱形图背景还是深色的」）：
      我只把 `.trend-track` 加进了 `[data-theme='light']` 那一套，
@@ -968,27 +981,27 @@ html[data-theme='light'] .prov-card .prov-credits { background: rgba(22,163,74,.
      ⇒ 凡是在浅色下需要改底色的元素，**两处都要加**。 */
   html:not([data-theme]) .bar-track,
   html:not([data-theme]) .trend-track,
-  html:not([data-theme]) .switch { background: #f4f4f5; }
+  html:not([data-theme]) .switch { background: #efe9df; }
   html:not([data-theme]) .credits-pill,
   html:not([data-theme]) .prov-credits { background: rgba(22,163,74,.16); border-color: rgba(22,163,74,.45); }
   /* ⚠️ 免费徽章：与 `html[data-theme='light'] .tag.ok` **成对** ——
      两套浅色规则独立维护，只写一处就只在某种模式下生效
      （本项目已为此踩过两次，见 AGENTS.md §9.1b ②g）。 */
   html:not([data-theme]) .tag.ok { border-color: rgba(22,163,74,.45); background: rgba(22,163,74,.16); }
-  html:not([data-theme]) .banner { background: #fef2f2; border-color: rgba(220,38,38,.3); color: #991b1b; }
+  html:not([data-theme]) .banner { background: #fbe9e7; border-color: rgba(220,38,38,.3); color: #991b1b; }
   html:not([data-theme]) .notice { background: rgba(245,158,11,.10); border-color: rgba(245,158,11,.4); color: #92400e; }
   /* ⚠️ 与 `html[data-theme='light'] .cap.off` 成对：跟随系统（auto）模式
    * 走的是这段 `prefers-color-scheme`，是**独立维护的一套**。
    * 浅色下 `--dim` 已是 #5c6675，无需硬编码。 */
   /* ⚠️ 与上面 `html[data-theme='light'] .rank-track` 成对 —— 漏一个就是「某种模式下出错」 */
-  html:not([data-theme]) .rank-track { background: #f4f4f5; }
-  html:not([data-theme]) .rank-idx { background: #f4f4f5; }
+  html:not([data-theme]) .rank-track { background: #efe9df; }
+  html:not([data-theme]) .rank-idx { background: #efe9df; }
   /* ⚠️ 与上面 `html[data-theme='light'] .kpi` 成对 —— 漏一个就是「只有某种模式出错」 */
   html:not([data-theme]) .kpi {
     box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 10px 20px -12px rgba(0,0,0,.18);
   }
   html:not([data-theme]) .model-row.off .mid,
-  html:not([data-theme]) .model-row.off .mname { color: #737373; }
+  html:not([data-theme]) .model-row.off .mname { color: #7b7266; }
 }
 
 /* ─────────── 登录页 ─────────── */
@@ -1038,7 +1051,7 @@ html[data-theme='light'] .prov-card .prov-credits { background: rgba(22,163,74,.
 .user-code {
   display: inline-block; margin: 10px 0; padding: 10px 16px;
   background: #fff; color: #10131a; border-radius: var(--radius-sm);
-  font-family: ui-monospace, monospace; font-size: 26px; font-weight: 600;
+  font-family: var(--font-mono); font-size: 26px; font-weight: 600;
   letter-spacing: 4px; user-select: all;
 }
 
@@ -1155,8 +1168,9 @@ main > * { min-width: 0; }
 
 /* ─────────── 手机端（≤720px）：用量页新组件的适配 ─────────── */
 /*
- * ⚠️ 这些是**本轮新增**的组件（KPI 卡 / 排名行 / sparkline / 页头），
+ * ⚠️ 这些是**本轮新增**的组件（KPI 卡 / 排名行 / 页头），
  * 它们此前没有任何窄屏规则 —— 而宽屏下的尺寸直接缩到 375px 会挤成一团。
+ * （迷你趋势线已在 2026-11-15 的全改版里移除 —— 趋势只留主图表。）
  *
  * 原则（与既有移动端规则一致）：
  *   1. **能在容器内滚动的就滚动**，不要撑破页面（横向溢出最难用）；
@@ -1165,11 +1179,10 @@ main > * { min-width: 0; }
  *      也不要把主信息挤没。
  */
 @media (max-width: 720px) {
-  /* KPI 卡：单列铺满，数字略收（25px → 22px）以免长数字折行 */
+  /* KPI 卡：单列铺满，数字略收（28px → 22px）以免长数字折行 */
   .kpi-grid { grid-template-columns: 1fr; gap: 10px; }
   .kpi { padding: 12px 14px; }
   .kpi-value { font-size: 22px; }
-  .spark { height: 24px; }
 
   /* 排名行：手机上把「指标」换到第二行 ——
      ⚠️ 不换行的话，`metrics` 是 flex:none + nowrap，
@@ -1337,7 +1350,7 @@ html[data-theme='light'] .modal-box {
 html[data-theme='light'] header { box-shadow: 0 1px 0 rgba(0, 0, 0, .08); }
 
 /* 供应商卡 hover：描边提亮一档（中性，不用彩色光晕） */
-.prov-card:hover { border-color: rgba(237, 237, 237, 0.2); }
+.prov-card:hover { border-color: rgba(239, 233, 222, 0.2); }
 
 /* 登录页：与仪表盘同款（石墨卡 + 米白药丸按钮） */
 .login-card {
@@ -1381,7 +1394,7 @@ body.nav-open .scrim { display: block; }
 /* ─────────── 仪表盘视图（照观澜 AI 的版式：图表行 + 底部行） ─────────── */
 .dash-charts {
   display: grid; gap: 12px;
-  grid-template-columns: 1.15fr 1fr;
+  grid-template-columns: 2fr 1fr;
 }
 .dash-bottom {
   display: grid; gap: 12px;
@@ -1399,8 +1412,7 @@ body.nav-open .scrim { display: block; }
 .quick-action .qa-icon {
   flex: none; width: 34px; height: 34px; border-radius: var(--radius-sm);
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 16px; font-weight: 600;
-  background: rgba(21, 128, 61, .12); color: var(--dim);
+  background: var(--panel2); color: var(--dim);
 }
 .quick-action .qa-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .quick-action .qa-text b { font-size: 13px; font-weight: 600; color: var(--text); }
@@ -1412,7 +1424,7 @@ body.nav-open .scrim { display: block; }
   padding: 8px 2px; border-bottom: 1px solid var(--line); font-size: 12px;
 }
 .recent-row:last-child { border-bottom: 0; }
-.recent-day { font-family: ui-monospace, monospace; color: var(--dim); }
+.recent-day { font-family: var(--font-mono); color: var(--dim); }
 .recent-count { flex: 1; font-weight: 500; font-variant-numeric: tabular-nums; }
 .recent-tok { color: var(--dim); font-variant-numeric: tabular-nums; }
 .recent-rate { color: var(--dim); font-variant-numeric: tabular-nums; }

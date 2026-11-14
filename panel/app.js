@@ -825,63 +825,6 @@ function usageDays() {
 }
 
 /**
- * 迷你折线（sparkline）—— 照参考项目 KPI 卡底部那条趋势线。
- *
- * ## 为什么手写 SVG 而不是引图表库
- *
- * 面板是**手写 CSS + 明暗两套主题**，且产物要经 Worker 下发（体积敏感）。
- * 一条折线只需要一个 `<svg><path d="M…L…"/></svg>` ——
- * 引 Chart.js / ECharts（几百 KB）来画它完全不划算。
- *
- * ## 关键取舍
- *
- * - **点数 < 2 时直接返回空**（一个点连不成线；硬画会得到一条假水平线，
- *   那是在**编造**「数据很平稳」）；
- * - 高度归一化用 `min..max` 而不是 `0..max`：日用量常常整体在
- *   一个不接近 0 的区间里波动，从 0 起画会把差异压成一条直线；
- * - ⚠️ `max === min`（全平）时折中画在中线，**不除以 0**；
- * - 用 `preserveAspectRatio="none"` 让 SVG 自适应容器宽度（不按比例留边）。
- *
- * @param values - 数值序列（**按时间正序**；调用方负责排序）
- * @param tone - 色系键（与 KPI 卡一致，决定描边色）
- */
-function sparkline(values, tone) {
-  const svgNS = 'http://www.w3.org/2000/svg'
-  const svg = document.createElementNS(svgNS, 'svg')
-  svg.setAttribute('class', 'spark spark-' + (tone || 'blue'))
-  svg.setAttribute('viewBox', '0 0 100 28')
-  svg.setAttribute('preserveAspectRatio', 'none')
-  svg.setAttribute('aria-hidden', 'true')
-
-  const nums = (Array.isArray(values) ? values : [])
-    .map((v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0))
-  // ⚠️ 少于 2 个点连不成线 —— 返回空 SVG（调用方据 className 决定要不要占位）
-  if (nums.length < 2) return svg
-
-  const max = Math.max(...nums)
-  const min = Math.min(...nums)
-  const span = max - min
-  const H = 28
-  const step = 100 / (nums.length - 1)
-  const pts = nums.map((v, i) => {
-    // ⚠️ span 为 0（全平）时画在中线，避免除零得到 NaN（NaN 会让整条 path 不渲染）
-    const ratio = span === 0 ? 0.5 : (v - min) / span
-    // y 轴向下 ⇒ 值越大 y 越小；上下各留 3px 免得描边被裁
-    const y = 3 + (1 - ratio) * (H - 6)
-    return `${(i * step).toFixed(2)},${y.toFixed(2)}`
-  })
-  const path = document.createElementNS(svgNS, 'path')
-  path.setAttribute('d', 'M' + pts.join(' L'))
-  path.setAttribute('fill', 'none')
-  path.setAttribute('stroke-width', '2')
-  path.setAttribute('stroke-linecap', 'round')
-  path.setAttribute('stroke-linejoin', 'round')
-  path.setAttribute('vector-effect', 'non-scaling-stroke')
-  svg.appendChild(path)
-  return svg
-}
-
-/**
  * 一张 KPI 卡片（照参考项目：彩色图标章 + 大数字 + 带单位副标题）。
  *
  * @param tone - 色系：blue / purple / green / orange / cyan / pink / red
@@ -889,8 +832,10 @@ function sparkline(values, tone) {
  * @param label - 小号标签
  * @param value - **大号主数字**（已格式化）
  * @param sub - 副标题（**必须带单位**，见调用处的说明）
+ *
+ * 趋势不放在卡片上 —— 按天趋势在用量页的主图表里（`renderUsageTrend`）。
  */
-function kpiCard(tone, icon, label, value, sub, sparkValues) {
+function kpiCard(tone, icon, label, value, sub) {
   const card = document.createElement('div')
   card.className = 'kpi ' + tone
   const chip = document.createElement('div'); chip.className = 'kpi-chip'; chip.textContent = icon
@@ -898,12 +843,6 @@ function kpiCard(tone, icon, label, value, sub, sparkValues) {
   const vv = document.createElement('div'); vv.className = 'kpi-value'; vv.textContent = value
   const sb = document.createElement('div'); sb.className = 'kpi-sub'; sb.textContent = sub
   card.appendChild(chip); card.appendChild(lb); card.appendChild(vv); card.appendChild(sb)
-  // 迷你趋势线（照参考项目：KPI 卡底部一条 sparkline）
-  // ⚠️ 只在真有 ≥2 个点时加 —— 否则留一个空 SVG 会撑出一段空白
-  if (Array.isArray(sparkValues) && sparkValues.length >= 2) {
-    const sp = sparkline(sparkValues, tone)
-    if (sp.childNodes.length > 0) card.appendChild(sp)
-  }
   return card
 }
 
@@ -1217,39 +1156,22 @@ async function loadUsage() {
   const rangeLabel = (USAGE_RANGES.find((r) => r.key === usageRangeKey) || {}).label || '今日'
   const successRate = total === 0 ? 0 : (ok / total) * 100
 
-  // sparkline 的数据源：**按天正序**（老 → 新）的序列。
-  // ⚠️ 必须是正序 —— sparkline 从左到右画，倒序会让趋势看起来完全相反。
-  // ⚠️ 单日窗口只有 1 个点，连不成线（`sparkline` 会返回空），这是**诚实**的：
-  //    今日没有「趋势」可言，不该硬画一条假的水平线。
-  const dayAsc = [...byDayMap.values()].sort((a, b) => a.day.localeCompare(b.day))
-  const sparkReq = dayAsc.map((d) => d.count)
-  const sparkTok = dayAsc.map((d) => d.tokens)
-  const sparkInput = dayAsc.map((d) => d.input)
-  const sparkOutput = dayAsc.map((d) => d.output)
-  // 成功率序列：某天没请求时记为 100（不该把它算成「失败」拉低趋势）
-  const sparkRate = dayAsc.map((d) => (d.count === 0 ? 100 : ((d.count - d.failed) / d.count) * 100))
-
   box.appendChild(kpiCard('blue', 'Σ', rangeLabel + '总请求', fmtNum(total),
-    `${activeDays} 天有记录`, sparkReq))
+    `${activeDays} 天有记录`))
   box.appendChild(kpiCard('green', '✓', '成功', fmtNum(ok),
-    `成功率 ${successRate.toFixed(1)}%`, sparkRate))
+    `成功率 ${successRate.toFixed(1)}%`))
   // ⚠️ 图标用 `×`（U+00D7，拉丁字母区，所有字体都有），**不要**用
   // `✕`（U+2715，杂项符号区）—— 项目实测后者在部分手机字体缺字形、
   // 会渲染成空框（单测明确禁止，见 tests/panel.test.ts 的 RISKY 列表）。
   // 这与本项目其它地方（能力标签）的约定一致。
   box.appendChild(kpiCard(failed > 0 ? 'red' : 'cyan', '×', '失败', fmtNum(failed),
-    failed > 0 ? `占 ${((failed / total) * 100).toFixed(1)}%` : '无失败',
-    dayAsc.map((d) => d.failed)))
+    failed > 0 ? `占 ${((failed / total) * 100).toFixed(1)}%` : '无失败'))
   box.appendChild(kpiCard('purple', '↓', '输入 token', fmtTokensShort(inputTokens),
-    fmtNum(inputTokens) + ' tokens', sparkInput))
+    fmtNum(inputTokens) + ' tokens'))
   box.appendChild(kpiCard('pink', '↑', '输出 token', fmtTokensShort(outputTokens),
-    fmtNum(outputTokens) + ' tokens', sparkOutput))
+    fmtNum(outputTokens) + ' tokens'))
   box.appendChild(kpiCard('orange', '时', '平均耗时', fmtDuration(avgMs),
     fmtNum(total) + ' 次请求的平均'))
-  // ⚠️ 耗时**故意不给 sparkline**：我们只存了「按天的合计耗时」，
-  // 而卡上显示的是**均值** —— 拿合计画趋势会把「请求多的一天」画成
-  // 「很慢的一天」，那是**误导**。宁可不画，也不给一张错图。
-
   // （原先这里有一段「数据边界说明」，按用户要求**删除**。
   //   用户原话：「切换天数下面不要显示说明，能看懂」。
   //   ⚠️ 信息本身没丢：`activeDays` 已作为「总请求」卡的副标题 ——
@@ -1438,7 +1360,6 @@ async function loadDashboard() {
   // ⚠️ 活跃天数按日键去重（与 loadUsage 同一原因：两 realm 的天数会重叠，相加会算两遍）。
   const activeDays = byDayMap.size
   const successRate = total === 0 ? 0 : (ok / total) * 100
-  const byDayAsc = [...byDayMap.values()].sort((a, b) => a.day.localeCompare(b.day))
   const byDayDesc = [...byDayMap.values()].sort((a, b) => b.day.localeCompare(a.day))
   const byHourAsc = [...byHourMap.values()].sort((a, b) => a.hour.localeCompare(b.hour))
   const byModel = mergeDims('byModel', 'model')
@@ -1466,15 +1387,12 @@ async function loadDashboard() {
     box.appendChild(p)
     return
   }
-  const sparkReq = byDayAsc.map((d) => d.count)
-  const sparkRate = byDayAsc.map((d) => (d.count === 0 ? 100 : ((d.count - d.failed) / d.count) * 100))
-  const sparkTok = byDayAsc.map((d) => d.tokens)
   box.appendChild(kpiCard('blue', 'Σ', rangeLabel + '总请求', fmtNum(total),
-    `${activeDays} 天有记录`, sparkReq))
+    `${activeDays} 天有记录`))
   box.appendChild(kpiCard('green', '✓', '成功', fmtNum(ok),
-    `成功率 ${successRate.toFixed(1)}%`, sparkRate))
+    `成功率 ${successRate.toFixed(1)}%`))
   box.appendChild(kpiCard('purple', '↓', rangeLabel + ' Token', fmtTokensShort(inputTokens + outputTokens),
-    `输入 ${fmtNum(inputTokens)} · 输出 ${fmtNum(outputTokens)}`, sparkTok))
+    `输入 ${fmtNum(inputTokens)} · 输出 ${fmtNum(outputTokens)}`))
   box.appendChild(kpiCard('orange', '时', '平均耗时', fmtDuration(avgMs),
     fmtNum(total) + ' 次请求的平均'))
   // ⚠️ 图标用汉字单字（户/钥/型）：符号区字符在部分手机字体会缺字形变空框，
@@ -1486,8 +1404,7 @@ async function loadDashboard() {
   box.appendChild(kpiCard('blue', '型', '模型', fmtNum(modelTotal),
     '可用模型数'))
   box.appendChild(kpiCard(failed > 0 ? 'red' : 'green', '×', '失败', fmtNum(failed),
-    failed > 0 ? `占 ${((failed / total) * 100).toFixed(1)}%` : '无失败',
-    byDayAsc.map((d) => d.failed)))
+    failed > 0 ? `占 ${((failed / total) * 100).toFixed(1)}%` : '无失败'))
 
   renderDashTrend(byDayDesc, byHourAsc, windowDays)
   renderUsageRanking($('dash-models'), byModel, 'model', (r) => r.model)
