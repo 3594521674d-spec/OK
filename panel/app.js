@@ -16,6 +16,45 @@ const API_BASE = 'https://free-ll-gateway-ilghvenboz.cn-hangzhou.fcapp.run';
 
 const $ = (id) => document.getElementById(id)
 
+// ── Framework7（iOS 结构 + 动效 + 交互）──
+// 读过 framework7.io/docs/ 全部核心页（app / sheet-modal / messages /
+// messagebar / tabbar / list / toggle / segmented / preloader / touch）。
+// F7 是 CDN 引进的静态 bundle；CDN 挂了也没事——下面所有调用都先判
+// `typeof Framework7 !== 'undefined'`，面板退回原生的 hidden 开关。
+// 抽屉 / 气泡 / 输入条的实例都存在这几个变量里，相关函数直接用。
+let f7 = null
+let f7SheetModal = null
+let f7SheetInfo = null
+let f7Messages = null
+let f7Messagebar = null
+if (typeof Framework7 !== 'undefined') {
+  try {
+    f7 = new Framework7({
+      el: 'body',
+      theme: 'ios',
+      darkMode: true,
+      colors: { primary: '#d9a441' },
+      iosTranslucentBars: true,
+      iosTranslucentModals: true,
+      touch: { tapHold: true },
+      activeState: true,
+      touchHighlight: true,
+      panel: { swipe: true },
+    })
+    document.documentElement.classList.add('ios', 'dark')
+    // 抽屉：供应商弹窗 + 通用信息弹窗，下滑可关
+    f7SheetModal = f7.sheet.create({ el: '#modal', swipeToClose: true, backdrop: true })
+    f7SheetInfo = f7.sheet.create({ el: '#info-modal', swipeToClose: true, backdrop: true })
+    // 对话：iOS 消息气泡
+    f7Messages = f7.messages.create({ el: '#chat-messages' })
+    // 输入条：自动长高的大圆角输入框
+    f7Messagebar = f7.messagebar.create({ el: '#chat-composer', maxHeight: 120 })
+    // 抽屉关完（包括下滑 / 点遮罩）才真正藏起来，并恢复标签条
+    f7SheetModal.on('closed', () => { $('modal').hidden = true; resetModalTabs() })
+    f7SheetInfo.on('closed', () => { $('info-modal').hidden = true })
+  } catch (e) { f7 = null; f7SheetModal = null; f7SheetInfo = null; f7Messages = null; f7Messagebar = null }
+}
+
 /** 读取已保存的密钥。 */
 function apiKey() {
   return localStorage.getItem('wb_api_key') || ''
@@ -100,6 +139,7 @@ function openInfo(title, nodes) {
     body.appendChild(p)
   } else for (const n of nodes) body.appendChild(n)
   $('info-modal').hidden = false
+  if (f7SheetInfo) f7SheetInfo.open()
 }
 
 /** 把毫秒剩余时长说成人话。 */
@@ -218,10 +258,23 @@ let currentSubView = ''
  * 历史上出现过「视图名不存在 → 加载器是 undefined → 页面空白」，
  * 而空白页面极难归因（用户只会说「坏了」）。宁可显示一个默认视图。
  */
+/**
+ * 视图切换动效（iOS 推入 / 返回 / tab 淡入，弹簧曲线在 CSS 里）。
+ * 动画播完就把类摘掉，下次切换能重新播。
+ */
+function animateView(el, cls) {
+  if (!el || !cls) return
+  el.classList.remove('f7-push-in', 'f7-push-back', 'f7-tab-in')
+  void el.offsetWidth
+  el.classList.add(cls)
+  el.addEventListener('animationend', () => el.classList.remove(cls), { once: true })
+}
 function switchView(name) {
   if (!TOP_VIEWS.includes(name)) {
     name = 'chat'
   }
+  // 从设置子视图返回设置菜单时，用「向右滑回」的推回动效
+  const fromSubView = currentSubView
   currentSubView = ''
   const back = $('settings-back')
   if (back) back.hidden = true
@@ -232,6 +285,7 @@ function switchView(name) {
     sec.hidden = sec.id !== 'view-' + name
   }
   localStorage.setItem('wb_view', name)
+  animateView($('view-' + name), fromSubView && name === 'settings' ? 'f7-push-back' : 'f7-tab-in')
   const loader = VIEW_LOADERS[name]
   if (loader && apiKey() !== '') loader()
 }
@@ -255,6 +309,7 @@ function openSettingsSection(name) {
     sec.hidden = sec.id !== 'view-' + name
   }
   localStorage.setItem('wb_view', 'settings')
+  animateView($('view-' + name), 'f7-push-in')
   const loader = VIEW_LOADERS[name]
   if (loader && apiKey() !== '') loader()
 }
@@ -943,7 +998,7 @@ function renderUsageRanges() {
   for (const r of USAGE_RANGES) {
     const b = document.createElement('button')
     b.type = 'button'
-    b.className = 'seg-item' + (r.key === usageRangeKey ? ' active' : '')
+    b.className = 'button' + (r.key === usageRangeKey ? ' button-active' : '')
     b.textContent = r.label
     b.onclick = () => {
       if (usageRangeKey === r.key) return
@@ -1324,7 +1379,7 @@ function renderDashRanges() {
   for (const r of USAGE_RANGES) {
     const b = document.createElement('button')
     b.type = 'button'
-    b.className = 'seg-item' + (r.key === usageRangeKey ? ' active' : '')
+    b.className = 'button' + (r.key === usageRangeKey ? ' button-active' : '')
     b.textContent = r.label
     b.onclick = () => {
       if (usageRangeKey === r.key) return
@@ -2349,6 +2404,7 @@ async function openProviderModal(providerId) {
   const tabs = document.querySelector('.modal-tabs')
   if (tabs) tabs.style.display = ''
   $('modal').hidden = false
+  if (f7SheetModal) f7SheetModal.open()
   switchModalTab('accounts')
 }
 
@@ -2615,10 +2671,19 @@ async function loadModalModels() {
     const mname = document.createElement('span'); mname.className = 'mname'; mname.textContent = m.name || ''
     row.appendChild(mid); row.appendChild(mname)
 
-    const sw = document.createElement('button')
-    sw.className = 'switch' + (m.disabled ? '' : ' on')
+    // Framework7 Toggle：label + checkbox + toggle-icon（F7 负责金色开启态）
+    const sw = document.createElement('label')
+    sw.className = 'toggle'
     sw.title = m.disabled ? '已关闭，点击打开' : '已打开，点击关闭'
-    sw.onclick = async () => {
+    const swInput = document.createElement('input')
+    swInput.type = 'checkbox'
+    swInput.checked = !m.disabled
+    const swIcon = document.createElement('span')
+    swIcon.className = 'toggle-icon'
+    sw.appendChild(swInput)
+    sw.appendChild(swIcon)
+    sw.onclick = async (ev) => {
+      ev.preventDefault() // 不让复选框自己先翻，状态由接口返回后重渲染决定
       const nextEnabled = m.disabled === true // 当前关闭 → 打开
       const r = await api('/admin/providers/models/toggle', {
         method: 'POST', headers: { 'content-type': 'application/json' },
@@ -3121,18 +3186,26 @@ async function startModalLoginPolling(providerId, out) {
  * 就不会恢复 —— 下次打开供应商弹窗时，用户会看不到「账号/模型/添加账号」
  * 三个标签（而且刷新才恢复，极难归因）。
  */
-function closeModal() {
-  $('modal').hidden = true
-  // 恢复标签条（API Key 编辑时被隐藏）+ 回到「账号」页
+/** 恢复标签条（API Key 编辑时被隐藏）+ 回到「账号」页。 */
+function resetModalTabs() {
   const tabs = document.querySelector('.modal-tabs')
   if (tabs) tabs.style.display = ''
   $('modal-accounts').hidden = false
   $('modal-models').hidden = true
   $('modal-add').hidden = true
 }
+function closeModal() {
+  resetModalTabs()
+  if (f7SheetModal) { f7SheetModal.close(); return }
+  $('modal').hidden = true
+}
+function closeInfo() {
+  if (f7SheetInfo) { f7SheetInfo.close(); return }
+  $('info-modal').hidden = true
+}
 $('modal-close').onclick = closeModal
-$('info-close').onclick = () => { $('info-modal').hidden = true }
-$('info-modal').onclick = (e) => { if (e.target === $('info-modal')) $('info-modal').hidden = true }
+$('info-close').onclick = closeInfo
+$('info-modal').onclick = (e) => { if (e.target === $('info-modal')) closeInfo() }
 $('modal').onclick = (e) => { if (e.target === $('modal')) closeModal() }
 for (const b of document.querySelectorAll('.mtab')) b.onclick = () => switchModalTab(b.dataset.mtab)
 
@@ -3538,6 +3611,7 @@ function openKeyEditor(existing) {
   clear(host)
   host.appendChild(panel)
   $('modal').hidden = false
+  if (f7SheetModal) f7SheetModal.open()
   // ⚠️ 复用主弹窗时要**藏掉三个无关标签页**（它们是供应商维度的），
   // 否则用户会看到「账号/模型/添加账号」而不知道自己在编辑密钥。
   // 关闭时由 `closeModal()` 统一恢复（不能只在这里藏、在关闭按钮里恢复）。
@@ -3858,15 +3932,50 @@ function chatBubble(role, text) {
   return row
 }
 
+/** F7 消息气泡（有 F7 时用它；没 F7 时退回 chatBubble）。返回气泡元素。 */
+function f7AddMessage(role, text, cssClass) {
+  const box = $('chat-messages')
+  if (!box) return null
+  if (f7Messages) {
+    f7Messages.addMessage({ text, type: role === 'user' ? 'sent' : 'received', cssClass: cssClass || '' }, 'append', true)
+    const els = box.querySelectorAll('.message')
+    return els.length ? els[els.length - 1] : null
+  }
+  const row = chatBubble(role, text)
+  if (cssClass) row.classList.add(cssClass)
+  box.appendChild(row)
+  box.scrollTop = box.scrollHeight
+  return row
+}
+
+/** 读输入框内容（F7 Messagebar 接管时走它的 getValue）。 */
+function chatInputValue() {
+  if (f7Messagebar) return f7Messagebar.getValue() || ''
+  const input = $('chat-input')
+  return input ? input.value : ''
+}
+
+/** 清空输入框（F7 Messagebar 接管时走它的 clear，会顺便把框缩回去）。 */
+function chatClearInput() {
+  if (f7Messagebar) { f7Messagebar.clear(); return }
+  const input = $('chat-input')
+  if (input) input.value = ''
+}
+
 /** 按本地记录重画消息列表；空记录时显示空态提示。 */
 function renderChat() {
   const box = $('chat-messages')
   if (!box) return
+  if (f7Messages) f7Messages.clear()
   clear(box)
-  for (const m of chatMessages) box.appendChild(chatBubble(m.role, m.content))
+  for (const m of chatMessages) {
+    if (f7Messages) f7Messages.addMessage({ text: m.content, type: m.role === 'user' ? 'sent' : 'received' }, 'append', false)
+    else box.appendChild(chatBubble(m.role, m.content))
+  }
   const empty = $('chat-empty')
   if (empty) empty.hidden = chatMessages.length !== 0
-  box.scrollTop = box.scrollHeight
+  if (f7Messages) f7Messages.scroll()
+  else box.scrollTop = box.scrollHeight
 }
 
 /** 拉 /v1/models 填模型下拉（只要对话类，过滤掉生图/生视频）。 */
@@ -3977,7 +4086,7 @@ async function sendChat() {
   const sendBtn = $('chat-send')
   const model = chatModel()
   if (!input || !sendBtn) return
-  const text = input.value.trim()
+  const text = chatInputValue().trim()
   if (text === '') return
   if (model === '') {
     alert('模型还没加载出来，稍等一下再发')
@@ -3985,27 +4094,29 @@ async function sendChat() {
   }
   chatMessages.push({ role: 'user', content: text })
   saveChatHistory()
-  input.value = ''
+  chatClearInput()
   renderChat()
 
   // 先占一个助手气泡，流式往里填字。
   const box = $('chat-messages')
   const empty = $('chat-empty')
   if (empty) empty.hidden = true
-  const row = chatBubble('assistant', '思考中…')
-  const bubble = row.firstChild
-  box.appendChild(row)
-  box.scrollTop = box.scrollHeight
+  const msgEl = f7AddMessage('assistant', '思考中…')
+  // F7 气泡里装文字的是 .message-text，兜底气泡里是 .chat-bubble
+  const bubble = msgEl ? (msgEl.querySelector('.message-text') || msgEl.querySelector('.chat-bubble') || msgEl) : null
+  if (f7Messages) f7Messages.scroll()
+  else box.scrollTop = box.scrollHeight
 
   chatStreaming = true
   chatAbort = new AbortController()
-  sendBtn.textContent = '停止'
+  sendBtn.classList.add('streaming')
   input.disabled = true
   try {
     const history = chatMessages.slice(-CHAT_MAX_CONTEXT)
     const full = await chatComplete(model, history, (t) => {
-      bubble.textContent = t
-      box.scrollTop = box.scrollHeight
+      if (bubble) bubble.textContent = t
+      if (f7Messages) f7Messages.scroll()
+      else box.scrollTop = box.scrollHeight
     }, chatAbort.signal)
     if (full === '') throw new Error('模型返回了空内容')
     chatMessages.push({ role: 'assistant', content: full })
@@ -4016,14 +4127,15 @@ async function sendChat() {
     if (e && e.name === 'AbortError') {
       renderChat()
     } else {
-      bubble.textContent = '发送失败：' + (e && e.message ? e.message : '未知错误')
-      bubble.classList.add('chat-err')
-      box.scrollTop = box.scrollHeight
+      if (bubble) bubble.textContent = '发送失败：' + (e && e.message ? e.message : '未知错误')
+      if (msgEl) msgEl.classList.add('chat-err')
+      if (f7Messages) f7Messages.scroll()
+      else box.scrollTop = box.scrollHeight
     }
   } finally {
     chatStreaming = false
     chatAbort = null
-    sendBtn.textContent = '发送'
+    sendBtn.classList.remove('streaming')
     input.disabled = false
     input.focus()
   }
@@ -4070,6 +4182,90 @@ function initChat() {
       try { localStorage.setItem(CHAT_MODEL_KEY, sel.value) } catch { /* 忽略 */ }
     }
   }
+}
+
+/**
+ * iOS 手势（不依赖 Framework7，纯手写）：
+ * · 左滑返回：从左边缘（≤28px）向右拖，子视图跟着手指走，松手过阈值回设置菜单。
+ * · 下拉刷新：页面在最顶上时往下拉，露出 F7 风格的加载圈，松手刷新当前视图。
+ * 抽屉打开、输入框、聊天消息区里不触发（免得跟 F7 的下滑关抽屉 / 滚动打架）。
+ */
+let ptrBound = false
+function initGestures() {
+  if (ptrBound) return
+  ptrBound = true
+  const ptr = $('ptr-indicator')
+  const ptrLabel = $('ptr-label')
+  let startX = 0, startY = 0, active = null, moved = 0
+
+  function inSheet(t) { return !!(t && t.closest && t.closest('.sheet-modal, textarea, input, select, #chat-messages')) }
+  function currentViewEl() {
+    if (currentSubView) return $('view-' + currentSubView)
+    if ($('view-chat') && !$('view-chat').hidden) return $('view-chat')
+    if ($('view-settings') && !$('view-settings').hidden) return $('view-settings')
+    return null
+  }
+
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return
+    const t = e.touches[0]
+    startX = t.clientX; startY = t.clientY; moved = 0
+    if (inSheet(e.target)) { active = null; return }
+    // 左滑返回：只在子视图打开、且从左边缘起手时
+    if (currentSubView && startX <= 28) active = 'back'
+    // 下拉刷新：页面在最顶上、且从内容区起手时
+    else if (window.scrollY === 0) active = 'ptr'
+    else active = null
+  }, { passive: true })
+
+  document.addEventListener('touchmove', (e) => {
+    if (!active) return
+    const t = e.touches[0]
+    const dx = t.clientX - startX
+    const dy = t.clientY - startY
+    if (active === 'back') {
+      if (dx < 0 || Math.abs(dy) > Math.abs(dx)) { active = null; return }
+      moved = dx
+      const el = currentViewEl()
+      if (el) el.style.transform = 'translateX(' + Math.min(dx, 120) + 'px)'
+    } else if (active === 'ptr') {
+      if (dy < 0 || Math.abs(dx) > Math.abs(dy)) { active = null; return }
+      moved = dy
+      if (ptr && moved > 0) {
+        ptr.classList.add('visible')
+        if (ptrLabel) ptrLabel.textContent = moved > 80 ? '松手刷新' : '下拉刷新'
+      }
+    }
+  }, { passive: true })
+
+  document.addEventListener('touchend', () => {
+    if (!active) return
+    if (active === 'back') {
+      const el = currentViewEl()
+      if (el) el.style.transform = ''
+      if (moved > 80) switchView('settings')
+    } else if (active === 'ptr') {
+      if (ptr) ptr.classList.remove('visible')
+      if (moved > 80) refreshCurrentView()
+    }
+    active = null; moved = 0
+  }, { passive: true })
+}
+
+/** 刷新当前视图（下拉刷新用）：跑当前视图的加载器；首页对话则重拉模型。 */
+function refreshCurrentView() {
+  if (currentSubView) {
+    const loader = VIEW_LOADERS[currentSubView]
+    if (loader && apiKey() !== '') loader()
+    return
+  }
+  if ($('view-chat') && !$('view-chat').hidden) {
+    chatModelsLoaded = false
+    void loadChatModels()
+    return
+  }
+  const loader = VIEW_LOADERS['settings']
+  if (loader && apiKey() !== '') loader()
 }
 
 // ─────────────────────────── 初始化 ───────────────────────────
@@ -4298,6 +4494,7 @@ async function bootstrap() {
   const stored = localStorage.getItem('wb_view')
   const mapped = stored === 'dashboard' ? 'chat' : stored
   const initialView = mapped !== null && TOP_VIEWS.includes(mapped) ? mapped : 'chat'
+  initGestures()
   switchView(initialView)
   loadWaf()
   setInterval(loadWaf, 20000)
