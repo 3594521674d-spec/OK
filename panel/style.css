@@ -221,11 +221,14 @@ html.lg-lens .login-card, html.lg-lens .sheet-modal {
 .content {
   max-width: 1080px;
   margin: 0 auto;
-  padding: calc(var(--appbar-h) + 4px) 14px calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px);
+  padding: calc(var(--appbar-h) + 4px) 14px calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px);
 }
 
 main { display: block; }
 main > .view { display: block; }
+/* hidden 属性必须盖过上面那条 display:block，不然所有视图会叠在一起全显示出来
+   （2026-11-16 用户截图：对话输入框和设置列表同时出现，就是这条的锅）。 */
+main > .view[hidden] { display: none; }
 
 /* ── 导航栏（Framework7 .navbar 结构，sticky 在顶上，玻璃底）── */
 header.appbar {
