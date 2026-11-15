@@ -43,7 +43,7 @@
   --cyan: #22d3ee;
   --radius: 20px;
   --appbar-h: 60px;
-  --nav-h: 58px;
+  --nav-h: 50px;
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
@@ -358,18 +358,18 @@ nav#nav .tab-link {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 8px 0 6px;
-  margin: 4px 8px;
+  gap: 1px;
+  padding: 5px 0 4px;
+  margin: 2px 6px;
   border: none;
-  border-radius: 14px;
+  border-radius: 12px;
   background: none;
   color: var(--muted-foreground);
   text-decoration: none;
   cursor: pointer;
   transition: color 0.2s, background 0.2s, transform 0.18s var(--spring);
 }
-nav#nav .tab-link svg { width: 22px; height: 22px; }
+nav#nav .tab-link svg { width: 20px; height: 20px; }
 nav#nav .tab-link .tabbar-label {
   font-size: 10px;
   font-weight: 600;
@@ -658,6 +658,8 @@ input::placeholder, textarea::placeholder { color: rgba(139, 148, 169, 0.7); }
 }
 .banner strong { color: #fca5a5; }
 .banner .ghost { margin-left: auto; }
+/* 横幅里的按钮收小一点，别占满一行（2026-11-16 用户：按钮大了就调小）。 */
+.banner .ghost { padding: 5px 10px; font-size: 12px; border-radius: 9px; }
 
 /* ── 供应商 / 账号卡片 ── */
 .prov-list { display: flex; flex-direction: column; gap: 10px; }
