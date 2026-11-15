@@ -741,3 +741,29 @@ html[data-theme='light'], html:not([data-theme]) {
   .bar-label { width: 52px; }
   .kpi-grid { grid-template-columns: 1fr; }
 }
+
+/* ─────────── 对话（首页） ─────────── */
+.chat-bar { display: flex; gap: 8px; align-items: center; }
+.chat-bar select { flex: 1; min-width: 0; }
+.chat-bar button { flex: none; }
+.chat-messages {
+  display: flex; flex-direction: column; gap: 10px;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  min-height: 220px; max-height: calc(100dvh - 320px);
+  padding: 4px 2px;
+}
+.chat-msg { display: flex; }
+.chat-msg.user { justify-content: flex-end; }
+.chat-msg.assistant { justify-content: flex-start; }
+.chat-bubble {
+  max-width: 85%; padding: 10px 14px; border-radius: 16px;
+  font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word;
+  background: var(--card-2); border: 1px solid var(--border); color: var(--foreground);
+}
+.chat-msg.user .chat-bubble {
+  background: linear-gradient(180deg, #e8bd60, #cf9c31); color: var(--primary-foreground); border-color: transparent;
+}
+.chat-bubble.chat-err { color: var(--destructive); border-color: rgba(248, 113, 113, 0.4); background: var(--err-soft); }
+.chat-composer { display: flex; gap: 8px; align-items: flex-end; }
+.chat-composer textarea { flex: 1; min-width: 0; resize: none; max-height: 120px; font-family: var(--font-sans); font-size: 14px; }
+.chat-composer button { flex: none; }

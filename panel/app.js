@@ -180,7 +180,12 @@ function wrapTable(table) {
 // ─────────────────────────── 视图切换 ───────────────────────────
 
 const VIEW_LOADERS = {
-  // ⚠️ 仪表盘是首页（照观澜 AI 的版式）：统计卡 → 筛选条 → 图表行 → 最近使用 + 快捷操作。
+  // ⚠️ 首页现在是对话（用户要求）：打开就是跟模型聊天的界面。
+  chat: () => initChat(),
+  // ⚠️ 设置是二级入口：只显示设置菜单，不拉数据；点菜单项再进各子视图。
+  settings: () => {},
+  // ⚠️ 仪表盘已退役（首页改成了对话，设置里也没有它）：保留 section 与
+  // 加载器不动，免得删 id 牵连别处；导航与设置菜单都不再指向它。
   // 数据全部复用已有端点（用量 / 账号池 / API Key / 模型目录），不新增后端接口。
   dashboard: () => loadDashboard(),
   // ⚠️ 账号池已**并入**供应商视图（用户要求合并）：账号在各自的供应商弹窗里管理，
@@ -198,17 +203,28 @@ const VIEW_LOADERS = {
   logs: () => loadLogs(),
 }
 
+// 顶层视图只有两个：首页（对话）与设置。其余旧视图是设置里的子视图，
+// 由 openSettingsSection() 打开，不走 switchView。
+const TOP_VIEWS = ['chat', 'settings']
+// 设置里的子视图（顺序与设置菜单一致）。
+const SUB_VIEWS = ['apikeys', 'usage', 'providers', 'tasks', 'models', 'logs', 'config']
+// 当前打开的子视图（'' 表示没有，停在设置菜单）。
+let currentSubView = ''
+
 /**
- * 切换视图。
+ * 切换顶层视图。
  *
- * ⚠️ 名字非法时**回退到 providers**，而不是静默不加载任何东西。
+ * ⚠️ 名字非法时**回退到 chat**，而不是静默不加载任何东西。
  * 历史上出现过「视图名不存在 → 加载器是 undefined → 页面空白」，
  * 而空白页面极难归因（用户只会说「坏了」）。宁可显示一个默认视图。
  */
 function switchView(name) {
-  if (!Object.prototype.hasOwnProperty.call(VIEW_LOADERS, name)) {
-    name = 'providers'
+  if (!TOP_VIEWS.includes(name)) {
+    name = 'chat'
   }
+  currentSubView = ''
+  const back = $('settings-back')
+  if (back) back.hidden = true
   for (const btn of document.querySelectorAll('.nav-item')) {
     btn.classList.toggle('active', btn.dataset.view === name)
   }
@@ -216,6 +232,29 @@ function switchView(name) {
     sec.hidden = sec.id !== 'view-' + name
   }
   localStorage.setItem('wb_view', name)
+  const loader = VIEW_LOADERS[name]
+  if (loader && apiKey() !== '') loader()
+}
+
+/**
+ * 打开设置里的一个子视图（API Key / 用量 / 账号 / 任务 / 模型 / 日志 / 设置）。
+ *
+ * ⚠️ 子视图的 section 与旧代码**原样保留**（id、JS 钩子、API 调用全不动），
+ * 只是不再挂在底部导航上；打开时把设置菜单藏起来、露出对应 section，
+ * 并跑它原来的加载器。底部导航保持「设置」高亮，顶栏出现返回按钮。
+ */
+function openSettingsSection(name) {
+  if (!SUB_VIEWS.includes(name)) return
+  currentSubView = name
+  const back = $('settings-back')
+  if (back) back.hidden = false
+  for (const btn of document.querySelectorAll('.nav-item')) {
+    btn.classList.toggle('active', btn.dataset.view === 'settings')
+  }
+  for (const sec of document.querySelectorAll('section.view')) {
+    sec.hidden = sec.id !== 'view-' + name
+  }
+  localStorage.setItem('wb_view', 'settings')
   const loader = VIEW_LOADERS[name]
   if (loader && apiKey() !== '') loader()
 }
@@ -1305,14 +1344,14 @@ function bindDashActions() {
   if (refresh) refresh.onclick = () => void loadDashboard()
   const createKey = $('qa-create-key')
   if (createKey) createKey.onclick = () => {
-    switchView('apikeys')
+    openSettingsSection('apikeys')
     const b = $('create-apikey')
     if (b) b.click()
   }
   const checkin = $('qa-checkin')
-  if (checkin) checkin.onclick = () => switchView('tasks')
+  if (checkin) checkin.onclick = () => openSettingsSection('tasks')
   const usage = $('qa-usage')
-  if (usage) usage.onclick = () => switchView('usage')
+  if (usage) usage.onclick = () => openSettingsSection('usage')
 }
 
 async function loadDashboard() {
@@ -3753,6 +3792,286 @@ async function loadWaf() {
     (res.body.recentUids || 0) + ' 个不同账号命中 403。'
 }
 
+// ─────────────────────────── 对话（首页） ───────────────────────────
+
+/**
+ * 首页对话：直接调网关的 /v1/chat/completions（OpenAI 兼容）。
+ *
+ * ## 鉴权：用 panel 已存的 key（wb_api_key，主密钥）
+ *
+ * 网关 `authenticate()` 的规矩（见网关源码 server.mjs）：
+ * - Bearer == 环境变量 API_KEY ⇒ kind "admin"，**不限模型白名单、不计子密钥配额**；
+ * - 否则按哈希查子密钥 ⇒ kind "subkey"，受**用量限额、模型白名单、IP 白名单**卡，
+ *   超了就 403/429。
+ * 对话是机主本人在用，不是发给外部调用方 —— 用主密钥最直接，
+ * 且不会被某个子密钥的限额挡住。请求走下面 `chatComplete`，与 `api()` 同一套
+ * Authorization 头，只是要读流式响应所以不用 `api()`（它会先 `res.text()` 读完）。
+ *
+ * ## 流式：stream: true 走 SSE
+ *
+ * 网关 `handleChatCompletions` 支持 `stream: true`（回 text/event-stream），
+ * 也支持 `stream: false`（回 JSON）。这里先走流式逐字回显；若响应不是
+ * event-stream（或流中途断了），回落到一次性的 JSON 解析。
+ */
+const CHAT_HISTORY_KEY = 'wb_chat_history_v1'
+const CHAT_MODEL_KEY = 'wb_chat_model'
+const CHAT_MAX_MESSAGES = 100
+// 一次请求最多带多少条历史（绑住 token 消耗；本地仍存满 100 条）。
+const CHAT_MAX_CONTEXT = 40
+let chatMessages = []
+let chatModels = []
+let chatModelsLoaded = false
+let chatStreaming = false
+let chatAbort = null
+let chatBound = false
+
+/** 读本地对话记录（坏了就丢弃，不让坏 JSON 堵死首页）。 */
+function loadChatHistory() {
+  try {
+    const raw = localStorage.getItem(CHAT_HISTORY_KEY)
+    const arr = raw ? JSON.parse(raw) : []
+    chatMessages = Array.isArray(arr)
+      ? arr.filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+      : []
+  } catch {
+    chatMessages = []
+  }
+}
+
+/** 存本地对话记录（只留最近 100 条）。 */
+function saveChatHistory() {
+  try {
+    localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(chatMessages.slice(-CHAT_MAX_MESSAGES)))
+  } catch {
+    // localStorage 满了也不影响聊天本身。
+  }
+}
+
+/** 建一条消息气泡（⚠️ 只用 textContent，不用 innerHTML）。 */
+function chatBubble(role, text) {
+  const row = document.createElement('div')
+  row.className = 'chat-msg ' + (role === 'user' ? 'user' : 'assistant')
+  const bubble = document.createElement('div')
+  bubble.className = 'chat-bubble'
+  bubble.textContent = text
+  row.appendChild(bubble)
+  return row
+}
+
+/** 按本地记录重画消息列表；空记录时显示空态提示。 */
+function renderChat() {
+  const box = $('chat-messages')
+  if (!box) return
+  clear(box)
+  for (const m of chatMessages) box.appendChild(chatBubble(m.role, m.content))
+  const empty = $('chat-empty')
+  if (empty) empty.hidden = chatMessages.length !== 0
+  box.scrollTop = box.scrollHeight
+}
+
+/** 拉 /v1/models 填模型下拉（只要对话类，过滤掉生图/生视频）。 */
+async function loadChatModels() {
+  const sel = $('chat-model')
+  if (!sel || chatModelsLoaded) return
+  const res = await api('/v1/models')
+  clear(sel)
+  if (!res.ok) {
+    const o = document.createElement('option')
+    o.value = ''
+    o.textContent = '模型加载失败（密钥或网络问题）'
+    sel.appendChild(o)
+    return
+  }
+  const data = (res.body && res.body.data) || []
+  chatModels = data.filter((m) => m && typeof m.id === 'string' && m.kind !== 'image' && m.kind !== 'video')
+  if (chatModels.length === 0) {
+    const o = document.createElement('option')
+    o.value = ''
+    o.textContent = '没有可用对话模型'
+    sel.appendChild(o)
+    return
+  }
+  for (const m of chatModels) {
+    const o = document.createElement('option')
+    o.value = m.id
+    o.textContent = m.name && m.name !== m.id ? m.name + '（' + m.id + '）' : m.id
+    sel.appendChild(o)
+  }
+  // 默认模型：有 deepseek-v4.1-flash 就用它（buddy 主力），否则用列表第一个。
+  const stored = localStorage.getItem(CHAT_MODEL_KEY) || ''
+  const flash = chatModels.find((m) => m.id.indexOf('deepseek-v4.1-flash') !== -1)
+  const def = chatModels.some((m) => m.id === stored)
+    ? stored
+    : (flash ? flash.id : chatModels[0].id)
+  sel.value = def
+  chatModelsLoaded = true
+}
+
+/** 选中的模型 id（没拉到列表时返回空串，发送时再提示）。 */
+function chatModel() {
+  const sel = $('chat-model')
+  return sel ? sel.value : ''
+}
+
+/**
+ * 发一次对话：先走 SSE 流式，逐字更新气泡；不是 event-stream 时回落 JSON。
+ * 失败时抛错（调用方把原因写进气泡里，不吞掉）。
+ */
+async function chatComplete(model, messages, onToken, signal) {
+  const res = await fetch(API_BASE + '/v1/chat/completions', {
+    method: 'POST',
+    headers: { authorization: 'Bearer ' + apiKey(), 'content-type': 'application/json' },
+    body: JSON.stringify({ model, messages, stream: true }),
+    signal,
+  })
+  if (!res.ok) {
+    let msg = 'HTTP ' + res.status
+    try {
+      const j = JSON.parse(await res.text())
+      if (j && j.error && typeof j.error.message === 'string' && j.error.message) msg = j.error.message
+    } catch { /* 非 JSON 错误体就用 HTTP 状态 */ }
+    throw new Error(msg)
+  }
+  const ctype = res.headers.get('content-type') || ''
+  if (ctype.indexOf('text/event-stream') === -1) {
+    // 非流式回落：一次读完 JSON。
+    const data = await res.json()
+    const c = data && data.choices && data.choices[0]
+    const text = c && c.message && typeof c.message.content === 'string' ? c.message.content : ''
+    if (text) onToken(text)
+    return text
+  }
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buf = ''
+  let full = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += decoder.decode(value, { stream: true })
+    let idx
+    while ((idx = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, idx).trim()
+      buf = buf.slice(idx + 1)
+      if (line.indexOf('data:') !== 0) continue
+      const payload = line.slice(5).trim()
+      if (payload === '[DONE]') return full
+      try {
+        const j = JSON.parse(payload)
+        const c = j && j.choices && j.choices[0]
+        const delta = c && c.delta && typeof c.delta.content === 'string' ? c.delta.content : ''
+        if (delta) { full += delta; onToken(full) }
+        // 个别上游在末 chunk 直接给完整 message。
+        const msg = c && c.message && typeof c.message.content === 'string' ? c.message.content : ''
+        if (msg && !full) { full = msg; onToken(full) }
+      } catch { /* 坏帧跳过，不中断整条流 */ }
+    }
+  }
+  return full
+}
+
+/** 发送按钮 / 回车：把输入框内容发出去，流式回显回答。 */
+async function sendChat() {
+  if (chatStreaming) return
+  const input = $('chat-input')
+  const sendBtn = $('chat-send')
+  const model = chatModel()
+  if (!input || !sendBtn) return
+  const text = input.value.trim()
+  if (text === '') return
+  if (model === '') {
+    alert('模型还没加载出来，稍等一下再发')
+    return
+  }
+  chatMessages.push({ role: 'user', content: text })
+  saveChatHistory()
+  input.value = ''
+  renderChat()
+
+  // 先占一个助手气泡，流式往里填字。
+  const box = $('chat-messages')
+  const empty = $('chat-empty')
+  if (empty) empty.hidden = true
+  const row = chatBubble('assistant', '思考中…')
+  const bubble = row.firstChild
+  box.appendChild(row)
+  box.scrollTop = box.scrollHeight
+
+  chatStreaming = true
+  chatAbort = new AbortController()
+  sendBtn.textContent = '停止'
+  input.disabled = true
+  try {
+    const history = chatMessages.slice(-CHAT_MAX_CONTEXT)
+    const full = await chatComplete(model, history, (t) => {
+      bubble.textContent = t
+      box.scrollTop = box.scrollHeight
+    }, chatAbort.signal)
+    if (full === '') throw new Error('模型返回了空内容')
+    chatMessages.push({ role: 'assistant', content: full })
+    saveChatHistory()
+    renderChat()
+  } catch (e) {
+    // ⚠️ 用户点了停止是 AbortError：不算失败，不写红字、不留残句。
+    if (e && e.name === 'AbortError') {
+      renderChat()
+    } else {
+      bubble.textContent = '发送失败：' + (e && e.message ? e.message : '未知错误')
+      bubble.classList.add('chat-err')
+      box.scrollTop = box.scrollHeight
+    }
+  } finally {
+    chatStreaming = false
+    chatAbort = null
+    sendBtn.textContent = '发送'
+    input.disabled = false
+    input.focus()
+  }
+}
+
+/** 首页初始化（只绑一次）：画记录、拉模型、绑输入框与按钮。 */
+function initChat() {
+  loadChatHistory()
+  renderChat()
+  void loadChatModels()
+  if (chatBound) return
+  chatBound = true
+  const input = $('chat-input')
+  const sendBtn = $('chat-send')
+  const newBtn = $('chat-new')
+  const sel = $('chat-model')
+  if (sendBtn) {
+    sendBtn.onclick = () => {
+      // 流式进行中点按钮 = 停止。
+      if (chatStreaming && chatAbort) { chatAbort.abort(); return }
+      void sendChat()
+    }
+  }
+  if (input) {
+    input.addEventListener('keydown', (ev) => {
+      // 回车发送，Shift+回车换行。
+      if (ev.key === 'Enter' && !ev.shiftKey) {
+        ev.preventDefault()
+        void sendChat()
+      }
+    })
+  }
+  if (newBtn) {
+    newBtn.onclick = () => {
+      if (chatMessages.length === 0) return
+      if (!confirm('清空当前对话记录？')) return
+      chatMessages = []
+      saveChatHistory()
+      renderChat()
+    }
+  }
+  if (sel) {
+    sel.onchange = () => {
+      try { localStorage.setItem(CHAT_MODEL_KEY, sel.value) } catch { /* 忽略 */ }
+    }
+  }
+}
+
 // ─────────────────────────── 初始化 ───────────────────────────
 
 // ─────────────────────────── 主题（深色 / 浅色） ───────────────────────────
@@ -3883,6 +4202,13 @@ $('clear-waf').onclick = async () => {
   alert(r.ok ? '已解除' : '解除失败：' + JSON.stringify(r.body))
   loadWaf()
 }
+// 顶栏返回按钮：只在设置子视图里出现，点回设置菜单。
+const settingsBack = $('settings-back')
+if (settingsBack) settingsBack.onclick = () => switchView('settings')
+// 设置菜单：点一行进一个子视图。
+for (const row of document.querySelectorAll('.settings-row')) {
+  row.onclick = () => openSettingsSection(row.dataset.section)
+}
 for (const btn of document.querySelectorAll('.nav-item')) {
   btn.onclick = () => switchView(btn.dataset.view)
 }
@@ -3967,9 +4293,11 @@ async function bootstrap() {
   //
   // 修法：把存下来的值与**真实导航项**比对，不合法就丢弃并回到 `providers`。
   // 顺带清掉这个陈旧键，避免它一直阴魂不散。
-  const VIEWS = Object.keys(VIEW_LOADERS)
+  // ⚠️ 旧版存的 'dashboard' 已不再是首页：首页现在是对话。
+  // 子视图也不直接做初始视图（刷新后回到设置菜单即可）。
   const stored = localStorage.getItem('wb_view')
-  const initialView = stored !== null && VIEWS.includes(stored) ? stored : 'dashboard'
+  const mapped = stored === 'dashboard' ? 'chat' : stored
+  const initialView = mapped !== null && TOP_VIEWS.includes(mapped) ? mapped : 'chat'
   switchView(initialView)
   loadWaf()
   setInterval(loadWaf, 20000)
