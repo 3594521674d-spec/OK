@@ -4548,6 +4548,40 @@ async function kbBuildSystemMessage(question) {
   return '以下是从你的知识库检索到的资料，请只根据这些资料回答，资料里没有答案就直接说不知道，不要编造；回答时在相关句子后标注来源编号，如 [1]：\n\n' + blocks.join('\n\n')
 }
 
+
+/* ── 技能全文直读 ──
+ * 检索只捞 4 块、总共 6000 字，技能全文（老布 3.1 万字、短篇 2.7 万字）根本塞不下；
+ * 问“按技能出内容”时模型只看到碎片，规则会漏。
+ * 用户问编导/漫剧/老布/短篇这些要出内容的事时，把对应技能的核心文档全文拼进对话，
+ * 并告诉模型先按全文出。只认一个技能，不叠加；超过上限就截断。 */
+const KB_SKILL_FULL_MAX_CHARS = 40000
+const SKILL_FULL_READ = [
+  { keys: ['老布', '以物喻人'], titles: ['编导技能·老布·以物喻人'], label: '老布褶也技能' },
+  { keys: ['编导', '漫剧', '分镜', '剧本', '短剧'], titles: ['编导技能·总则', '编导技能·漫剧·总控'], label: '编导技能（漫剧）' },
+  { keys: ['短篇', '小说', '写故事'], titles: ['短篇小说·锻造炉'], label: '短篇小说技能' },
+  { keys: ['梗库'], titles: ['梗库·总则'], label: '梗库' },
+]
+function kbBuildSkillSystemMessage(question) {
+  const q = String(question || '')
+  if (!q) return ''
+  const hit = SKILL_FULL_READ.find((s) => s.keys.some((k) => q.includes(k)))
+  if (!hit) return ''
+  const docs = kbLoadDocs()
+  let total = 0
+  const blocks = []
+  for (const title of hit.titles) {
+    const d = docs.find((x) => x.title === title)
+    if (!d || !d.text) continue
+    let t = d.text
+    if (total + t.length > KB_SKILL_FULL_MAX_CHARS) t = t.slice(0, Math.max(0, KB_SKILL_FULL_MAX_CHARS - total))
+    if (!t) break
+    total += t.length
+    blocks.push('《' + title + '》全文：\n' + t)
+  }
+  if (!blocks.length) return ''
+  return '以下是《' + hit.label + '》的全文（不是检索片段）。用户这次是让你按这个技能出内容：先通读全文再动手，技能里的规则、步骤、格式、禁忌都要照着做，不要只凭印象或检索片段发挥；技能里没有的，再用下面检索到的资料补；不要编造技能里没有的规则。\n\n' + blocks.join('\n\n')
+}
+
 /* ── 文件抽文本：txt/md 直接读；文本型 PDF 用 pdf.js；DOCX 用 mammoth ── */
 let kbPdfjsPromise = null
 function kbLoadPdfjs() {
@@ -4721,6 +4755,7 @@ window.__kb = {
   chunks: kbChunksGetAll,
   retrieve: kbRetrieve,
   buildSystemMessage: kbBuildSystemMessage,
+  buildSkillSystemMessage: kbBuildSkillSystemMessage,
   indexAll: kbIndexAll,
   ensureModel: kbEnsureModel,
   modelState: () => ({ state: kbModelState, progress: kbModelProgress, error: kbModelError }),
@@ -5924,7 +5959,9 @@ async function sendChat() {
     const history = chatRequestMessages(chatMessages.slice(-CHAT_MAX_CONTEXT))
     setChatStatus('kb')
     const kbSys = await kbBuildSystemMessage(chatContentText(userContent))
-    let reqMessages = kbSys ? [{ role: 'system', content: kbSys }, ...history] : history
+    // 问技能出内容时先把技能全文拼进去（检索只捞 6000 字碎片，规则会漏）。
+    const skillSys = kbBuildSkillSystemMessage(chatContentText(userContent))
+    let reqMessages = [...(skillSys ? [{ role: 'system', content: skillSys }] : []), ...(kbSys ? [{ role: 'system', content: kbSys }] : []), ...history]
     if (isBuddyModel(model)) reqMessages = [{ role: 'system', content: PANEL_ACTION_CONTRACT }, ...reqMessages]
     // 动作循环：模型可能在回复里夹一个 ```action 动作块；执行完把结果
     // 喂回去让它继续说，最多 3 轮，免得来回打转。
