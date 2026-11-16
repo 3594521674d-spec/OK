@@ -4213,6 +4213,28 @@ async function kbDeleteDoc(id) {
   kbRenderStatus()
 }
 
+/* ── 足球预测日报（每天更新进知识库）── */
+const FOOTBALL_KB_TITLE = '足球预测（每天更新）'
+const FOOTBALL_KB_URL = 'data/football-predictions.md'
+let footballKbSyncing = false
+async function footballKbSync() {
+  if (footballKbSyncing) return
+  footballKbSyncing = true
+  try {
+    const res = await fetch(FOOTBALL_KB_URL, { cache: 'no-cache' })
+    if (!res.ok) return
+    const text = (await res.text()).replace(/\r\n/g, '\n').trim()
+    if (!text) return
+    const docs = kbLoadDocs()
+    const old = docs.find((d) => d.title === FOOTBALL_KB_TITLE)
+    if (old && old.text === text) return // 内容没变就不动
+    if (docs.length >= KB_MAX_DOCS && !old) return // 库满了就静默跳过
+    if (old) await kbDeleteDoc(old.id)
+    kbAddDoc(FOOTBALL_KB_TITLE, text, 'football-daily')
+  } catch { /* 没网 / 文件没拿到就静默跳过，别弹错 */ }
+  finally { footballKbSyncing = false }
+}
+
 /* ── 建索引：切块 → 加载模型 → 分批嵌向量 ── */
 let kbIndexing = false
 let kbIndexProgress = ''
@@ -4454,6 +4476,7 @@ async function kbRenderStatus() {
   if (stEl) stEl.textContent = kbStatusText
 }
 function initKB() {
+  void footballKbSync()
   kbRenderDocs()
   void kbRenderStatus()
   if (kbBound) return
@@ -4941,78 +4964,40 @@ function switchToKimi() {
   return true
 }
 
-/* ── 语音输入：Web Speech API（零后端）──────────────────────────
- * 点麦克风说话，识别出的文字填进输入框，不直接发送，等用户确认后再发。
- * 麦克风按钮永远显示（用户要求：标识不变、一直在那儿）。
- * 网页语音识别在 iOS 主屏幕模式下可能不可用——不可用时点按钮就聚焦输入框，
- * 并提示用 iOS 键盘自带的话筒听写（一样是说话转文字，键盘话筒在任何模式下都能用）。 */
-let speechRec = null
-let speechListening = false
-// 语音会话号：每次开始/停止/发送都 +1。Web Speech 在 stop() 之后还会
-// 补发一次最终 onresult——没有这道闸，那句旧话会在输入框清空之后又
-// 写回来（2026-11-16 11:02 用户报的 bug：第二次点麦克风，输入框里
-// 直接出现上一句语音转出来的文字）。onresult/onerror 先对号，对不上就扔掉。
-let speechSession = 0
-// 旧会话正在收尾：stop()/abort() 之后 iOS 不会立刻放开麦克风，旧会话的
-// onend 还没到就建新会话，新会话常常只亮麦克风图标、收不到任何声音
-// （2026-11-16 11:54 用户在车里报的 bug：第二下麦克风显示开着，
-// 说了好几句都不转换）。收尾期间麦克风按钮显示“忙”，点的那下不做事，
-// 等用户再点一次（那次是真手势）才起新会话——iOS 上 recognition.start()
-// 必须在点按手势里调，从 onend/定时器里自动起常常被拒或建出聋会话
-// （2026-11-16 12:33 用户第三次报：第二下死活出不了字，只能大退后台重进）。
-let speechStopping = false
-let speechStoppingTimer = null
-// 看门狗：开始后 8 秒还没收到任何声音/结果，说明这次识别卡死了，
-// 自动停掉重置，别让麦克风一直亮着却什么都不转。
-let speechWatchdog = null
-function speechClearWatchdog() {
-  if (speechWatchdog) { clearTimeout(speechWatchdog); speechWatchdog = null }
+/* ── 语音输入：MediaRecorder 录音 → 网关 /v1/stt 转文字 ──────────
+ * 旧的网页语音识别（Web Speech API）在 iOS 27 上已坏（第二下常变聋；
+ * v21 加的音频会话切换（切到 play-and-record）在 iOS 27.2 上也被证实
+ * 会让每次听写都哑——两样都已删掉，不要再加回来）。
+ * 新流程：点麦克风开始录音 → 再点一次停止（或 60 秒自动停）→
+ * 本地解码重采样成 16kHz 单声道 WAV → POST 网关 /v1/stt → 文字
+ * 追加进输入框，绝不自动发送，等用户确认后再发。
+ * 麦克风按钮永远显示（用户要求：标识不变、一直在那儿）。 */
+let speechRecorder = null // MediaRecorder
+let speechStream = null // getUserMedia 得到的 MediaStream
+let speechChunks = [] // 录到的音频块
+let speechRecording = false // 正在录音
+let speechTranscribing = false // 正在等网关转文字
+let speechStopTimer = null // 60 秒自动停
+const SPEECH_MAX_SECONDS = 60
+
+function speechClearStopTimer() {
+  if (speechStopTimer) { clearTimeout(speechStopTimer); speechStopTimer = null }
 }
-function speechReleaseStopping() {
-  if (!speechStopping) return
-  speechStopping = false
-  if (speechStoppingTimer) { clearTimeout(speechStoppingTimer); speechStoppingTimer = null }
-  setMicState(false)
-  // 注意：这里不再自动起新会话（2026-11-16 12:33 第三次报修的教训）。
-  // 之前排队自动起的那版，从 onend/定时器回调里调 toggleSpeech()——不在
-  // 用户手势里，iOS 常常直接拒掉 start()，或建出一个只亮图标不收音的
-  // 聋会话，之后再怎么点都起不来，只能大退后台。收尾期间点的那下直接
-  // 丢掉，等用户下一次点按（真手势）再起，稳得多。
-}
-/** 停掉语音识别，并让它之后再到的结果全部作废。 */
-function speechStop() {
-  speechSession++
-  speechClearWatchdog()
-  const old = speechRec
-  speechRec = null
-  // 先挂好收尾回调再撕会话：有的实现会在 abort()/stop() 里同步触发 onend，
-  // 后挂就永远等不到它，收尾锁只能靠超时放开。
-  if (old) {
-    const prevOnEnd = old.onend
-    old.onend = (ev) => { try { prevOnEnd && prevOnEnd(ev) } catch { /* 忽略 */ } speechReleaseStopping() }
+/** 录完就关麦克风轨道：不关的话 iOS 上麦克风指示一直亮着。 */
+function speechReleaseStream() {
+  if (speechStream) {
+    try { speechStream.getTracks().forEach((t) => t.stop()) } catch { /* 忽略 */ }
+    speechStream = null
   }
-  // abort() 比 stop() 更彻底：直接丢弃还没出的最终结果——11:02 旧句复活的
-  // 根就是 stop() 之后补发的那次最终结果；iOS 上 abort 也更容易真正放开
-  // 麦克风，不给新会话留一个半死不活的旧会话抢麦。
-  try { old && (typeof old.abort === 'function' ? old.abort() : old.stop()) } catch { /* 忽略 */ }
-  speechStopping = true
-  if (speechStoppingTimer) clearTimeout(speechStoppingTimer)
-  setMicState(false)
-  // 旧会话收尾完成（onend）或 3 秒超时，都算放开。3 秒是给 iOS 放开麦克风
-  // 留的余量：之前 1.5 秒在真机上偏短，放开之前建新会话，新会话常常只亮
-  // 图标不收音。收尾期间按钮显示“忙”，点的那下丢掉，等下一次点按再起。
-  speechStoppingTimer = setTimeout(speechReleaseStopping, 3000)
 }
-function speechSupported() {
-  return 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window
-}
-function setMicState(listening) {
-  speechListening = listening
+function setMicState(recording) {
+  speechRecording = recording
   const btn = $('chat-mic')
   if (btn) {
-    btn.classList.toggle('listening', listening)
-    btn.classList.toggle('busy', !listening && speechStopping)
-    btn.title = listening ? '正在听…再点一次停止' : (speechStopping ? '正在收尾，稍等再点' : '语音输入：点一下说话，文字进输入框（说完再点一下停止）')
+    btn.classList.toggle('listening', recording)
+    btn.classList.toggle('busy', !recording && speechTranscribing)
+    btn.title = recording ? '正在录音…再点一次停止'
+      : (speechTranscribing ? '正在转文字…' : '语音输入：点一下说话，文字进输入框（说完再点一下停止）')
   }
 }
 function focusChatInput() {
@@ -5023,87 +5008,175 @@ function focusChatInput() {
   if (typeof input.setFocus === 'function') input.setFocus()
   else input.focus()
 }
-function toggleSpeech() {
-  if (speechListening) {
-    speechStop()
-    return
+/** 把输入框内容设成新值（F7 Messagebar 接管时走它自己的 setValue）。 */
+function chatInputSetValue(val) {
+  if (f7Messagebar && typeof f7Messagebar.setValue === 'function') { f7Messagebar.setValue(val); return }
+  const input = $('chat-input')
+  if (input) {
+    input.value = val
+    try { input.dispatchEvent(new Event('input', { bubbles: true })) } catch { /* 忽略 */ }
   }
-  // 旧会话还没收尾：这一下直接丢掉，不排队、不自动起。按钮正显示“收尾中”，
-  // 等用户再点一次（那次是真手势）才起新会话——自动起的那版在真机上建出
-  // 过聋会话，之后再怎么点都起不来，只能大退后台。
-  if (speechStopping) {
-    return
+}
+/** AudioBuffer → 16kHz 单声道 → WAV（44 字节头 + PCM16）原始字节。 */
+function speechEncodeWav16k(buffer) {
+  const inRate = buffer.sampleRate
+  const outRate = 16000
+  const ch0 = buffer.getChannelData(0)
+  const ch1 = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : null
+  const outLen = Math.max(1, Math.floor(buffer.length * outRate / inRate))
+  const pcm = new Int16Array(outLen)
+  for (let i = 0; i < outLen; i++) {
+    const pos = i * inRate / outRate
+    const idx = Math.floor(pos)
+    const frac = pos - idx
+    const a0 = ch0[Math.min(idx, ch0.length - 1)]
+    const a1 = ch0[Math.min(idx + 1, ch0.length - 1)]
+    let sample = a0 + (a1 - a0) * frac
+    if (ch1) {
+      const b0 = ch1[Math.min(idx, ch1.length - 1)]
+      const b1 = ch1[Math.min(idx + 1, ch1.length - 1)]
+      sample = (sample + (b0 + (b1 - b0) * frac)) / 2
+    }
+    const s = Math.max(-1, Math.min(1, sample))
+    pcm[i] = s < 0 ? s * 0x8000 : s * 0x7FFF
   }
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-  if (!SR) {
-    // 网页语音识别不可用：不藏按钮，先提示，再聚焦输入框（alert 关掉后
-    // 仍在点按手势里，iOS 上聚焦能弹出键盘，键盘上有话筒就能听写）。
-    alert('这边用不了网页语音识别。点一下输入框，弹出键盘后点键盘上的话筒，说话就能转成文字，不用打字')
+  const dataBytes = pcm.length * 2
+  const out = new ArrayBuffer(44 + dataBytes)
+  const view = new DataView(out)
+  const writeStr = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)) }
+  writeStr(0, 'RIFF')
+  view.setUint32(4, 36 + dataBytes, true)
+  writeStr(8, 'WAVE')
+  writeStr(12, 'fmt ')
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true) // PCM
+  view.setUint16(22, 1, true) // 单声道
+  view.setUint32(24, outRate, true)
+  view.setUint32(28, outRate * 2, true)
+  view.setUint16(32, 2, true)
+  view.setUint16(34, 16, true)
+  writeStr(36, 'data')
+  view.setUint32(40, dataBytes, true)
+  const bytes = new Uint8Array(out, 44)
+  for (let i = 0; i < pcm.length; i++) {
+    bytes[i * 2] = pcm[i] & 0xff
+    bytes[i * 2 + 1] = (pcm[i] >> 8) & 0xff
+  }
+  return new Blob([out], { type: 'audio/wav' })
+}
+/** 录到的 blob → 解码 → 16kHz 单声道 WAV。解不开就当录音失败。 */
+async function speechToWav16k(blob) {
+  const AC = window.AudioContext || window.webkitAudioContext
+  if (!AC) throw new Error('no-audiocontext')
+  const ctx = new AC()
+  try {
+    if (typeof ctx.resume === 'function') { try { await ctx.resume() } catch { /* 忽略 */ } }
+    const buf = await ctx.decodeAudioData(await blob.arrayBuffer())
+    return speechEncodeWav16k(buf)
+  } finally {
+    try { await ctx.close() } catch { /* 忽略 */ }
+  }
+}
+/** WAV 原始字节 → 网关 /v1/stt，200 回 {"text": "..."}。 */
+async function speechStt(wavBlob) {
+  // api() 只拼 Authorization，不强制 JSON Content-Type（见 api 定义），
+  // 所以直接用它发音频字节，和 /v1/extract 同款鉴权。
+  const res = await api('/v1/stt', {
+    method: 'POST',
+    headers: { 'content-type': 'audio/wav' },
+    body: wavBlob,
+  })
+  if (!res.ok) throw new Error('stt-failed')
+  const body = res.body
+  if (body && typeof body === 'object') return body.text || ''
+  if (typeof body === 'string') return body
+  return ''
+}
+/** 停掉录音，随后转文字、填进输入框（不自动发送）。 */
+async function speechStopAndTranscribe() {
+  if (!speechRecorder) return
+  const rec = speechRecorder
+  speechRecorder = null
+  speechClearStopTimer()
+  setMicState(false)
+  speechTranscribing = true
+  setMicState(false) // 刷新 busy 态（按钮变暗，显示“正在转文字…”）
+  const chunks = speechChunks
+  speechChunks = []
+  try {
+    const blob = await new Promise((resolve, reject) => {
+      rec.onstop = () => resolve(new Blob(chunks, { type: rec.mimeType || '' }))
+      rec.onerror = () => reject(new Error('recorder-error'))
+      try { rec.stop() } catch (e) { reject(e) }
+    })
+    speechReleaseStream()
+    const wav = await speechToWav16k(blob)
+    const text = await speechStt(wav)
+    speechTranscribing = false
+    setMicState(false)
+    const clean = (text || '').trim()
+    if (!clean) { alert('没听到声音，再说一次'); focusChatInput(); return }
+    const base = chatInputValue()
+    chatInputSetValue(base ? base + ' ' + clean : clean)
+    focusChatInput()
+  } catch (e) {
+    speechTranscribing = false
+    setMicState(false)
+    speechReleaseStream()
+    const msg = e && e.message ? e.message : ''
+    if (msg === 'stt-failed') alert('转文字失败，请检查网络后重试；也可以直接用 iOS 键盘听写')
+    else alert('录音失败，请重试；也可以直接用 iOS 键盘听写')
+    focusChatInput()
+  }
+}
+async function toggleSpeech() {
+  if (speechTranscribing) return // 转文字期间点的那下丢掉，别重复发
+  if (speechRecording) { void speechStopAndTranscribe(); return }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
+    alert('这边用不了录音转文字。点一下输入框，弹出键盘后点键盘上的话筒，说话就能转成文字，不用打字')
     focusChatInput()
     return
   }
-  const base = chatInputValue()
-  const session = ++speechSession
-  const rec = new SR()
-  speechRec = rec
-  rec.lang = 'zh-CN'
-  rec.interimResults = true
-  rec.continuous = true
-  rec.onresult = (ev) => {
-    // 旧会话的迟到结果（stop() 之后补发的那一次）：直接扔掉，别写回输入框。
-    if (session !== speechSession) return
-    speechClearWatchdog()
-    let finalText = '', interim = ''
-    for (let i = 0; i < ev.results.length; i++) {
-      const r = ev.results[i]
-      if (r.isFinal) finalText += r[0].transcript
-      else interim += r[0].transcript
-    }
-    const val = (base ? base + ' ' : '') + finalText + interim
-    const input = $('chat-input')
-    if (input) input.value = val
-  }
-  // 收到任何音频信号都说明这次识别活着，看门狗可以撤了。
-  rec.onaudiostart = () => { if (session === speechSession) speechClearWatchdog() }
-  rec.onsoundstart = () => { if (session === speechSession) speechClearWatchdog() }
-  rec.onspeechstart = () => { if (session === speechSession) speechClearWatchdog() }
-  rec.onerror = (ev) => {
-    // 旧会话的迟到错误：别动新会话的状态（之前没这道闸，旧会话的
-    // aborted 错误会在新会话开始后把麦克风状态关掉，越用越乱）。
-    if (session !== speechSession) return
-    speechClearWatchdog()
-    const err = ev && ev.error
-    if (err === 'not-allowed' || err === 'service-not-allowed') { alert('麦克风权限被拒绝：请在系统设置里允许 Safari 使用麦克风，或直接用 iOS 键盘听写'); focusChatInput() }
-    else if (err === 'no-speech') alert('没听到声音，再试一次')
-    else if (err === 'network') { alert('语音识别需要联网，请检查网络；也可以直接用 iOS 键盘听写'); focusChatInput() }
-    else if (err === 'audio-capture') { alert('麦克风没拿到（audio-capture）：主屏幕图标里不稳，点聊天里的链接用 Safari 打开再试；或直接用 iOS 键盘听写'); focusChatInput() }
-    else if (err !== 'aborted') { alert('语音输入失败（' + err + '），可用 iOS 键盘听写代替'); focusChatInput() }
-    setMicState(false)
-  }
-  rec.onend = () => { if (session === speechSession) { setMicState(false); speechClearWatchdog() } }
+  let stream
   try {
-    // iOS：上一次播过声音（朗读/媒体）会把音频会话留在 playback 类型，
-    // 再开麦克风会被系统直接掐掉报 audio-capture。先把会话切回
-    // play-and-record（Safari 16.4+ 的 navigator.audioSession，MDN
-    // 例子就是这么用的），再起识别。主屏幕 PWA 里识别本身就不稳
-    // （Apple 论坛 748048：权限批不进 standalone，得用 Safari），
-    // 这行只能修会话被占住的那种 audio-capture，修不了 PWA 权限问题。
-    try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record' } catch { /* 忽略 */ }
-    // ⚠️ 必须同步调 start()（点按手势里），iOS 上 await 之后调会被拒。
-    rec.start()
-    setMicState(true)
-    // 8 秒还没收到任何声音/结果：这次识别卡死了，自动重置。
-    speechClearWatchdog()
-    speechWatchdog = setTimeout(() => {
-      if (session !== speechSession) return
-      speechStop()
-      alert('语音识别没反应，已重置：点麦克风再说一次；不行就用 iOS 键盘上的话筒听写')
-    }, 8000)
-  } catch {
-    speechRec = null
-    alert('语音识别启动失败，可用 iOS 键盘听写代替')
-    setMicState(false)
+    // ⚠️ 必须同步在点按手势里调；iOS 上 await 之后调会被拒。
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+  } catch (e) {
+    const name = e && e.name
+    if (name === 'NotAllowedError' || name === 'SecurityError') alert('麦克风权限被拒绝：请在系统设置里允许 Safari 使用麦克风，或直接用 iOS 键盘听写')
+    else alert('麦克风没拿到，请重试；也可以直接用 iOS 键盘听写')
+    focusChatInput()
+    return
   }
+  let mimeType = ''
+  try {
+    if (typeof MediaRecorder.isTypeSupported === 'function' && MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4'
+  } catch { /* 忽略，用默认 */ }
+  speechStream = stream
+  speechChunks = []
+  let rec
+  try {
+    rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
+  } catch {
+    speechReleaseStream()
+    alert('录音启动失败，请重试；也可以直接用 iOS 键盘听写')
+    focusChatInput()
+    return
+  }
+  speechRecorder = rec
+  rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) speechChunks.push(ev.data) }
+  try {
+    rec.start(250)
+  } catch {
+    speechRecorder = null
+    speechReleaseStream()
+    alert('录音启动失败，请重试；也可以直接用 iOS 键盘听写')
+    focusChatInput()
+    return
+  }
+  setMicState(true)
+  speechClearStopTimer()
+  speechStopTimer = setTimeout(() => { if (speechRecording) void speechStopAndTranscribe() }, SPEECH_MAX_SECONDS * 1000)
 }
 
 /** 建一条消息气泡（⚠️ 只用 textContent，不用 innerHTML）。
@@ -5531,9 +5604,8 @@ async function sendChat() {
     return
   }
   ttsStop()
-  // 发之前先停语音识别：停掉时识别可能还会补发一次最终结果，不先作废
-  // 它，那句旧话会在清空之后又写回输入框（2026-11-16 11:02 用户报的 bug）。
-  if (speechListening) speechStop()
+  // 发之前先停录音：转出来的文字之后再填进输入框，不会跟着这条发出去。
+  if (speechRecording) void speechStopAndTranscribe()
   // 附件拼成 OpenAI 多模态数组；纯文字保持字符串。
   // 存知识库的附件：发之前先入库，气泡里留一句“已存入知识库：xxx”。
   const parts = []
@@ -5636,6 +5708,7 @@ async function sendChat() {
 
 /** 首页初始化（只绑一次）：画记录、拉模型、绑输入框与按钮。 */
 function initChat() {
+  void footballKbSync()
   loadChatHistory()
   renderChat()
   void loadChatModels()
