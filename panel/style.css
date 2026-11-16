@@ -924,7 +924,7 @@ html.lg-lens .sheet-modal {
 .chat-msg.user { align-items: flex-end; }
 /* 气泡下面的复制按钮（AI 和用户都有）：小、淡，点一下复制这条原文，
    成功后短暂变金色 ✓。手机上没有 hover，所以默认就可见。 */
-.msg-copy {
+.msg-copy, .msg-read {
   background: none;
   border: none;
   padding: 3px 4px;
@@ -938,9 +938,9 @@ html.lg-lens .sheet-modal {
   border-radius: 6px;
   -webkit-tap-highlight-color: transparent;
 }
-.msg-copy:hover, .msg-copy:active { opacity: 1; color: var(--text); }
-.msg-copy.copied { opacity: 1; color: var(--gold); }
-.msg-copy svg { display: block; }
+.msg-copy:hover, .msg-copy:active, .msg-read:hover, .msg-read:active { opacity: 1; color: var(--text); }
+.msg-copy.copied, .msg-read.speaking { opacity: 1; color: var(--gold); }
+.msg-copy svg, .msg-read svg { display: block; }
 .chat-msg .chat-bubble {
   max-width: 82%;
   padding: 9px 13px;
@@ -976,8 +976,9 @@ html.lg-lens .sheet-modal {
   bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px);
   z-index: 5;
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   padding: 8px 10px;
   width: calc(100% - 28px);
   max-width: 1052px;
@@ -989,6 +990,84 @@ html.lg-lens .sheet-modal {
   border-radius: 20px;
   overflow: hidden;
 }
+/* 输入行：+ 按钮 / 输入框 / 麦克风 / 发送键 */
+#chat-composer .composer-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+/* 输入行两侧的圆形小按钮（+ 上传 / 麦克风）：金色图标，轻量不抢发送键 */
+#chat-composer .composer-btn {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  margin: 0 0 2px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--gold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#chat-composer .composer-btn[hidden] { display: none; }
+#chat-composer .composer-btn:active { transform: scale(0.92); }
+#chat-composer .composer-btn.listening {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.6);
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+@keyframes mic-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+/* 图片附件预览（输入框上方）：缩略图 + 文件名 + × 删除 */
+#chat-composer .img-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#chat-composer .img-preview[hidden] { display: none; }
+#chat-composer .img-preview img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  flex: none;
+}
+#chat-composer .img-preview-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#chat-composer .img-preview-remove {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 气泡里的图片（用户发图的消息）：缩略图，跟在文字下面 */
+.chat-msg .chat-bubble img.chat-img {
+  display: block;
+  max-width: 100%;
+  border-radius: 12px;
+  margin-top: 6px;
+}
+/* 气泡下面的操作行：复制 + 朗读并排 */
+.msg-actions { display: flex; gap: 2px; }
 html.lg-lens #chat-composer.composer {
   backdrop-filter: url(#lg-lens) blur(4px) saturate(1.55) brightness(1.06);
   -webkit-backdrop-filter: url(#lg-lens) blur(4px) saturate(1.55) brightness(1.06);

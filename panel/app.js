@@ -3899,23 +3899,31 @@ let chatStreaming = false
 let chatAbort = null
 let chatBound = false
 
-/** 读本地对话记录（坏了就丢弃，不让坏 JSON 堵死首页）。 */
+/** 读本地对话记录（坏了就丢弃，不让坏 JSON 堵死首页）。
+ *  content 可能是字符串，也可能是多模态数组（带图的消息在内存里是数组；
+ *  存盘时只留文字，见 saveChatHistory）。读到数组只取文字部分。 */
 function loadChatHistory() {
   try {
     const raw = localStorage.getItem(CHAT_HISTORY_KEY)
     const arr = raw ? JSON.parse(raw) : []
     chatMessages = Array.isArray(arr)
-      ? arr.filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+      ? arr.filter((m) => m && (m.role === 'user' || m.role === 'assistant') && (typeof m.content === 'string' || Array.isArray(m.content)))
+        .map((m) => (typeof m.content === 'string' ? m : { role: m.role, content: chatContentText(m.content) }))
       : []
   } catch {
     chatMessages = []
   }
 }
 
-/** 存本地对话记录（只留最近 100 条）。 */
+/** 存本地对话记录（只留最近 100 条）。
+ *  ⚠️ 图片 base64 不进 localStorage（5MB 放不下）：数组 content 存盘时
+ *  只留文字部分，原图数据发完就丢（内存里的那份也只活到本次会话）。 */
 function saveChatHistory() {
   try {
-    localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(chatMessages.slice(-CHAT_MAX_MESSAGES)))
+    const clean = chatMessages.slice(-CHAT_MAX_MESSAGES).map((m) => (
+      typeof m.content === 'string' ? m : { role: m.role, content: chatContentText(m.content) }
+    ))
+    localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(clean))
   } catch {
     // localStorage 满了也不影响聊天本身。
   }
@@ -3945,18 +3953,270 @@ async function copyTextToClipboard(text) {
 
 const COPY_ICON_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
 const CHECK_ICON_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>'
+const SPEAKER_ICON_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg>'
+const STOP_SMALL_SVG = '<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>'
+
+/** 多模态 content 里的文字部分（字符串直接返回，数组只拼 text 块）。 */
+function chatContentText(content) {
+  if (typeof content === 'string') return content
+  if (Array.isArray(content)) {
+    return content.filter((p) => p && p.type === 'text').map((p) => p.text || '').join('')
+  }
+  return ''
+}
+
+/** 多模态 content 里的图片 data URL（没有就返回空串）。 */
+function chatContentImage(content) {
+  if (!Array.isArray(content)) return ''
+  const p = content.find((x) => x && x.type === 'image_url' && x.image_url && typeof x.image_url.url === 'string')
+  return p ? p.image_url.url : ''
+}
+
+/** 发给模型的历史：只保留最新一条用户消息里的图片，旧图只留文字
+ *  （省 token，也避免同一张 base64 每次请求都重发）。 */
+function chatRequestMessages(list) {
+  let lastUserIdx = -1
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i].role === 'user') { lastUserIdx = i; break }
+  }
+  return list.map((m, i) => {
+    if (typeof m.content === 'string' || i === lastUserIdx) return m
+    return { role: m.role, content: chatContentText(m.content) }
+  })
+}
+
+/* ── 朗读：speechSynthesis 手动点按朗读 ──────────────────────────
+ * 只做手动点按，不做回答完自动朗读：iOS 上流式回答结束后再调 speak()，
+ * 手势已过期会报 not-allowed。第一次 speak 必须同步发生在点按处理
+ * 函数里，下面 ttsSpeak() 里没有任何 await 就调 speak()，满足这点。
+ * 长回答按句切段、每段不超过约 200 字，逐段念。 */
+let ttsState = null // { btn }：正在朗读的按钮
+function ttsPickVoice() {
+  try {
+    const vs = window.speechSynthesis.getVoices() || []
+    return vs.find((v) => v.lang && v.lang.toLowerCase().indexOf('zh') === 0) || null
+  } catch { return null }
+}
+function ttsSplit(text) {
+  const clean = String(text || '').replace(/[*`#_~>|]/g, '').replace(/\s+/g, ' ').trim()
+  if (!clean) return []
+  const parts = clean.match(/[^。！？!?\n]+[。！？!?\n]?/g) || [clean]
+  const chunks = []
+  for (const p of parts) {
+    const t = p.trim()
+    if (!t) continue
+    if (t.length <= 200) chunks.push(t)
+    else for (let i = 0; i < t.length; i += 200) chunks.push(t.slice(i, i + 200))
+  }
+  return chunks
+}
+function ttsStop() {
+  try { if ('speechSynthesis' in window) window.speechSynthesis.cancel() } catch { /* 忽略 */ }
+  if (ttsState && ttsState.btn) {
+    ttsState.btn.classList.remove('speaking')
+    ttsState.btn.innerHTML = SPEAKER_ICON_SVG
+    ttsState.btn.title = '朗读'
+  }
+  ttsState = null
+}
+function ttsSpeak(text, btn) {
+  if (!('speechSynthesis' in window)) { alert('当前浏览器不支持朗读'); return }
+  // 再点一次同一按钮 = 停止。
+  if (ttsState && ttsState.btn === btn) { ttsStop(); return }
+  ttsStop()
+  const chunks = ttsSplit(text)
+  if (chunks.length === 0) return
+  const voice = ttsPickVoice()
+  let idx = 0
+  ttsState = { btn }
+  btn.classList.add('speaking')
+  btn.innerHTML = STOP_SMALL_SVG
+  btn.title = '停止朗读'
+  const speakNext = () => {
+    if (!ttsState || ttsState.btn !== btn) return
+    if (idx >= chunks.length) { ttsStop(); return }
+    const u = new SpeechSynthesisUtterance(chunks[idx++])
+    u.lang = 'zh-CN'
+    if (voice) u.voice = voice
+    u.onend = () => { if (ttsState && ttsState.btn === btn) speakNext() }
+    u.onerror = () => { ttsStop() }
+    try { window.speechSynthesis.speak(u) } catch { ttsStop() }
+  }
+  // ⚠️ 同步调 speak()：第一次 speak 发生在点按处理函数里，手势不过期。
+  speakNext()
+}
+
+/* ── 图片附件：NextChat 的 base64 路线 ───────────────────────────
+ * 选图 → canvas 重绘压缩到约 256KB 转 JPEG（HEIC 也靠 canvas 转出来）
+ * → 发消息时拼成 OpenAI 多模态 content 数组进 /v1/chat/completions。
+ * 只支持一次一张；只在视觉模型下显示上传按钮（见 isVisionModel）。
+ * 注：/v1/models 里确实有 supportsImage 字段，但 10 个 buddy 模型全是
+ * true（连 deepseek-v4.1-flash 也是），拿它当视觉开关会把上传按钮挂到
+ * 所有 buddy 模型上——所以只按名字匹配 kimi（唯一实测过的视觉模型）。 */
+let pendingImage = null // { dataUrl, blobUrl, name, size }：待发送的那一张
+const VISION_MODEL_RE = /kimi/i
+function isVisionModel(id) { return !!id && VISION_MODEL_RE.test(id) }
+function updateAttachVisibility() {
+  const btn = $('chat-attach')
+  if (!btn) return
+  btn.hidden = !isVisionModel(chatModel())
+}
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      try {
+        const maxSide = 1024
+        let w = img.naturalWidth, h = img.naturalHeight
+        const s = Math.min(1, maxSide / Math.max(w, h))
+        w = Math.max(1, Math.round(w * s))
+        h = Math.max(1, Math.round(h * s))
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+        URL.revokeObjectURL(url)
+        // 质量逐档降，直到 ≤256KB 或到底线 0.4。
+        const tryQ = (q) => {
+          canvas.toBlob((blob) => {
+            if (!blob) { reject(new Error('图片压缩失败')); return }
+            if (blob.size > 256 * 1024 && q > 0.4) { tryQ(Math.round((q - 0.15) * 100) / 100); return }
+            const reader = new FileReader()
+            reader.onload = () => resolve({ dataUrl: reader.result, blob, name: file.name, size: blob.size })
+            reader.onerror = () => reject(new Error('图片读取失败'))
+            reader.readAsDataURL(blob)
+          }, 'image/jpeg', q)
+        }
+        tryQ(0.85)
+      } catch (e) { URL.revokeObjectURL(url); reject(e) }
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('这张图打不开（可能是 HEIC 格式，当前浏览器不支持），换一张试试'))
+    }
+    img.src = url
+  })
+}
+function showImagePreview() {
+  const wrap = $('chat-image-preview')
+  const thumb = $('chat-image-thumb')
+  const nameEl = $('chat-image-name')
+  if (!wrap || !pendingImage) return
+  thumb.src = pendingImage.blobUrl
+  nameEl.textContent = pendingImage.name + '（约 ' + Math.round(pendingImage.size / 1024) + 'KB）'
+  wrap.hidden = false
+  // 预览占了高度，消息区底部多留空，免得最后一条消息滑到预览底下。
+  const box = $('chat-messages')
+  if (box) box.style.paddingBottom = '170px'
+}
+function clearPendingImage() {
+  if (pendingImage && pendingImage.blobUrl) URL.revokeObjectURL(pendingImage.blobUrl)
+  pendingImage = null
+  const wrap = $('chat-image-preview')
+  if (wrap) wrap.hidden = true
+  const box = $('chat-messages')
+  if (box) box.style.paddingBottom = ''
+  const fi = $('chat-image-input')
+  if (fi) fi.value = ''
+}
+async function onImageFile(file) {
+  if (!file) return
+  if (!file.type || file.type.indexOf('image/') !== 0) { alert('请选择图片文件'); return }
+  try {
+    const out = await compressImage(file)
+    clearPendingImage()
+    pendingImage = { dataUrl: out.dataUrl, blobUrl: URL.createObjectURL(out.blob), name: out.name, size: out.size }
+    showImagePreview()
+    const input = $('chat-input')
+    if (input) input.focus()
+  } catch (e) {
+    alert(e && e.message ? e.message : '图片处理失败，换一张试试')
+  }
+}
+
+/* ── 语音输入：Web Speech API（零后端）──────────────────────────
+ * 识别出的文字填进输入框，不直接发送，等用户确认后再发。
+ * iOS Safari 只有带前缀的 webkitSpeechRecognition；PWA 主屏幕模式下
+ * 可能不可用——按钮 title 里写明了，iOS 键盘自带听写更稳。 */
+let speechRec = null
+let speechListening = false
+function speechSupported() {
+  return 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window
+}
+function setMicState(listening) {
+  speechListening = listening
+  const btn = $('chat-mic')
+  if (btn) {
+    btn.classList.toggle('listening', listening)
+    btn.title = listening ? '正在听…再点一次停止' : '语音输入（iOS 键盘听写更稳；主屏幕图标打开时可能不可用）'
+  }
+}
+function toggleSpeech() {
+  if (speechListening) {
+    try { speechRec && speechRec.stop() } catch { /* 忽略 */ }
+    return
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+  if (!SR) { alert('当前浏览器不支持语音输入，iOS 键盘自带的听写更稳'); return }
+  const base = chatInputValue()
+  const rec = new SR()
+  speechRec = rec
+  rec.lang = 'zh-CN'
+  rec.interimResults = true
+  rec.continuous = false
+  rec.onresult = (ev) => {
+    let finalText = '', interim = ''
+    for (let i = 0; i < ev.results.length; i++) {
+      const r = ev.results[i]
+      if (r.isFinal) finalText += r[0].transcript
+      else interim += r[0].transcript
+    }
+    const val = (base ? base + ' ' : '') + finalText + interim
+    const input = $('chat-input')
+    if (input) input.value = val
+  }
+  rec.onerror = (ev) => {
+    const err = ev && ev.error
+    if (err === 'not-allowed' || err === 'service-not-allowed') alert('麦克风权限被拒绝：请在系统设置里允许 Safari 使用麦克风，或直接用 iOS 键盘听写')
+    else if (err === 'no-speech') alert('没听到声音，再试一次')
+    else if (err === 'network') alert('语音识别需要联网，请检查网络')
+    else if (err !== 'aborted') alert('语音输入失败（' + err + '），可用 iOS 键盘听写代替')
+    setMicState(false)
+  }
+  rec.onend = () => setMicState(false)
+  try {
+    // ⚠️ 必须同步调 start()（点按手势里），iOS 上 await 之后调会被拒。
+    rec.start()
+    setMicState(true)
+  } catch {
+    alert('语音识别启动失败，可用 iOS 键盘听写代替')
+    setMicState(false)
+  }
+}
 
 /** 建一条消息气泡（⚠️ 只用 textContent，不用 innerHTML）。
- *  气泡下面跟一个复制小图标（AI 和用户都有）：点一下复制这条的原文，
- *  成功后图标短暂变 ✓。复制读的是气泡当下的 textContent，
- *  所以流式还没吐完时点的也是当前已吐出的那部分。 */
-function chatBubble(role, text) {
+ *  气泡下面跟一排小图标：复制（AI 和用户都有）+ 朗读（只有 AI 回答有），
+ *  点复制读的是气泡当下的 textContent，流式还没吐完时点的也是当前已吐出的那部分。
+ *  content 可能是字符串，也可能是多模态数组：文字显示在气泡里，
+ *  图片部分在气泡里显示缩略图。 */
+function chatBubble(role, content, opts) {
   const row = document.createElement('div')
   row.className = 'chat-msg ' + (role === 'user' ? 'user' : 'assistant')
   const bubble = document.createElement('div')
   bubble.className = 'chat-bubble'
-  bubble.textContent = text
+  bubble.textContent = chatContentText(content)
+  const imgUrl = chatContentImage(content)
+  if (imgUrl) {
+    const img = document.createElement('img')
+    img.className = 'chat-img'
+    img.src = imgUrl
+    img.alt = '图片'
+    bubble.appendChild(img)
+  }
   row.appendChild(bubble)
+  const actions = document.createElement('div')
+  actions.className = 'msg-actions'
   const copyBtn = document.createElement('button')
   copyBtn.type = 'button'
   copyBtn.className = 'msg-copy'
@@ -3973,12 +4233,23 @@ function chatBubble(role, text) {
       copyBtn.classList.remove('copied')
     }, 1200)
   })
-  row.appendChild(copyBtn)
+  actions.appendChild(copyBtn)
+  if (role === 'assistant' && (!opts || opts.readAloud !== false)) {
+    const readBtn = document.createElement('button')
+    readBtn.type = 'button'
+    readBtn.className = 'msg-read'
+    readBtn.title = '朗读'
+    readBtn.setAttribute('aria-label', '朗读这条回答')
+    readBtn.innerHTML = SPEAKER_ICON_SVG
+    readBtn.addEventListener('click', () => { ttsSpeak(bubble.textContent || '', readBtn) })
+    actions.appendChild(readBtn)
+  }
+  row.appendChild(actions)
   return row
 }
 
 /** F7 消息气泡（有 F7 时用它；没 F7 时退回 chatBubble）。返回气泡元素。 */
-function f7AddMessage(role, text, cssClass) {
+function f7AddMessage(role, text, cssClass, opts) {
   const box = $('chat-messages')
   if (!box) return null
   if (f7Messages) {
@@ -3986,7 +4257,7 @@ function f7AddMessage(role, text, cssClass) {
     const els = box.querySelectorAll('.message')
     return els.length ? els[els.length - 1] : null
   }
-  const row = chatBubble(role, text)
+  const row = chatBubble(role, text, opts)
   if (cssClass) row.classList.add(cssClass)
   box.appendChild(row)
   box.scrollTop = box.scrollHeight
@@ -4014,7 +4285,7 @@ function renderChat() {
   if (f7Messages) f7Messages.clear()
   clear(box)
   for (const m of chatMessages) {
-    if (f7Messages) f7Messages.addMessage({ text: m.content, type: m.role === 'user' ? 'sent' : 'received' }, 'append', false)
+    if (f7Messages) f7Messages.addMessage({ text: chatContentText(m.content), type: m.role === 'user' ? 'sent' : 'received' }, 'append', false)
     else box.appendChild(chatBubble(m.role, m.content))
   }
   const empty = $('chat-empty')
@@ -4059,6 +4330,7 @@ async function loadChatModels() {
     : (flash ? flash.id : chatModels[0].id)
   sel.value = def
   chatModelsLoaded = true
+  updateAttachVisibility()
 }
 
 /** 选中的模型 id（没拉到列表时返回空串，发送时再提示）。 */
@@ -4135,21 +4407,28 @@ async function sendChat() {
   const model = chatModel()
   if (!input || !sendBtn) return
   const text = chatInputValue().trim()
-  if (text === '') return
+  // 纯图片无文字也可以发（有图就行）。
+  if (text === '' && !pendingImage) return
   if (model === '') {
     alert('模型还没加载出来，稍等一下再发')
     return
   }
-  chatMessages.push({ role: 'user', content: text })
+  ttsStop()
+  // 带图的消息：content 用 OpenAI 多模态数组；纯文字保持字符串。
+  const userContent = pendingImage
+    ? [{ type: 'text', text: text || '这张图里有什么？' }, { type: 'image_url', image_url: { url: pendingImage.dataUrl } }]
+    : text
+  chatMessages.push({ role: 'user', content: userContent })
   saveChatHistory()
   chatClearInput()
+  clearPendingImage()
   renderChat()
 
-  // 先占一个助手气泡，流式往里填字。
+  // 先占一个助手气泡，流式往里填字（占位气泡不带朗读按钮，等正文来了再说）。
   const box = $('chat-messages')
   const empty = $('chat-empty')
   if (empty) empty.hidden = true
-  const msgEl = f7AddMessage('assistant', '思考中…')
+  const msgEl = f7AddMessage('assistant', '思考中…', null, { readAloud: false })
   // F7 气泡里装文字的是 .message-text，兜底气泡里是 .chat-bubble
   const bubble = msgEl ? (msgEl.querySelector('.message-text') || msgEl.querySelector('.chat-bubble') || msgEl) : null
   if (f7Messages) f7Messages.scroll()
@@ -4160,7 +4439,7 @@ async function sendChat() {
   sendBtn.classList.add('streaming')
   input.disabled = true
   try {
-    const history = chatMessages.slice(-CHAT_MAX_CONTEXT)
+    const history = chatRequestMessages(chatMessages.slice(-CHAT_MAX_CONTEXT))
     const full = await chatComplete(model, history, (t) => {
       if (bubble) bubble.textContent = t
       if (f7Messages) f7Messages.scroll()
@@ -4228,8 +4507,32 @@ function initChat() {
   if (sel) {
     sel.onchange = () => {
       try { localStorage.setItem(CHAT_MODEL_KEY, sel.value) } catch { /* 忽略 */ }
+      updateAttachVisibility()
     }
   }
+  // 图片附件：+ 按钮 → 隐藏的 file input（iPhone 上一点就出拍照/相册/文件三选一）。
+  const attachBtn = $('chat-attach')
+  const fileInput = $('chat-image-input')
+  if (attachBtn && fileInput) {
+    attachBtn.onclick = () => fileInput.click()
+    fileInput.onchange = () => {
+      const f = fileInput.files && fileInput.files[0]
+      void onImageFile(f)
+    }
+  }
+  const removeBtn = $('chat-image-remove')
+  if (removeBtn) removeBtn.onclick = () => clearPendingImage()
+  // 语音输入：不支持的浏览器直接隐藏麦克风按钮。
+  const micBtn = $('chat-mic')
+  if (micBtn) {
+    if (speechSupported()) {
+      micBtn.hidden = false
+      micBtn.onclick = () => toggleSpeech()
+    } else {
+      micBtn.hidden = true
+    }
+  }
+  updateAttachVisibility()
 }
 
 /**
