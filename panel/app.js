@@ -4947,6 +4947,18 @@ function switchToKimi() {
  * 并提示用 iOS 键盘自带的话筒听写（一样是说话转文字，键盘话筒在任何模式下都能用）。 */
 let speechRec = null
 let speechListening = false
+// 语音会话号：每次开始/停止/发送都 +1。Web Speech 在 stop() 之后还会
+// 补发一次最终 onresult——没有这道闸，那句旧话会在输入框清空之后又
+// 写回来（2026-11-16 11:02 用户报的 bug：第二次点麦克风，输入框里
+// 直接出现上一句语音转出来的文字）。onresult 先对号，对不上就扔掉。
+let speechSession = 0
+/** 停掉语音识别，并让它之后再到的结果全部作废。 */
+function speechStop() {
+  speechSession++
+  try { speechRec && speechRec.stop() } catch { /* 忽略 */ }
+  speechRec = null
+  setMicState(false)
+}
 function speechSupported() {
   return 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window
 }
@@ -4968,7 +4980,7 @@ function focusChatInput() {
 }
 function toggleSpeech() {
   if (speechListening) {
-    try { speechRec && speechRec.stop() } catch { /* 忽略 */ }
+    speechStop()
     return
   }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -4980,12 +4992,15 @@ function toggleSpeech() {
     return
   }
   const base = chatInputValue()
+  const session = ++speechSession
   const rec = new SR()
   speechRec = rec
   rec.lang = 'zh-CN'
   rec.interimResults = true
   rec.continuous = true
   rec.onresult = (ev) => {
+    // 旧会话的迟到结果（stop() 之后补发的那一次）：直接扔掉，别写回输入框。
+    if (session !== speechSession) return
     let finalText = '', interim = ''
     for (let i = 0; i < ev.results.length; i++) {
       const r = ev.results[i]
@@ -5004,7 +5019,7 @@ function toggleSpeech() {
     else if (err !== 'aborted') { alert('语音输入失败（' + err + '），可用 iOS 键盘听写代替'); focusChatInput() }
     setMicState(false)
   }
-  rec.onend = () => setMicState(false)
+  rec.onend = () => { if (session === speechSession) setMicState(false) }
   try {
     // ⚠️ 必须同步调 start()（点按手势里），iOS 上 await 之后调会被拒。
     rec.start()
@@ -5440,6 +5455,9 @@ async function sendChat() {
     return
   }
   ttsStop()
+  // 发之前先停语音识别：stop() 之后识别还会补发一次最终结果，不先作废
+  // 它，那句旧话会在清空之后又写回输入框（2026-11-16 11:02 用户报的 bug）。
+  if (speechListening) speechStop()
   // 附件拼成 OpenAI 多模态数组；纯文字保持字符串。
   // 存知识库的附件：发之前先入库，气泡里留一句“已存入知识库：xxx”。
   const parts = []
