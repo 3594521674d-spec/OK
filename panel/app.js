@@ -4815,8 +4815,12 @@ function setMicState(listening) {
   }
 }
 function focusChatInput() {
+  // #chat-input 是 <ion-textarea>（影子 DOM）：普通 .focus() 聚不到里面的
+  // 原生输入框，必须调它自己的 setFocus()，键盘才能弹出来。
   const input = $('chat-input')
-  if (input) input.focus()
+  if (!input) return
+  if (typeof input.setFocus === 'function') input.setFocus()
+  else input.focus()
 }
 function toggleSpeech() {
   if (speechListening) {
