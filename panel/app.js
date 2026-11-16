@@ -16,6 +16,17 @@ const API_BASE = 'https://free-ll-gateway-ilghvenboz.cn-hangzhou.fcapp.run';
 
 const $ = (id) => document.getElementById(id)
 
+// ── 触碰反馈（v18 批次 4）：Android 上点按按钮/设置行/导航 tab 时轻震 10ms。
+// 只在真实用户手势（click 事件同步回调）里调才有效，await 之后调无效；
+// 先判 'vibrate' in navigator； iOS 从来没有 navigator.vibrate，不做假震动
+// （不要碰 iOS 26.5 已封掉的开关 trick）。无震动马达的设备静默跳过。
+if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+  document.addEventListener('click', (e) => {
+    const t = e.target && e.target.closest ? e.target.closest('button, .settings-row, ion-tab-button, [role="button"]') : null
+    if (t && !t.disabled) { try { navigator.vibrate(10) } catch (_) { /* 无马达或被禁就静默 */ } }
+  }, { passive: true })
+}
+
 // ── Framework7（iOS 结构 + 动效 + 交互）──
 // 读过 framework7.io/docs/ 全部核心页（app / sheet-modal / messages /
 // messagebar / tabbar / list / toggle / segmented / preloader / touch）。
@@ -5669,7 +5680,7 @@ function imggenRenderProgress() {
   const done = imggenTerminalCount()
   const pct = total === 0 ? 0 : Math.round(done / total * 100)
   const fill = $('imggen-progress-fill')
-  if (fill) fill.style.width = pct + '%'
+  if (fill) fill.style.transform = 'scaleX(' + (pct / 100) + ')'
   const pctEl = $('imggen-progress-pct')
   if (pctEl) pctEl.textContent = pct + '%'
   const label = $('imggen-progress-label')

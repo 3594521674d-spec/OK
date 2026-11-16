@@ -24,18 +24,37 @@
 
 :root {
   color-scheme: dark;
+  /* ── shadcn 角色变量（v18 批次 4 重组）：每个背景色必配一个 -foreground；
+     亮度层级 底 #070b16 → 卡片 #0f172a → 浮层 #1e293b；边框用半透明描边，不用纯色；
+     金主青辅：金是唯一主色（CTA/标题），青只作信息/状态/链接点缀。── */
   --background: #070b16;
   --foreground: rgba(233, 237, 245, 0.92);
-  --card: rgba(255, 255, 255, 0.045);
+  --card: #0f172a;
   --card-foreground: var(--foreground);
-  --panel: rgba(255, 255, 255, 0.045);
+  --popover: #1e293b;
+  --popover-foreground: var(--foreground);
+  --primary: #d9a441;
+  --primary-foreground: #1a1405;
+  --primary-hover: #e6b95e;
+  --secondary: #1e293b;
+  --secondary-foreground: var(--foreground);
   --muted: rgba(255, 255, 255, 0.06);
   --muted-foreground: rgba(139, 148, 169, 0.9);
+  --accent: rgba(34, 211, 238, 0.12);
+  --accent-foreground: #22d3ee;
+  --destructive: #f87171;
+  --destructive-foreground: #fef2f2;
   --border: rgba(255, 255, 255, 0.08);
-  --gold: #d9a441;
-  --gold-text: #e8c268;
-  --cyan: #22d3ee;
+  --input: rgba(148, 163, 184, 0.22);
+  --ring: #d9a441;
   --radius: 20px;
+  /* ── 旧 token 改指新角色的别名（下面规则不用改名，取值不变）── */
+  --panel: var(--card);
+  --gold: var(--primary);
+  --gold-text: #e8c268;
+  --cyan: var(--accent-foreground);
+  --text: var(--foreground);
+  --text-dim: var(--muted-foreground);
   --appbar-h: 60px;
   --nav-h: 56px;
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -71,14 +90,9 @@
   --ion-card-background: rgba(255, 255, 255, 0.045);
   --ion-font-family: var(--font-sans);
 
-  /* 旧版留下的 token（下面搬回的规则还在用） */
+  /* 旧版留下的 token（下面搬回的规则还在用；角色变量见上面，不再重复定义） */
   --card-2: #141d33;
-  --ring: #d9a441;
-  --primary: #d9a441;
-  --primary-hover: #e6b95e;
-  --primary-foreground: #1a1405;
   --gold-soft: rgba(217, 164, 65, 0.14);
-  --destructive: #f87171;
   --destructive-solid: #dc2626;
   --success: #34d399;
   --success-soft: rgba(52, 211, 153, 0.12);
@@ -86,13 +100,13 @@
   --warn-soft: rgba(251, 191, 36, 0.12);
   --err-soft: rgba(248, 113, 113, 0.12);
   --cyan-soft: rgba(34, 211, 238, 0.12);
-  --input: rgba(148, 163, 184, 0.22);
-  --popover: #0e1526;
   --radius-sm: 10px;
   --radius-md: 14px;
 }
 
 * { box-sizing: border-box; }
+/* 触碰反馈三件套之一：全站去掉 iOS 默认灰色 tap 块（body 上也有一份，互为兜底） */
+*, *::before, *::after { -webkit-tap-highlight-color: transparent; }
 
 /* 手机锁宽：任何元素都不能把页面撑得比手机屏幕宽（否则看起来像电脑版，右边被裁掉）。
    2026-11-16 用户截图：右上角月亮按钮被裁掉一半，就是横向溢出撑宽了。 */
@@ -368,6 +382,8 @@ ion-tab-bar#nav ion-tab-button.nav-item {
   --ripple-color: rgba(217, 164, 65, 0.18);
   flex: 1;
   max-width: none;
+  min-height: 44px;
+  touch-action: manipulation;
 }
 ion-tab-bar#nav ion-tab-button.nav-item svg { width: 20px; height: 20px; }
 ion-tab-bar#nav ion-tab-button.nav-item .tabbar-label {
@@ -381,7 +397,9 @@ ion-tab-bar#nav ion-tab-button.nav-item.active {
   border-radius: 12px;
 }
 
-/* ── 按钮 ── */
+/* ── 按钮 ──
+   动效只动 transform + opacity（120ms，--ease），不碰 width/height/top/left；
+   按压 scale(.97)；touch-action: manipulation 禁双击缩放、点按更快。 */
 button {
   font: inherit;
   font-size: 13px;
@@ -391,11 +409,12 @@ button {
   border-radius: 12px;
   padding: 8px 14px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s, transform 0.18s var(--spring);
+  touch-action: manipulation;
+  transition: transform 0.12s var(--ease), opacity 0.12s var(--ease);
 }
 button:hover { background: rgba(255, 255, 255, 0.1); }
-/* 果冻按压：所有按钮按下时缩 0.96，弹簧回弹 */
-button:active { transform: scale(0.96); }
+/* 果冻按压：所有按钮按下时缩 0.97 回弹（不要缩到 .95 以下，会像弹跳） */
+button:active { transform: scale(0.97); }
 button.ghost, .ghost { background: transparent; }
 button.primary {
   background: linear-gradient(180deg, #e8bd60, #cf9c31);
@@ -403,6 +422,7 @@ button.primary {
   border-color: transparent;
   font-weight: 700;
   box-shadow: 0 4px 14px rgba(217, 164, 65, 0.35);
+  min-height: 44px;
 }
 button.primary:hover { background: linear-gradient(180deg, #f0c96e, #d9a441); }
 button.danger {
@@ -422,8 +442,10 @@ button.link-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   border-radius: 50%;
   flex: none;
@@ -436,8 +458,10 @@ ion-button.icon-btn {
   --padding-end: 0;
   --border-radius: 50%;
   --color: var(--foreground);
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   margin: 0;
 }
 button.busy { opacity: 0.6; pointer-events: none; }
@@ -548,10 +572,11 @@ input::placeholder, textarea::placeholder { color: rgba(139, 148, 169, 0.7); }
   border-color: var(--border);
   background: transparent;
   min-width: 52px;
+  min-height: 44px;
   padding: 6px 12px;
-  transition: background 0.15s, color 0.15s, transform 0.18s var(--spring);
+  transition: transform 0.12s var(--ease), opacity 0.12s var(--ease);
 }
-.segmented .button:active { transform: scale(0.95); }
+.segmented .button:active { transform: scale(0.97); }
 .segmented .button.button-active {
   background: linear-gradient(180deg, #e8bd60, #cf9c31);
   color: #1a1405;
@@ -673,6 +698,12 @@ input::placeholder, textarea::placeholder { color: rgba(139, 148, 169, 0.7); }
 .banner .ghost { margin-left: auto; }
 /* 横幅里的按钮收小一点，别占满一行（2026-11-16 用户：按钮大了就调小）。 */
 .banner .ghost { padding: 5px 10px; font-size: 12px; border-radius: 9px; }
+
+/* ── 卡片按压（v18 批次 4）：可点的卡片几乎不动，只 scale(.995) + 变淡 ── */
+.prov-card, .count.clickable {
+  transition: transform 0.12s var(--ease), opacity 0.12s var(--ease);
+}
+.prov-card:active, .count.clickable:active { transform: scale(0.995); opacity: 0.85; }
 
 /* ── 供应商 / 账号卡片 ── */
 .prov-list { display: flex; flex-direction: column; gap: 10px; }
@@ -832,6 +863,7 @@ html.lg-lens .sheet-modal {
   border: none;
   border-radius: 0;
   padding: 8px 12px;
+  min-height: 44px;
   font-size: 13px;
   color: var(--muted-foreground);
   border-bottom: 2px solid transparent;
@@ -886,6 +918,7 @@ html.lg-lens .sheet-modal {
 /* ── 对话（Ionic 输入条 + 原生气泡）── */
 .chat-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; padding: 10px 12px; }
 .chat-bar select { flex: 1; min-width: 0; }
+#chat-new { min-height: 44px; }
 #chat-messages {
   display: flex;
   flex-direction: column;
@@ -920,6 +953,27 @@ html.lg-lens .sheet-modal {
 /* 对话气泡（app.js 没 Ionic 时就走这套原生气泡）
    每行是竖着的 flex 列：气泡在上，复制小图标贴在气泡下面，
    和气泡同侧（AI 靠左、用户靠右）。 */
+/* 气泡出现（v18 批次 4）：只动 opacity + translateY，220ms，--ease。
+   流式更新只改气泡的 textContent，不重建行，动画只在插入时跑一次。 */
+@keyframes msg-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.chat-msg { animation: msg-in 0.22s var(--ease) both; }
+/* 列表逐条出现：每条 stagger 30ms（只给可视区附近的静态列表加） */
+@keyframes list-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.settings-row { animation: list-in 0.25s var(--ease) both; }
+.settings-row:nth-child(2) { animation-delay: 30ms; }
+.settings-row:nth-child(3) { animation-delay: 60ms; }
+.settings-row:nth-child(4) { animation-delay: 90ms; }
+.settings-row:nth-child(5) { animation-delay: 120ms; }
+.settings-row:nth-child(6) { animation-delay: 150ms; }
+.settings-row:nth-child(7) { animation-delay: 180ms; }
+.settings-row:nth-child(8) { animation-delay: 210ms; }
+.settings-row:nth-child(9) { animation-delay: 240ms; }
+.kb-doc { animation: list-in 0.25s var(--ease) both; }
+.kb-doc:nth-child(2) { animation-delay: 30ms; }
+.kb-doc:nth-child(3) { animation-delay: 60ms; }
+.kb-doc:nth-child(4) { animation-delay: 90ms; }
+.kb-doc:nth-child(5) { animation-delay: 120ms; }
+.kb-doc:nth-child(6) { animation-delay: 150ms; }
 .chat-msg { display: flex; flex-direction: column; align-items: flex-start; }
 .chat-msg.user { align-items: flex-end; }
 /* 气泡下面的复制按钮（AI 和用户都有）：小、淡，点一下复制这条原文，
@@ -996,11 +1050,14 @@ html.lg-lens .sheet-modal {
   align-items: flex-end;
   gap: 8px;
 }
-/* 输入行两侧的圆形小按钮（+ 上传 / 麦克风）：金色图标，轻量不抢发送键 */
+/* 输入行两侧的圆形小按钮（+ 上传 / 麦克风）：金色图标，轻量不抢发送键；
+   44×44 触摸目标，按压 scale(.97) */
 #chat-composer .composer-btn {
   flex: none;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   margin: 0 0 2px;
   padding: 0;
   border-radius: 50%;
@@ -1014,7 +1071,7 @@ html.lg-lens .sheet-modal {
   -webkit-tap-highlight-color: transparent;
 }
 #chat-composer .composer-btn[hidden] { display: none; }
-#chat-composer .composer-btn:active { transform: scale(0.92); }
+#chat-composer .composer-btn:active { transform: scale(0.97); }
 #chat-composer .composer-btn.listening {
   color: #f87171;
   border-color: rgba(248, 113, 113, 0.6);
@@ -1047,8 +1104,10 @@ html.lg-lens .sheet-modal {
 }
 #chat-composer .img-preview-remove {
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   border-radius: 50%;
   border: 1px solid var(--border);
@@ -1094,11 +1153,13 @@ html.lg-lens #chat-composer.composer {
   --padding-start: 0;
   --padding-end: 0;
   --box-shadow: 0 4px 12px rgba(217, 164, 65, 0.35);
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   margin: 0 0 2px;
 }
-#chat-composer #chat-send:active { transform: scale(0.9); }
+#chat-composer #chat-send:active { transform: scale(0.97); }
 #chat-composer #chat-send .stop-icon { display: none; }
 #chat-composer #chat-send.streaming { --background: var(--muted); --color: var(--foreground); --box-shadow: none; }
 #chat-composer #chat-send.streaming .send-icon { display: none; }
@@ -1124,6 +1185,7 @@ ion-list.settings-list ion-item.settings-row {
   --min-height: 56px;
   --detail-icon-color: rgba(139, 148, 169, 0.7);
   --detail-icon-font-size: 16px;
+  touch-action: manipulation;
 }
 ion-list.settings-list .qa-icon { width: 34px; height: 34px; margin: 0; }
 ion-list.settings-list ion-label .set-title { display: block; font-size: 14px; font-weight: 600; color: var(--foreground); }
@@ -1189,20 +1251,37 @@ body.nav-open .scrim { display: block; position: fixed; inset: 0; background: rg
 .foot a { color: var(--muted-foreground); }
 #usage-range-note { font-size: 12px; color: var(--muted-foreground); }
 
-/* ── 深色唯一：app.js 默认写死 'light'，但这里强制深色 token（有意为之）── */
+/* ── 深色唯一：app.js 默认写死 'light'，但这里强制深色 token（有意为之）──
+   与上面 :root 同一套角色变量，别只改一处。 */
 :root[data-theme="light"] {
   color-scheme: dark;
   --background: #070b16;
   --foreground: rgba(233, 237, 245, 0.92);
-  --card: rgba(255, 255, 255, 0.045);
+  --card: #0f172a;
   --card-foreground: var(--foreground);
-  --panel: rgba(255, 255, 255, 0.045);
+  --popover: #1e293b;
+  --popover-foreground: var(--foreground);
+  --primary: #d9a441;
+  --primary-foreground: #1a1405;
+  --primary-hover: #e6b95e;
+  --secondary: #1e293b;
+  --secondary-foreground: var(--foreground);
   --muted: rgba(255, 255, 255, 0.06);
   --muted-foreground: rgba(139, 148, 169, 0.9);
+  --accent: rgba(34, 211, 238, 0.12);
+  --accent-foreground: #22d3ee;
+  --destructive: #f87171;
+  --destructive-foreground: #fef2f2;
   --border: rgba(255, 255, 255, 0.08);
-  --gold: #d9a441;
+  --input: rgba(148, 163, 184, 0.22);
+  --ring: #d9a441;
+  --radius: 20px;
+  --panel: var(--card);
+  --gold: var(--primary);
   --gold-text: #e8c268;
-  --cyan: #22d3ee;
+  --cyan: var(--accent-foreground);
+  --text: var(--foreground);
+  --text-dim: var(--muted-foreground);
 }
 html[data-theme="light"] .login-card { background: rgba(255, 255, 255, 0.045); }
 html[data-theme="light"] .panel { background: rgba(255, 255, 255, 0.045); }
@@ -1919,8 +1998,9 @@ td.num, th.num {
 .imggen-progress-top { justify-content: space-between; }
 .imggen-progress-label { font-size: 12px; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 78%; }
 .imggen-progress-pct { font-size: 12px; color: var(--gold-text); font-variant-numeric: tabular-nums; }
+/* 顶栏进度条：只动 transform（scaleX），不动 width——JS 里改 style.transform */
 .imggen-bar { height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; margin-top: 8px; }
-.imggen-bar-fill { height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg, var(--gold), var(--cyan)); transition: width 0.3s var(--ease); }
+.imggen-bar-fill { height: 100%; width: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--gold), var(--cyan)); transform: scaleX(0); transform-origin: left center; transition: transform 0.3s var(--ease); }
 
 /* 折叠段 */
 .imggen-sections { margin-bottom: 10px; }
