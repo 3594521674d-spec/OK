@@ -4797,9 +4797,10 @@ async function onImageFile(file) {
 }
 
 /* ── 语音输入：Web Speech API（零后端）──────────────────────────
- * 识别出的文字填进输入框，不直接发送，等用户确认后再发。
- * iOS Safari 只有带前缀的 webkitSpeechRecognition；PWA 主屏幕模式下
- * 可能不可用——按钮 title 里写明了，iOS 键盘自带听写更稳。 */
+ * 点麦克风说话，识别出的文字填进输入框，不直接发送，等用户确认后再发。
+ * 麦克风按钮永远显示（用户要求：标识不变、一直在那儿）。
+ * 网页语音识别在 iOS 主屏幕模式下可能不可用——不可用时点按钮就聚焦输入框，
+ * 并提示用 iOS 键盘自带的话筒听写（一样是说话转文字，键盘话筒在任何模式下都能用）。 */
 let speechRec = null
 let speechListening = false
 function speechSupported() {
@@ -4810,8 +4811,12 @@ function setMicState(listening) {
   const btn = $('chat-mic')
   if (btn) {
     btn.classList.toggle('listening', listening)
-    btn.title = listening ? '正在听…再点一次停止' : '语音输入（iOS 键盘听写更稳；主屏幕图标打开时可能不可用）'
+    btn.title = listening ? '正在听…再点一次停止' : '语音输入：点一下说话，文字进输入框（说完再点一下停止）'
   }
+}
+function focusChatInput() {
+  const input = $('chat-input')
+  if (input) input.focus()
 }
 function toggleSpeech() {
   if (speechListening) {
@@ -4819,13 +4824,18 @@ function toggleSpeech() {
     return
   }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-  if (!SR) { alert('当前浏览器不支持语音输入，iOS 键盘自带的听写更稳'); return }
+  if (!SR) {
+    // 网页语音识别不可用：不藏按钮，聚焦输入框并指去键盘话筒。
+    focusChatInput()
+    alert('这边用不了网页语音识别。点一下输入框，弹出键盘后点键盘上的话筒，说话就能转成文字，不用打字')
+    return
+  }
   const base = chatInputValue()
   const rec = new SR()
   speechRec = rec
   rec.lang = 'zh-CN'
   rec.interimResults = true
-  rec.continuous = false
+  rec.continuous = true
   rec.onresult = (ev) => {
     let finalText = '', interim = ''
     for (let i = 0; i < ev.results.length; i++) {
@@ -4839,10 +4849,10 @@ function toggleSpeech() {
   }
   rec.onerror = (ev) => {
     const err = ev && ev.error
-    if (err === 'not-allowed' || err === 'service-not-allowed') alert('麦克风权限被拒绝：请在系统设置里允许 Safari 使用麦克风，或直接用 iOS 键盘听写')
+    if (err === 'not-allowed' || err === 'service-not-allowed') { alert('麦克风权限被拒绝：请在系统设置里允许 Safari 使用麦克风，或直接用 iOS 键盘听写'); focusChatInput() }
     else if (err === 'no-speech') alert('没听到声音，再试一次')
-    else if (err === 'network') alert('语音识别需要联网，请检查网络')
-    else if (err !== 'aborted') alert('语音输入失败（' + err + '），可用 iOS 键盘听写代替')
+    else if (err === 'network') { alert('语音识别需要联网，请检查网络；也可以直接用 iOS 键盘听写'); focusChatInput() }
+    else if (err !== 'aborted') { alert('语音输入失败（' + err + '），可用 iOS 键盘听写代替'); focusChatInput() }
     setMicState(false)
   }
   rec.onend = () => setMicState(false)
@@ -5188,15 +5198,12 @@ function initChat() {
   }
   const removeBtn = $('chat-image-remove')
   if (removeBtn) removeBtn.onclick = () => clearPendingImage()
-  // 语音输入：不支持的浏览器直接隐藏麦克风按钮。
+  // 语音输入：麦克风按钮永远显示（用户要求：标识不变、一直在那儿）。
+  // 网页语音识别不可用时，点按钮会聚焦输入框并提示用 iOS 键盘话筒听写。
   const micBtn = $('chat-mic')
   if (micBtn) {
-    if (speechSupported()) {
-      micBtn.hidden = false
-      micBtn.onclick = () => toggleSpeech()
-    } else {
-      micBtn.hidden = true
-    }
+    micBtn.hidden = false
+    micBtn.onclick = () => toggleSpeech()
   }
   updateAttachVisibility()
 }
