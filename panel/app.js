@@ -290,7 +290,12 @@ function switchView(name) {
   const fromSubView = currentSubView
   currentSubView = ''
   const back = $('settings-back')
-  if (back) back.hidden = true
+  // 底部导航已撤（2026-11-16 用户：设置移到顶栏）：设置菜单里也留着
+  // 左上角返回箭头，点它回首页；子视图里点它回设置菜单。
+  if (back) {
+    back.hidden = name !== 'settings'
+    if (name === 'settings') back.title = '返回首页'
+  }
   for (const btn of document.querySelectorAll('.nav-item')) {
     btn.classList.toggle('active', btn.dataset.view === name)
   }
@@ -314,7 +319,7 @@ function openSettingsSection(name) {
   if (!SUB_VIEWS.includes(name)) return
   currentSubView = name
   const back = $('settings-back')
-  if (back) back.hidden = false
+  if (back) { back.hidden = false; back.title = '返回设置' }
   for (const btn of document.querySelectorAll('.nav-item')) {
     btn.classList.toggle('active', btn.dataset.view === 'settings')
   }
@@ -1523,7 +1528,7 @@ async function loadDashboard() {
     '可用模型数'))
   box.appendChild(kpiCard(failed > 0 ? 'red' : 'green', '×', '失败', fmtNum(failed),
     failed > 0 ? `占 ${((failed / total) * 100).toFixed(1)}%` : '无失败'))
-  // 渲染的实物 moment：算力池卡挂在第一张 KPI 卡（总请求）里
+  // 渲染的实物 moment：工作台卡挂在第一张 KPI 卡（总请求）里
   attachPoolCard()
 
   renderDashTrend(byDayDesc, byHourAsc, windowDays)
@@ -1634,7 +1639,7 @@ function renderSeriesChart(box, pts) {
 
 /**
  * 渲染的实物 moment（unslop 仪表盘 after 的做法）：
- * 一张用代码建的算力池卡，放在仪表盘第一张 KPI 卡（总请求）里 ——
+ * 一张用代码建的工作台卡，放在仪表盘第一张 KPI 卡（总请求）里 ——
  * 两张叠放的卡、微转，有芯片与卡号，像一张真实的卡。
  * 只挂仪表盘（#dash-summary），用量页不动；kpiCard 本身不改（仍 5 参数）。
  */
@@ -1656,7 +1661,7 @@ function attachPoolCard() {
   setSvg(chip, '<svg viewBox="0 0 20 16" width="20" height="16" aria-hidden="true"><rect x="1" y="1" width="18" height="14" rx="3" fill="#d8a93c"/><path d="M7 1v14M13 1v14M1 8h18" stroke="#8a6a1f" stroke-width="1" fill="none"/></svg>')
   const name = document.createElement('span')
   name.className = 'pool-name'
-  name.textContent = 'page算力池'
+  name.textContent = 'page工作台'
   top.appendChild(chip); top.appendChild(name)
   const num = document.createElement('div')
   num.className = 'pool-num'
@@ -5075,6 +5080,19 @@ async function chatComplete(model, messages, onToken, signal) {
   return full
 }
 
+/** AI 工作状态：模型选择器那个位置，AI 干活时变成实时状态。
+ * 平时是模型下拉框；一发消息就藏起下拉框、露出状态（金色圆点呼吸 +
+ * “正在思考…”等第一口 token →“正在回复…”流式出字中）；回完、失败
+ * 或点停止就恢复成下拉框。新对话按钮不动。 */
+function setChatStatus(state) {
+  const sel = $('chat-model'), st = $('chat-status'), txt = $('chat-status-text')
+  if (!sel || !st) return
+  if (state === 'idle') { st.hidden = true; sel.hidden = false; return }
+  sel.hidden = true
+  st.hidden = false
+  if (txt) txt.textContent = state === 'replying' ? '正在回复…' : '正在思考…'
+}
+
 /** 发送按钮 / 回车：把输入框内容发出去，流式回显回答。 */
 async function sendChat() {
   if (chatStreaming) return
@@ -5113,6 +5131,7 @@ async function sendChat() {
   chatStreaming = true
   chatAbort = new AbortController()
   sendBtn.classList.add('streaming')
+  setChatStatus('thinking')
   input.disabled = true
   try {
     const history = chatRequestMessages(chatMessages.slice(-CHAT_MAX_CONTEXT))
@@ -5122,6 +5141,7 @@ async function sendChat() {
     const kbSys = await kbBuildSystemMessage(chatContentText(userContent))
     const reqMessages = kbSys ? [{ role: 'system', content: kbSys }, ...history] : history
     const full = await chatComplete(model, reqMessages, (t) => {
+      setChatStatus('replying')
       if (bubble) bubble.textContent = t
       if (f7Messages) f7Messages.scroll()
       else box.scrollTop = box.scrollHeight
@@ -5144,6 +5164,7 @@ async function sendChat() {
     chatStreaming = false
     chatAbort = null
     sendBtn.classList.remove('streaming')
+    setChatStatus('idle')
     input.disabled = false
     input.focus()
   }
@@ -6267,7 +6288,10 @@ function initImageGen() {
   }, 1000)
 }
 
-$('logout').onclick = () => {
+// 退出登录按钮已从顶栏撤掉（2026-11-16 用户），守住空引用，
+// 万一以后加回来也不用改这行。
+const logoutBtn = $('logout')
+if (logoutBtn) logoutBtn.onclick = () => {
   localStorage.removeItem('wb_api_key')
   location.href = 'login.html'
 }
@@ -6306,9 +6330,17 @@ $('clear-waf').onclick = async () => {
   alert(r.ok ? '已解除' : '解除失败：' + JSON.stringify(r.body))
   loadWaf()
 }
-// 顶栏返回按钮：只在设置子视图里出现，点回设置菜单。
+// 顶栏返回按钮：子视图里点回设置菜单，设置菜单里点回首页
+// （底部导航已撤，这是回首页的路）。子视图里标题是“返回设置”，
+// 设置菜单里是“返回首页”，由 switchView / openSettingsSection 改。
 const settingsBack = $('settings-back')
-if (settingsBack) settingsBack.onclick = () => switchView('settings')
+if (settingsBack) settingsBack.onclick = () => {
+  if (currentSubView) switchView('settings')
+  else switchView('chat')
+}
+// 顶栏齿轮：设置移到顶栏（2026-11-16 用户），点进设置菜单。
+const topSettings = $('top-settings')
+if (topSettings) topSettings.onclick = () => switchView('settings')
 // 设置菜单：点一行进一个子视图。
 for (const row of document.querySelectorAll('.settings-row')) {
   row.onclick = () => openSettingsSection(row.dataset.section)

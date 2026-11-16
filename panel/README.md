@@ -1,4 +1,4 @@
-# page 算力池面板（GitHub Pages 版）
+# page 工作台面板（GitHub Pages 版）
 
 WorkBuddy 网关管理面板的静态版，托管在 GitHub Pages 上。
 面板本身不含任何密钥：打开后输入网关 API Key（存在浏览器 localStorage），

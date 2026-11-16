@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════════
-   page算力池 · panel 样式 — Ionic 8 iOS 结构 + 液态玻璃（iOS 26）
+   page工作台 · panel 样式 — Ionic 8 iOS 结构 + 液态玻璃（iOS 26）
    ────────────────────────────────────────────────────────────────────
    读了什么：
    · Ionic 8 官方文档 ionicframework.com/docs/：ion-app / ion-header /
@@ -117,7 +117,12 @@
 /* ⚠️ Ionic bundle 把 body 钉死（position:fixed + overflow:hidden + height:100%），
    那是给 ion-content 内部滚动准备的；本面板是窗口滚动（下拉刷新 / 左滑返回
    都读 window.scrollY），必须把 body 还原成正常流式布局。 */
-html, body { overflow-x: clip; overflow-y: auto; }
+html, body { overflow-x: clip; overflow-y: auto; overscroll-behavior: none; }
+/* overscroll-behavior:none（2026-11-16 用户：主屏幕图标打开时整个页面
+   不能缩放、边框不能乱动）：禁掉整页的橡皮筋回弹；iOS 主屏幕模式下
+   viewport 的 maximum-scale=1 + user-scalable=no 锁住捏合缩放，
+   touch-action:manipulation（下面全局）禁双击缩放，三者合起来
+   页面就像原生软件一样定住不动。 */
 @supports not (overflow-x: clip) {
   html, body { overflow-x: hidden; overflow-y: auto; }
 }
@@ -254,12 +259,13 @@ html.lg-lens .login-card, html.lg-lens .sheet-modal {
 .content {
   max-width: 1080px;
   margin: 0 auto;
-  /* 顶栏是 sticky（在文档流里占位），内容不需要再顶 64px 空出来——
-     之前 calc(var(--appbar-h) + 4px) 是给 fixed 顶栏留的，换成 sticky 后
-     就成了顶栏和模型选择器之间一大块空地（2026-11-16 用户红圈指出）。 */
-  /* 下边距只留导航栏高 + 安全区 + 2px：之前 +24px 让输入框和导航栏
-     之间空出一大截（2026-11-16 用户骂：导航栏和对话框为什么还有间距）。 */
-  padding: 10px 14px calc(var(--nav-h) + env(safe-area-inset-bottom) + 2px);
+  /* 顶栏是 fixed（在文档流外），内容顶部要留出它的位置：顶栏高 64px
+     （--appbar-h 60px + 实测多出的 4px 边框/行高），再加 10px 空——
+     正好是原来 sticky 时顶栏和模型选择器之间的间距（2026-11-16 用户
+     要求顶栏钉住不动：sticky 在这台机器的 overflow 组合下根本粘不住，
+     实测滚 600px 顶栏就跟着跑 -600px，只能改 fixed）。
+     底部导航已撤（设置移到顶栏），底边只留 12px + 安全区。 */
+  padding: calc(var(--appbar-h) + 14px) 14px calc(env(safe-area-inset-bottom) + 12px);
 }
 
 main { display: block; }
@@ -268,10 +274,17 @@ main > .view { display: block; }
    （2026-11-16 用户截图：对话输入框和设置列表同时出现，就是这条的锅）。 */
 main > .view[hidden] { display: none; }
 
-/* ── 导航栏（Ionic ion-header 结构，sticky 在顶上，玻璃底）── */
+/* ── 导航栏（Ionic ion-header 结构，fixed 钉在顶上，玻璃底）──
+   ⚠️ 之前是 sticky，实测粘不住：消息一长整页 6336px，滚 600px 顶栏
+   就跟着跑 -600px（#chat-messages 的 flex:1 也没起作用，因为视图
+   只有 min-height 没有定高，消息区撑满内容高、整页跟着滚）。
+   改成 fixed（body 上没有 transform，fixed 能钉住视口——v11 已修），
+   内容顶部用 padding-top 留出位置（见上面 .content）。 */
 ion-header.appbar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 60;
   display: block;
   padding: 0;
@@ -596,7 +609,7 @@ input::placeholder, textarea::placeholder { color: rgba(139, 148, 169, 0.7); }
 .kpi-label { font-size: 11px; color: var(--muted-foreground); letter-spacing: 0.05em; text-transform: uppercase; }
 .kpi-value { font-size: 24px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
 .kpi-sub { font-size: 11px; color: var(--muted-foreground); margin-top: 2px; }
-/* 算力池金卡（第一张 KPI 卡里的实物卡，front/back 两面） */
+/* 工作台金卡（第一张 KPI 卡里的实物卡，front/back 两面） */
 .kpi.has-poolcard { padding-right: 172px; }
 .pool-card {
   position: absolute; right: 14px; top: 50%;
@@ -918,7 +931,18 @@ html.lg-lens .sheet-modal {
 /* ── 对话（Ionic 输入条 + 原生气泡）── */
 .chat-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; padding: 10px 12px; }
 .chat-bar select { flex: 1; min-width: 0; }
+/* ── AI 工作状态（2026-11-16 用户：模型选择器那个位置，AI 干活时
+   变成实时状态）──
+   平时是模型下拉框；一发消息就藏起下拉框、露出状态：金色圆点呼吸
+   + “正在思考…”（等第一口 token）→“正在回复…”（流式出字中）；
+   回完/失败/点停止就恢复成下拉框。新对话按钮不动。 */
+.chat-status { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 4px; color: var(--foreground); font-size: 14px; white-space: nowrap; overflow: hidden; }
+.status-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); animation: status-pulse 1.2s ease-in-out infinite; }
+@keyframes status-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.8); } }
 #chat-new { min-height: 44px; }
+/* 输入框字号 16px：iOS 上点小于 16px 的输入框会自动放大页面，
+   viewport 锁了缩放也得防这一手（开源 PWA 的常规做法）。 */
+#chat-input { font-size: 16px; }
 #chat-messages {
   display: flex;
   flex-direction: column;
@@ -929,18 +953,21 @@ html.lg-lens .sheet-modal {
   max-height: calc(100dvh - 300px);
   scrollbar-width: thin;
 }
-/* ── 对话视图：整屏撑满，输入框钉在导航栏上面 ──
+/* ── 对话视图：整屏撑满，输入框钉在屏幕底边上面 ──
    之前对话区是 block 流，消息一少输入框就悬在半空、和导航栏之间
    空一大截（2026-11-16 用户骂的就是这截空）。
-   改成 flex 列：视图最少占满一屏（顶栏 73 + 内容上边距 10 +
-   导航 56 + 安全区 + 下边距 2 = 141px + 安全区），消息区 flex:1
-   吸掉所有剩余空间、内部自己滚动，输入框永远贴在导航栏上沿 8px 处。
+   改成 flex 列：视图高度定死（顶栏 74 + 底边 12 + 安全区），消息区
+   flex:1 吸掉所有剩余空间、内部自己滚动，输入框永远贴在屏幕底边
+   上沿 8px 处。⚠️ 必须是定高 height 不能只是 min-height：只有
+   min-height 时 flex:1 吸不住，消息区会撑满内容高、整页跟着滚，
+   顶栏和模型栏全被顶出屏幕（2026-11-16 实测：页高 6336px）。
    ⚠️ 必须写 :not([hidden])，不然 display:flex 会盖过
    main > .view[hidden]{display:none}，视图切换又叠在一起。 */
 #view-chat:not([hidden]) {
   display: flex;
   flex-direction: column;
-  min-height: calc(100dvh - 141px - env(safe-area-inset-bottom));
+  height: calc(100dvh - var(--appbar-h) - 26px - env(safe-area-inset-bottom));
+  min-height: 0;
 }
 #view-chat:not([hidden]) #chat-messages {
   flex: 1 1 auto;
@@ -1017,17 +1044,18 @@ html.lg-lens .sheet-modal {
   color: #fca5a5;
 }
 /* 输入条：玻璃底 + ion-textarea 自动长高 + 圆形金色发送键
-   position:fixed 钉在视口底、导航栏上面 8px——对话框是固定的，
+   position:fixed 钉在视口底、屏幕底边上面 8px——对话框是固定的，
    页面怎么拉、怎么滚它都不动（2026-11-16 用户：对话框怎么还能往下拉，
    对话框不是固定的吗）。fixed 定位能成立的前提是 body 上没有 transform，
    那个已经在 v11 用 transform:none !important 修掉了。
+   底部导航已撤，输入框直接贴屏幕底边（安全区 + 8px）。
    ⚠️ fixed 会脱离 #view-chat 的 flex 流，所以消息区要留 padding-bottom
    （见上面 #view-chat #chat-messages 那条），不然消息滑到输入框底下。 */
 #chat-composer.composer {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px);
+  bottom: calc(env(safe-area-inset-bottom) + 8px);
   z-index: 5;
   display: flex;
   flex-direction: column;
@@ -1297,11 +1325,9 @@ html[data-theme="light"] .panel { background: rgba(255, 255, 255, 0.045); }
   .pool-card { width: 128px; height: 84px; right: 10px; }
   .kpi.has-poolcard { padding-right: 148px; }
   .pool-num { font-size: 10px; }
-  /* 对话区再缩短：顶栏 73 + 内容上边距 10 + 模型行 83 + 输入条 80
-     + 内容下边距（导航 56 + 安全区 34 + 24）= 360px 固定开销，
-     消息区超过 100dvh-370px 整页就会比屏幕高、能上下滚动
-     （2026-11-16 用户要求：把中间对话面板缩短，让导航栏进来）。 */
-  #chat-messages { max-height: calc(100dvh - 370px); }
+  /* 对话区高度现在由 #view-chat 的定高 + flex:1 管（2026-11-16
+     顶栏钉死那次改的），消息区内部自己滚动，不再用 max-height
+     去凑整页高——旧的 100dvh-370px 上限已删，免得和 flex 打架。 */
 }
 
 /* ── 减动效：系统要求减少动态时，关掉弹簧/果冻/光晕过渡 ── */
