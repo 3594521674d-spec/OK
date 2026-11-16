@@ -4825,9 +4825,10 @@ function toggleSpeech() {
   }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition
   if (!SR) {
-    // 网页语音识别不可用：不藏按钮，聚焦输入框并指去键盘话筒。
-    focusChatInput()
+    // 网页语音识别不可用：不藏按钮，先提示，再聚焦输入框（alert 关掉后
+    // 仍在点按手势里，iOS 上聚焦能弹出键盘，键盘上有话筒就能听写）。
     alert('这边用不了网页语音识别。点一下输入框，弹出键盘后点键盘上的话筒，说话就能转成文字，不用打字')
+    focusChatInput()
     return
   }
   const base = chatInputValue()
