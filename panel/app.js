@@ -3921,7 +3921,35 @@ function saveChatHistory() {
   }
 }
 
-/** 建一条消息气泡（⚠️ 只用 textContent，不用 innerHTML）。 */
+/** 通用复制：先走 navigator.clipboard，不可用时降级 textarea+execCommand。 */
+async function copyTextToClipboard(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.focus()
+    ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    return ok
+  } catch {
+    return false
+  }
+}
+
+const COPY_ICON_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
+const CHECK_ICON_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>'
+
+/** 建一条消息气泡（⚠️ 只用 textContent，不用 innerHTML）。
+ *  气泡下面跟一个复制小图标（AI 和用户都有）：点一下复制这条的原文，
+ *  成功后图标短暂变 ✓。复制读的是气泡当下的 textContent，
+ *  所以流式还没吐完时点的也是当前已吐出的那部分。 */
 function chatBubble(role, text) {
   const row = document.createElement('div')
   row.className = 'chat-msg ' + (role === 'user' ? 'user' : 'assistant')
@@ -3929,6 +3957,23 @@ function chatBubble(role, text) {
   bubble.className = 'chat-bubble'
   bubble.textContent = text
   row.appendChild(bubble)
+  const copyBtn = document.createElement('button')
+  copyBtn.type = 'button'
+  copyBtn.className = 'msg-copy'
+  copyBtn.title = '复制'
+  copyBtn.setAttribute('aria-label', '复制这条消息')
+  copyBtn.innerHTML = COPY_ICON_SVG
+  copyBtn.addEventListener('click', async () => {
+    const ok = await copyTextToClipboard(bubble.textContent || '')
+    if (!ok) return
+    copyBtn.innerHTML = CHECK_ICON_SVG
+    copyBtn.classList.add('copied')
+    setTimeout(() => {
+      copyBtn.innerHTML = COPY_ICON_SVG
+      copyBtn.classList.remove('copied')
+    }, 1200)
+  })
+  row.appendChild(copyBtn)
   return row
 }
 

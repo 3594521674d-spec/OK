@@ -917,9 +917,30 @@ html.lg-lens .sheet-modal {
      不然最后一条消息会滑到输入框底下去（输入框常态高 70px + 8px 空）。 */
   padding-bottom: 90px;
 }
-/* 对话气泡（app.js 没 Ionic 时就走这套原生气泡） */
-.chat-msg { display: flex; }
-.chat-msg.user { justify-content: flex-end; }
+/* 对话气泡（app.js 没 Ionic 时就走这套原生气泡）
+   每行是竖着的 flex 列：气泡在上，复制小图标贴在气泡下面，
+   和气泡同侧（AI 靠左、用户靠右）。 */
+.chat-msg { display: flex; flex-direction: column; align-items: flex-start; }
+.chat-msg.user { align-items: flex-end; }
+/* 气泡下面的复制按钮（AI 和用户都有）：小、淡，点一下复制这条原文，
+   成功后短暂变金色 ✓。手机上没有 hover，所以默认就可见。 */
+.msg-copy {
+  background: none;
+  border: none;
+  padding: 3px 4px;
+  margin-top: 1px;
+  color: var(--text-dim);
+  opacity: 0.55;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+  border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+.msg-copy:hover, .msg-copy:active { opacity: 1; color: var(--text); }
+.msg-copy.copied { opacity: 1; color: var(--gold); }
+.msg-copy svg { display: block; }
 .chat-msg .chat-bubble {
   max-width: 82%;
   padding: 9px 13px;
