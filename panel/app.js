@@ -4003,7 +4003,7 @@ async function loadChatModels() {
   for (const m of chatModels) {
     const o = document.createElement('option')
     o.value = m.id
-    o.textContent = m.name && m.name !== m.id ? m.name + '（' + m.id + '）' : m.id
+    o.textContent = m.name && m.name !== m.id ? m.name + '(' + m.id + ')' : m.id
     sel.appendChild(o)
   }
   // 默认模型：有 deepseek-v4.1-flash 就用它（buddy 主力），否则用列表第一个。
