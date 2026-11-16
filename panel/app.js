@@ -4406,6 +4406,12 @@ async function memesKbSync() {
 /* ── 编导技能总则 biandao（老布以物喻人 + 漫剧全流程合起来就是编导技能）── */
 const BIANDAO_KB_FILES = [
   { url: 'data/biandao/00-编导技能.md', title: '编导技能·总则' },
+  { url: 'data/biandao/01-开源对照-总览.md', title: '编导技能·开源对照·总览' },
+  { url: 'data/biandao/02-Toonflow.md', title: '编导技能·开源对照·Toonflow' },
+  { url: 'data/biandao/03-火宝短剧.md', title: '编导技能·开源对照·火宝短剧' },
+  { url: 'data/biandao/04-waoowaoo.md', title: '编导技能·开源对照·waoowaoo' },
+  { url: 'data/biandao/05-ViMax.md', title: '编导技能·开源对照·ViMax' },
+  { url: 'data/biandao/06-drama-skills.md', title: '编导技能·开源对照·drama-skills' },
 ]
 let biandaoKbSyncing = false
 async function biandaoKbSync() {
