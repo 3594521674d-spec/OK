@@ -5345,7 +5345,8 @@ function chatBubble(role, content, opts) {
   row.className = 'chat-msg ' + (role === 'user' ? 'user' : 'assistant')
   const bubble = document.createElement('div')
   bubble.className = 'chat-bubble'
-  bubble.textContent = chatContentText(content)
+  if (role === 'user') bubble.textContent = chatContentText(content)
+  else bubble.innerHTML = mdToHtml(chatContentText(content))
   for (const imgUrl of chatContentImages(content)) {
     const img = document.createElement('img')
     img.className = 'chat-img'
@@ -5387,12 +5388,81 @@ function chatBubble(role, content, opts) {
   return row
 }
 
+
+/** 聊天里的 Markdown 渲染（2026-11-17 用户：AI 回复里的 **、##、>、--- 原样露出来了，
+ * 还整坨发过来。原因：模型回的是 Markdown，面板原来是当纯文本贴出来的，符号没人翻译。
+ * 只做模型常写的几种：标题/引用/列表/分隔线/代码块/粗体/斜体/行内代码；先转义 HTML
+ * 再解析，模型夹带的 HTML 标签不会真的生效。只给 AI 消息用，用户自己发的还是纯文本。 */
+function mdInline(s) {
+  const codes = []
+  s = s.replace(/`([^`\n]+)`/g, (_, c) => { codes.push(c); return '\u0000' + (codes.length - 1) + '\u0000' })
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  s = s.replace(/(^|[^*])\*([^ *\n][^*\n]*?)\*/g, '$1<em>$2</em>')
+  s = s.replace(/\u0000(\d+)\u0000/g, (_, i) => '<code>' + codes[+i] + '</code>')
+  return s
+}
+function mdToHtml(text) {
+  const src = String(text == null ? '' : text).replace(/\r\n/g, '\n')
+  const lines = src.split('\n')
+  let html = ''
+  let para = []
+  const flushPara = () => {
+    if (!para.length) return
+    html += '<p>' + mdInline(escapeHtml(para.join('\n')).replace(/\n/g, '<br>')) + '</p>'
+    para = []
+  }
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i].trim()
+    if (t === '') { flushPara(); continue }
+    const h = t.match(/^(#{1,3})\s+(.*)$/)
+    if (h) { flushPara(); html += '<h' + h[1].length + '>' + mdInline(escapeHtml(h[2])) + '</h' + h[1].length + '>'; continue }
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(t)) { flushPara(); html += '<hr>'; continue }
+    if (t.indexOf('```') === 0) {
+      flushPara()
+      const buf = []
+      i++
+      while (i < lines.length && lines[i].trim().indexOf('```') !== 0) { buf.push(lines[i]); i++ }
+      html += '<pre><code>' + escapeHtml(buf.join('\n')) + '</code></pre>'
+      continue
+    }
+    if (t.indexOf('> ') === 0 || t === '>') {
+      flushPara()
+      const buf = []
+      while (i < lines.length && (lines[i].trim().indexOf('> ') === 0 || lines[i].trim() === '>')) {
+        buf.push(lines[i].trim().replace(/^>\s?/, '')); i++
+      }
+      i--
+      html += '<blockquote>' + mdInline(escapeHtml(buf.join('\n')).replace(/\n/g, '<br>')) + '</blockquote>'
+      continue
+    }
+    const ol = t.match(/^(\d+)[.)]\s+(.*)$/)
+    const ul = t.match(/^[-*]\s+(.*)$/)
+    if (ul || ol) {
+      flushPara()
+      const tag = ol ? 'ol' : 'ul'
+      const items = []
+      while (i < lines.length) {
+        const lt = lines[i].trim()
+        const m = ol ? lt.match(/^(\d+)[.)]\s+(.*)$/) : lt.match(/^[-*]\s+(.*)$/)
+        if (!m) break
+        items.push(ol ? m[2] : m[1]); i++
+      }
+      i--
+      html += '<' + tag + '>' + items.map((it) => '<li>' + mdInline(escapeHtml(it)) + '</li>').join('') + '</' + tag + '>'
+      continue
+    }
+    para.push(lines[i])
+  }
+  flushPara()
+  return html || '<p></p>'
+}
+
 /** F7 消息气泡（有 F7 时用它；没 F7 时退回 chatBubble）。返回气泡元素。 */
 function f7AddMessage(role, text, cssClass, opts) {
   const box = $('chat-messages')
   if (!box) return null
   if (f7Messages) {
-    f7Messages.addMessage({ text, type: role === 'user' ? 'sent' : 'received', cssClass: cssClass || '' }, 'append', true)
+    f7Messages.addMessage({ text: role === 'user' ? escapeHtml(text) : mdToHtml(text), type: role === 'user' ? 'sent' : 'received', cssClass: cssClass || '' }, 'append', true)
     const els = box.querySelectorAll('.message')
     return els.length ? els[els.length - 1] : null
   }
@@ -5429,7 +5499,7 @@ function renderChat() {
       else box.appendChild(actionCardEl(m.content))
       continue
     }
-    if (f7Messages) f7Messages.addMessage({ text: chatContentText(m.content), image: chatContentImage(m.content) || undefined, type: m.role === 'user' ? 'sent' : 'received' }, 'append', false)
+    if (f7Messages) f7Messages.addMessage({ text: m.role === 'user' ? escapeHtml(chatContentText(m.content)) : mdToHtml(chatContentText(m.content)), image: chatContentImage(m.content) || undefined, type: m.role === 'user' ? 'sent' : 'received' }, 'append', false)
     else box.appendChild(chatBubble(m.role, m.content))
   }
   const empty = $('chat-empty')
@@ -5739,7 +5809,7 @@ async function streamAssistantRound(reqMessages, model) {
   else if (box) box.scrollTop = box.scrollHeight
   const full = await chatComplete(model, reqMessages, (t) => {
     setChatStatus('replying')
-    if (bubble) bubble.textContent = t
+    if (bubble) bubble.innerHTML = mdToHtml(t)
     if (f7Messages) f7Messages.scroll()
     else if (box) box.scrollTop = box.scrollHeight
   }, chatAbort.signal)
