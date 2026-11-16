@@ -2,7 +2,7 @@
 //
 // 模型：Xenova/bge-small-zh-v1.5（Transformers.js v4，Hugging Face 官方，
 // CDN：https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js）
-// 中文专用，384 维；dtype q8 走 model_quantized.onnx，首次下载约 25MB，
+// 中文专用，512 维；dtype q8 走 model_quantized.onnx，首次下载约 25MB，
 // 之后走浏览器 Cache Storage（transformers.js 默认 useBrowserCache）。
 // 中文不要用 all-MiniLM-L6-v2（英文模型，中文检索差）。
 //

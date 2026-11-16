@@ -4078,7 +4078,7 @@ let kbModelError = ''
 let kbModelReadyPromise = null
 function kbEnsureWorker() {
   if (kbWorker) return kbWorker
-  kbWorker = new Worker('kb-worker.js?v=1', { type: 'module' })
+  kbWorker = new Worker('kb-worker.js?v=2', { type: 'module' })
   kbWorker.onmessage = (ev) => {
     const m = (ev && ev.data) || {}
     if (m.type === 'progress') {
@@ -4350,7 +4350,9 @@ async function kbExtractFile(file) {
     }
     text = text.trim()
     // ⚠️ 扫描版 / 无文本层：抽不到字就明说，不假装读到了，不入库。
-    if (text.replace(/\s/g, '').length < 20) {
+    // 阈值 10 个非空字符：扫描件通常是 0 字（最多一两字页码），而真正的
+    // 短文本 PDF（一行标题也不止 10 字）不会被误杀。
+    if (text.replace(/\s/g, '').length < 10) {
       throw new Error('这份 PDF 几乎没有可抽取的文字（共 ' + pdf.numPages + ' 页），可能是扫描版图片型 PDF，浏览器读不到文字，需要先 OCR 才能入库；没有入库。')
     }
     return { title: name.replace(/\.pdf$/i, ''), text }
@@ -4422,7 +4424,7 @@ async function kbRenderStatus() {
   const modelEl = $('kb-model-status')
   if (modelEl) {
     modelEl.textContent = kbModelState === 'ready'
-      ? '向量模型已就绪（bge-small-zh-v1.5，384 维）'
+      ? '向量模型已就绪（bge-small-zh-v1.5，512 维）'
       : kbModelState === 'loading'
         ? '向量模型下载中 ' + kbModelProgress + '%（首次约 25MB，之后走浏览器缓存）'
         : kbModelState === 'error'
