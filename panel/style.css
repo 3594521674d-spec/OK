@@ -948,9 +948,60 @@ html.lg-lens .sheet-modal {
 .qr-box code { display: block; font-family: var(--font-mono); font-size: 12px; margin: 10px 0; word-break: break-all; }
 .qr-box button { margin-top: 6px; }
 
-/* ── 对话（Ionic 输入条 + 原生气泡）── */
-.chat-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; padding: 10px 12px; }
-.chat-bar select { flex: 1; min-width: 0; box-shadow: var(--float-1); }
+/* ── 对话（Ionic 输入条 + 原生气泡）──
+ * 状态条钉死在顶栏下面（2026-11-16 用户：上滑消息时功能块不能跟着跑）：
+ * position:fixed 让它脱离文档流——光靠“页面不滚”不够，iOS 键盘开合/
+ * 橡皮筋回弹都会让文档短暂滚动，流内的条子一定跟着跑；钉死才稳。
+ * 玻璃底 + 悬浮影是 .panel 那组（它自带），这里只钉位置。 */
+.chat-bar {
+  position: fixed;
+  top: calc(var(--appbar-h) + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1052px, calc(100% - 28px));
+  z-index: 40;
+  display: flex; gap: 8px; align-items: center;
+  margin-bottom: 0;
+  padding: 10px 12px;
+}
+/* 待命时圆点不呼吸，忙的时候才呼吸（setChatStatus 切 .busy）。 */
+.chat-status:not(.busy) .status-dot { animation: none; }
+/* ── AI 动作卡片（金边小卡，嵌在对话流里）── */
+.action-card {
+  border: 1px solid rgba(217, 164, 65, 0.55);
+  border-radius: 14px;
+  background: rgba(217, 164, 65, 0.07);
+  box-shadow: var(--float-1);
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--foreground);
+  text-align: left;
+}
+.action-card-title { font-weight: 700; font-size: 13px; }
+.action-card-body { margin-top: 4px; font-size: 12px; color: var(--muted-foreground); }
+.action-card-actions { display: flex; gap: 8px; margin-top: 10px; }
+.action-confirm {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1405;
+  background: linear-gradient(180deg, #e8bd60, #cf9c31);
+  border: none;
+  border-radius: 20px;
+  padding: 8px 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.action-cancel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 8px 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
 /* ── AI 工作状态（2026-11-16 用户：模型选择器那个位置，AI 干活时
    变成实时状态）──
    平时是模型下拉框；一发消息就藏起下拉框、露出状态：金色圆点呼吸
@@ -988,6 +1039,9 @@ html.lg-lens .sheet-modal {
   flex-direction: column;
   height: calc(100dvh - var(--appbar-h) - 26px - env(safe-area-inset-bottom));
   min-height: 0;
+  /* 状态条钉死在上面了（fixed，不占流内位置），消息区顶部留出它的位置
+     （条子高约 64px + 12px 间隙），不然第一条消息会滑到条子底下去。 */
+  padding-top: 76px;
 }
 #view-chat:not([hidden]) #chat-messages {
   flex: 1 1 auto;
@@ -1128,23 +1182,34 @@ html.lg-lens .sheet-modal {
   animation: mic-pulse 1.2s ease-in-out infinite;
 }
 @keyframes mic-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-/* 图片附件预览（输入框上方）：缩略图 + 文件名 + × 删除 */
+/* 附件预览（输入框上方）：chips 横向排，每个带 ×；文件 chip 带去向切换 */
 #chat-composer .img-preview {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
 }
 #chat-composer .img-preview[hidden] { display: none; }
-#chat-composer .img-preview img {
-  width: 56px;
-  height: 56px;
+.attach-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.attach-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 6px 4px 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--float-1);
+}
+.attach-chip img {
+  width: 48px;
+  height: 48px;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid var(--border);
   flex: none;
 }
-#chat-composer .img-preview-name {
-  flex: 1;
+.attach-chip-name {
   min-width: 0;
   font-size: 12px;
   color: var(--text-dim);
@@ -1152,22 +1217,85 @@ html.lg-lens .sheet-modal {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-#chat-composer .img-preview-remove {
+.attach-chip-remove {
   flex: none;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border-radius: 50%;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.06);
   color: var(--text);
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
+.attach-chip-dest {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  background: transparent;
+  border: 1px solid rgba(217, 164, 65, 0.5);
+  border-radius: 20px;
+  padding: 4px 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 非视觉模型提示：当前模型看不懂图 + 切到 kimi 的金色按钮 */
+.attach-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.attach-hint[hidden] { display: none; }
+.attach-switch {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1a1405;
+  background: linear-gradient(180deg, #e8bd60, #cf9c31);
+  border: none;
+  border-radius: 20px;
+  padding: 6px 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 上传动作菜单：底部小菜单（拍照 / 相册选图 / 选文件 / 取消），56pt 行高 */
+.attach-sheet { position: fixed; inset: 0; z-index: 90; }
+.attach-sheet[hidden] { display: none; }
+.attach-sheet-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.5); }
+.attach-sheet-inner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(18, 26, 44, 0.92);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  border-radius: 28px 28px 0 0;
+  box-shadow: var(--float-3);
+  padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
+}
+.attach-opt {
+  display: block;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--foreground);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.attach-opt:active { background: rgba(255, 255, 255, 0.06); }
+.attach-opt.attach-cancel { border-bottom: none; color: var(--muted-foreground); font-weight: 500; }
 /* 气泡里的图片（用户发图的消息）：缩略图，跟在文字下面 */
 .chat-msg .chat-bubble img.chat-img {
   display: block;
