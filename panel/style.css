@@ -235,7 +235,10 @@ html.lg-lens .login-card, html.lg-lens .sheet-modal {
 .content {
   max-width: 1080px;
   margin: 0 auto;
-  padding: calc(var(--appbar-h) + 4px) 14px calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px);
+  /* 顶栏是 sticky（在文档流里占位），内容不需要再顶 64px 空出来——
+     之前 calc(var(--appbar-h) + 4px) 是给 fixed 顶栏留的，换成 sticky 后
+     就成了顶栏和模型选择器之间一大块空地（2026-11-16 用户红圈指出）。 */
+  padding: 10px 14px calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px);
 }
 
 main { display: block; }
