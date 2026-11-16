@@ -22,7 +22,7 @@
   CSS 在 style.css 之前加载，咱们的样式覆盖在上；JS 在 body 末尾、app.js 之前。
   各组件用 mode="ios" 强制 iOS 外观（桌面 Chrome 也按 iOS 渲染）。 -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ionic/core@8/css/ionic.bundle.css">
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 <ion-app>
@@ -152,7 +152,168 @@
         <span class="qa-icon" slot="start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg></span>
         <ion-label><span class="set-title">设置</span><span class="set-sub">配置与状态</span></ion-label>
       </ion-item>
+      <ion-item button detail class="settings-row" data-section="imagegen" mode="ios">
+        <span class="qa-icon" slot="start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>
+        <ion-label><span class="set-title">生图</span><span class="set-sub">InvokeAI 式生图面板（上游未接）</span></ion-label>
+      </ion-item>
     </ion-list>
+  </section>
+
+  <!-- ───────── 生图（InvokeAI 式界面，只做界面形态 + 能走的通路） ───────── -->
+  <section class="view" id="view-imagegen" hidden>
+    <div class="page-head">
+      <h2>生图</h2>
+    </div>
+    <div class="imggen-notice" id="imggen-notice">⚠️ 生图上游还没接：网关目前只有对话模型，点「生成」会直接失败并提示。等网关接了生图模型就能用。</div>
+
+    <!-- 顶栏进度：队列整体进度（已终态任务 / 全部任务），不是假进度 -->
+    <div class="panel imggen-progress">
+      <div class="row imggen-progress-top">
+        <span class="imggen-progress-label" id="imggen-progress-label">队列空闲</span>
+        <span class="imggen-progress-pct" id="imggen-progress-pct">0%</span>
+      </div>
+      <div class="imggen-bar"><div class="imggen-bar-fill" id="imggen-progress-fill" style="width:0%"></div></div>
+    </div>
+
+    <!-- 提示词 -->
+    <section class="panel imggen-panel">
+      <label class="imggen-label" for="imggen-prompt">提示词</label>
+      <textarea id="imggen-prompt" rows="3" placeholder="描述要画的画面，例如：空无一人的海边木屋，黄昏"></textarea>
+      <label class="imggen-label" for="imggen-negative">负面提示词</label>
+      <textarea id="imggen-negative" rows="2" placeholder="不想要的东西，例如：模糊、多余的手指、低质量"></textarea>
+      <div class="row imggen-actions">
+        <button class="primary" id="imggen-generate">生成</button>
+        <span class="hint" id="imggen-generate-hint">一次出几张在「渲染」里设</span>
+      </div>
+    </section>
+
+    <!-- 参数：分段折叠（尺寸 / 引导 / 渲染 / 高级），抄 InvokeAI 的分段 -->
+    <div class="imggen-sections">
+      <details class="imggen-details" open>
+        <summary>尺寸</summary>
+        <div class="imggen-body">
+          <div class="imggen-label">比例</div>
+          <div class="imggen-ratios" id="imggen-ratios" role="group" aria-label="比例"></div>
+          <div class="imggen-size-row">
+            <label for="imggen-w">宽</label>
+            <input type="range" id="imggen-w" min="64" max="2048" step="8" value="1024" aria-label="宽">
+            <input type="number" id="imggen-w-num" min="64" max="2048" step="8" value="1024" aria-label="宽（数字）">
+            <span class="imggen-dim" id="imggen-w-val">1024</span>
+          </div>
+          <div class="imggen-size-row">
+            <label for="imggen-h">高</label>
+            <input type="range" id="imggen-h" min="64" max="2048" step="8" value="576" aria-label="高">
+            <input type="number" id="imggen-h-num" min="64" max="2048" step="8" value="576" aria-label="高（数字）">
+            <span class="imggen-dim" id="imggen-h-val">576</span>
+          </div>
+          <div class="row">
+            <button id="imggen-lock" class="ghost" aria-pressed="true">🔒 已锁定比例</button>
+            <button id="imggen-swap" class="ghost">⇄ 宽高互换</button>
+            <button id="imggen-optimize" class="ghost">恢复推荐尺寸</button>
+          </div>
+          <div class="row">
+            <input id="imggen-ratio-name" placeholder="自定义比例名，如 Cinema" aria-label="自定义比例名">
+            <button id="imggen-ratio-save" class="ghost">保存当前比例</button>
+          </div>
+          <p class="hint">自定义比例只存形状（宽:高），不存尺寸，最多 50 个；存在本机浏览器里。</p>
+          <div class="imggen-ratios" id="imggen-custom-ratios" role="group" aria-label="自定义比例"></div>
+        </div>
+      </details>
+      <details class="imggen-details">
+        <summary>引导</summary>
+        <div class="imggen-body">
+          <div class="imggen-size-row">
+            <label for="imggen-cfg">引导系数（CFG）</label>
+            <input type="range" id="imggen-cfg" min="1" max="20" step="0.5" value="7" aria-label="引导系数">
+            <input type="number" id="imggen-cfg-num" min="1" max="20" step="0.5" value="7" aria-label="引导系数（数字）">
+            <span class="imggen-dim" id="imggen-cfg-val">7</span>
+          </div>
+          <p class="hint">CFG 越高越贴提示词，越低越自由；常用 5–9。</p>
+        </div>
+      </details>
+      <details class="imggen-details">
+        <summary>渲染</summary>
+        <div class="imggen-body">
+          <div class="imggen-size-row">
+            <label for="imggen-steps">步数</label>
+            <input type="range" id="imggen-steps" min="1" max="60" step="1" value="20" aria-label="步数">
+            <input type="number" id="imggen-steps-num" min="1" max="60" step="1" value="20" aria-label="步数（数字）">
+            <span class="imggen-dim" id="imggen-steps-val">20</span>
+          </div>
+          <div class="imggen-field">
+            <label class="imggen-label" for="imggen-sampler">采样器</label>
+            <select id="imggen-sampler">
+              <option value="euler_a">Euler a</option>
+              <option value="euler">Euler</option>
+              <option value="dpmpp_2m_karras">DPM++ 2M Karras</option>
+              <option value="dpmpp_sde_karras">DPM++ SDE Karras</option>
+              <option value="ddim">DDIM</option>
+              <option value="lms">LMS</option>
+            </select>
+          </div>
+          <div class="imggen-field">
+            <label class="imggen-label" for="imggen-seed">种子（-1 = 随机）</label>
+            <div class="row">
+              <input type="number" id="imggen-seed" value="-1" step="1" aria-label="种子">
+              <button id="imggen-seed-random" class="ghost">🎲 随机</button>
+              <button id="imggen-seed-reuse" class="ghost">♻️ 复用上次</button>
+            </div>
+          </div>
+          <div class="imggen-size-row">
+            <label for="imggen-count">一次出几张</label>
+            <input type="range" id="imggen-count" min="1" max="4" step="1" value="1" aria-label="一次出几张">
+            <input type="number" id="imggen-count-num" min="1" max="4" step="1" value="1" aria-label="一次出几张（数字）">
+            <span class="imggen-dim" id="imggen-count-val">1</span>
+          </div>
+        </div>
+      </details>
+      <details class="imggen-details">
+        <summary>高级</summary>
+        <div class="imggen-body">
+          <div class="imggen-field">
+            <label class="imggen-label" for="imggen-model">生图模型</label>
+            <select id="imggen-model">
+              <option value="">加载模型中…</option>
+            </select>
+            <p class="hint">当前网关的模型列表里只有对话模型，没有生图模型；等网关接了生图模型，这里会多出生图模型可供选择。</p>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- 批量提示词：txt 文件 + 粘贴多行，同一解析逻辑 -->
+    <section class="panel imggen-panel">
+      <div class="panel-head"><h3>批量提示词</h3></div>
+      <p class="hint">txt 文件每行一条提示词；每行可带 <code>--参数 值</code> 覆盖本行参数（例如 <code>--steps 30 --width 768 --cfg_scale 8</code>）。下面文本框粘贴多行走同一逻辑。</p>
+      <div class="row">
+        <input type="file" id="imggen-batch-file" accept=".txt,text/plain" aria-label="上传提示词文件">
+        <span class="hint" id="imggen-batch-file-name"></span>
+      </div>
+      <textarea id="imggen-batch-text" rows="4" placeholder="每行一条提示词……"></textarea>
+      <div class="row">
+        <button id="imggen-batch-add">加入队列</button>
+        <span class="hint" id="imggen-batch-count"></span>
+      </div>
+    </section>
+
+    <!-- 任务队列 -->
+    <section class="panel imggen-panel">
+      <div class="panel-head"><h3>任务队列</h3><button class="ghost" id="imggen-clear-done">清空已完成</button></div>
+      <div class="imggen-qtabs" id="imggen-qtabs" role="tablist" aria-label="队列筛选">
+        <button data-qtab="all" class="active">全部 <span id="imggen-count-all">0</span></button>
+        <button data-qtab="completed">已完成 <span id="imggen-count-completed">0</span></button>
+        <button data-qtab="failed">失败 <span id="imggen-count-failed">0</span></button>
+      </div>
+      <div id="imggen-queue"></div>
+      <p class="hint" id="imggen-queue-empty">队列是空的。任务一次跑一个，串行执行；刷新页面后未完成的任务会标记为失败（刷新后中断）。</p>
+    </section>
+
+    <!-- 出图展示与下载 -->
+    <section class="panel imggen-panel">
+      <div class="panel-head"><h3>出图</h3><button class="ghost" id="imggen-zip" disabled>打包下载全部 (.zip)</button></div>
+      <div id="imggen-gallery" class="imggen-gallery"></div>
+      <p class="hint" id="imggen-gallery-empty">还没有出图。生成成功后图片会出现在这里，点开放大，每张都能单独下载；生成参数会写进 PNG 元数据。</p>
+    </section>
   </section>
 
   <!-- ───────── 仪表盘（照观澜 AI 的版式：统计卡 → 筛选条 → 图表行 → 最近使用 + 快捷操作） ───────── -->
@@ -460,7 +621,8 @@
 </ion-app>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@ionic/core@8/dist/ionic/ionic.esm.js"></script>
 <script nomodule src="https://cdn.jsdelivr.net/npm/@ionic/core@8/dist/ionic/ionic.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="glass.js?v=1"></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

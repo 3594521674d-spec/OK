@@ -239,6 +239,7 @@ const VIEW_LOADERS = {
   // ⚠️ 已改为**自动加载**（用户要求）：进视图就拉目录，不必再点按钮。
   // 按钮随之改名为「刷新目录」—— 它的语义现在是「重新拉一次」而非「首次加载」。
   models: () => loadModels(),
+  imagegen: () => initImageGen(),
   config: () => loadConfig(),
   logs: () => loadLogs(),
 }
@@ -247,7 +248,7 @@ const VIEW_LOADERS = {
 // 由 openSettingsSection() 打开，不走 switchView。
 const TOP_VIEWS = ['chat', 'settings']
 // 设置里的子视图（顺序与设置菜单一致）。
-const SUB_VIEWS = ['apikeys', 'usage', 'providers', 'tasks', 'models', 'logs', 'config']
+const SUB_VIEWS = ['apikeys', 'usage', 'providers', 'tasks', 'models', 'logs', 'config', 'imagegen']
 // 当前打开的子视图（'' 表示没有，停在设置菜单）。
 let currentSubView = ''
 
@@ -4708,6 +4709,885 @@ function applyTheme(theme) {
     btn.title = '主题：' + ({ auto: '跟随系统', light: '浅色', dark: '深色' }[theme] || '跟随系统')
   }
   localStorage.setItem('wb_theme', theme)
+}
+
+
+/* ── 生图面板（InvokeAI 式界面，批次 2）────────────────────────────
+ * 只做界面形态 + 能走的通路。后端只有对话模型，没有生图接口：
+ * 生成走网关真实的 POST /v1/images/generations（OpenAI 图片接口形态）。
+ * 现在上游会直接 400（buddy 不支持生图），任务就进 failed 并明说
+ * 「生图上游还没接，等网关接了生图模型就能用」，绝不造假图、假进度。
+ * 等网关接了生图模型，同一条调用就能真的出图，不用改面板。
+ * 任务串行跑（一次一个）；刷新后未完成的任务标记 failed（刷新后中断）。
+ * 图片只存内存 + 远程 URL 进 localStorage，base64 大图不进 localStorage（5MB 放不下）。
+ * JSZip 走 CDN（jsdelivr，与 Ionic 同源），挂了就逐张下载兜底。
+ */
+const IMGGEN_UPSTREAM_MSG = '生图上游还没接，等网关接了生图模型就能用'
+const IMGGEN_TASKS_KEY = 'wb_imggen_tasks_v1'
+const IMGGEN_SETTINGS_KEY = 'wb_imggen_settings_v1'
+const IMGGEN_RATIOS_KEY = 'wb_imggen_ratios_v1'
+const IMGGEN_RATIOS = {
+  '21:9': [21, 9], '16:9': [16, 9], '3:2': [3, 2], '4:3': [4, 3], '1:1': [1, 1],
+  '3:4': [3, 4], '2:3': [2, 3], '9:16': [9, 16], '9:21': [9, 21], 'Free': null,
+}
+const IMGGEN_TERMINAL = ['completed', 'failed', 'canceled']
+const imggen = {
+  bound: false, tasks: [], running: false, abort: null,
+  ratio: '16:9', locked: true, customRatios: [], qtab: 'all',
+  lastSeed: null, modelsLoaded: false, tickTimer: null,
+}
+
+function imggenSnap8(v) {
+  const n = Math.round(Number(v) / 8) * 8
+  return Math.max(64, Math.min(2048, n || 64))
+}
+function imggenClampInt(v, lo, hi, def) {
+  const n = parseInt(v, 10)
+  if (isNaN(n)) return def
+  return Math.max(lo, Math.min(hi, n))
+}
+function imggenSummary(text, n) {
+  const t = String(text || '').replace(/\s+/g, ' ').trim()
+  if (!t) return '（空提示词）'
+  return t.length > (n || 40) ? t.slice(0, n || 40) + '…' : t
+}
+function imggenNow() { return Date.now() }
+function imggenDur(task) {
+  if (!task.startedAt) return ''
+  const end = task.endedAt || imggenNow()
+  const s = Math.max(0, Math.round((end - task.startedAt) / 1000))
+  return s + ' 秒'
+}
+
+/* ── 持久化 ── */
+function imggenSaveTasks() {
+  try {
+    const clean = imggen.tasks.map((t) => {
+      const c = Object.assign({}, t)
+      // base64 大图不进 localStorage；远程 URL 很小，可以留。
+      if (c.imageData && c.imageData.indexOf('data:') === 0) delete c.imageData
+      return c
+    })
+    localStorage.setItem(IMGGEN_TASKS_KEY, JSON.stringify(clean))
+  } catch { /* 存不下也不影响生成 */ }
+}
+function imggenLoadTasks() {
+  let arr = []
+  try {
+    const raw = localStorage.getItem(IMGGEN_TASKS_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    arr = Array.isArray(parsed) ? parsed : []
+  } catch { arr = [] }
+  // 刷新后未完成的任务标记为失败，并注明「刷新后中断」。
+  for (const t of arr) {
+    if (t && (t.status === 'pending' || t.status === 'running')) {
+      t.status = 'failed'
+      t.error = '刷新后中断'
+      t.detail = '页面刷新了，这个任务没跑完；可以点重试再跑一次。'
+      t.endedAt = imggenNow()
+    }
+  }
+  imggen.tasks = arr.filter((t) => t && typeof t.prompt === 'string')
+  imggenSaveTasks()
+}
+function imggenSaveSettings() {
+  try {
+    localStorage.setItem(IMGGEN_SETTINGS_KEY, JSON.stringify(imggenReadParams()))
+  } catch { /* 忽略 */ }
+}
+function imggenLoadSettings() {
+  try {
+    const raw = localStorage.getItem(IMGGEN_SETTINGS_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+function imggenLoadRatios() {
+  try {
+    const raw = localStorage.getItem(IMGGEN_RATIOS_KEY)
+    const arr = raw ? JSON.parse(raw) : []
+    imggen.customRatios = Array.isArray(arr) ? arr.filter((r) => r && r.name && r.w && r.h) : []
+  } catch { imggen.customRatios = [] }
+}
+function imggenSaveRatios() {
+  try { localStorage.setItem(IMGGEN_RATIOS_KEY, JSON.stringify(imggen.customRatios.slice(0, 50))) } catch { /* 忽略 */ }
+}
+
+/* ── 参数读写 ── */
+function imggenReadParams() {
+  const w = imggenSnap8($('imggen-w-num') ? $('imggen-w-num').value : 1024)
+  const h = imggenSnap8($('imggen-h-num') ? $('imggen-h-num').value : 576)
+  return {
+    prompt: $('imggen-prompt') ? $('imggen-prompt').value : '',
+    negative: $('imggen-negative') ? $('imggen-negative').value : '',
+    model: $('imggen-model') ? $('imggen-model').value : '',
+    width: w, height: h, ratio: imggen.ratio, locked: imggen.locked,
+    cfg: Math.max(1, Math.min(20, parseFloat($('imggen-cfg-num').value) || 7)),
+    steps: imggenClampInt($('imggen-steps-num') ? $('imggen-steps-num').value : 20, 1, 60, 20),
+    sampler: $('imggen-sampler') ? $('imggen-sampler').value : 'euler_a',
+    seed: imggenClampInt($('imggen-seed') ? $('imggen-seed').value : -1, -1, 2147483647, -1),
+    count: imggenClampInt($('imggen-count-num') ? $('imggen-count-num').value : 1, 1, 4, 1),
+  }
+}
+function imggenApplyParams(p) {
+  if (!p) return
+  if (typeof p.prompt === 'string') $('imggen-prompt').value = p.prompt
+  if (typeof p.negative === 'string') $('imggen-negative').value = p.negative
+  if (p.ratio && IMGGEN_RATIOS[p.ratio] !== undefined) imggenSetRatio(p.ratio, false)
+  else if (p.ratio === 'Free') imggenSetRatio('Free', false)
+  if (typeof p.locked === 'boolean') imggen.locked = p.locked
+  imggenSetSize(p.width || 1024, p.height || 576)
+  imggenSetSlider('imggen-cfg', 'imggen-cfg-num', 'imggen-cfg-val', p.cfg != null ? p.cfg : 7)
+  imggenSetSlider('imggen-steps', 'imggen-steps-num', 'imggen-steps-val', p.steps != null ? p.steps : 20)
+  if (p.sampler) $('imggen-sampler').value = p.sampler
+  if (p.seed != null) $('imggen-seed').value = p.seed
+  imggenSetSlider('imggen-count', 'imggen-count-num', 'imggen-count-val', p.count != null ? p.count : 1)
+  if (p.model) $('imggen-model').value = p.model
+  imggenUpdateLockBtn()
+}
+
+/* ── 尺寸 / 比例 ── */
+function imggenSetSlider(rangeId, numId, valId, v) {
+  const r = $(rangeId), n = $(numId), l = $(valId)
+  if (r) r.value = v
+  if (n) n.value = v
+  if (l) l.textContent = String(v)
+}
+function imggenSetSize(w, h) {
+  w = imggenSnap8(w); h = imggenSnap8(h)
+  imggenSetSlider('imggen-w', 'imggen-w-num', 'imggen-w-val', w)
+  imggenSetSlider('imggen-h', 'imggen-h-num', 'imggen-h-val', h)
+}
+function imggenRatioDims(name, keepW) {
+  const r = IMGGEN_RATIOS[name]
+  if (!r) return null
+  const w = keepW || 1024
+  let h = imggenSnap8(w * r[1] / r[0])
+  let ww = w
+  if (h > 2048) { h = 2048; ww = imggenSnap8(h * r[0] / r[1]) }
+  return [ww, h]
+}
+function imggenSetRatio(name, resize) {
+  imggen.ratio = name
+  const chips = document.querySelectorAll('#imggen-ratios .imggen-ratio')
+  for (const c of chips) c.classList.toggle('active', c.dataset.ratio === name)
+  if (name !== 'Free') {
+    imggen.locked = true
+    if (resize !== false) {
+      const d = imggenRatioDims(name, imggenSnap8($('imggen-w-num').value))
+      if (d) imggenSetSize(d[0], d[1])
+    }
+  } else {
+    imggen.locked = false
+  }
+  imggenUpdateLockBtn()
+}
+function imggenUpdateLockBtn() {
+  const b = $('imggen-lock')
+  if (!b) return
+  b.textContent = imggen.locked ? '🔒 已锁定比例' : '🔓 未锁定比例'
+  b.setAttribute('aria-pressed', imggen.locked ? 'true' : 'false')
+}
+function imggenFollowFromWidth() {
+  if (!imggen.locked || imggen.ratio === 'Free') return
+  const d = imggenRatioDims(imggen.ratio, imggenSnap8($('imggen-w-num').value))
+  if (d) imggenSetSize(d[0], d[1])
+}
+function imggenFollowFromHeight() {
+  if (!imggen.locked || imggen.ratio === 'Free') return
+  const r = IMGGEN_RATIOS[imggen.ratio]
+  if (!r) return
+  const h = imggenSnap8($('imggen-h-num').value)
+  let w = imggenSnap8(h * r[0] / r[1])
+  let hh = h
+  if (w > 2048) { w = 2048; hh = imggenSnap8(w * r[1] / r[0]) }
+  imggenSetSize(w, hh)
+}
+function imggenRenderCustomRatios() {
+  const box = $('imggen-custom-ratios')
+  if (!box) return
+  clear(box)
+  for (const r of imggen.customRatios) {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.className = 'imggen-ratio'
+    b.textContent = r.name + ' '
+    const x = document.createElement('span')
+    x.className = 'x'
+    x.textContent = r.w + ':' + r.h
+    b.appendChild(x)
+    b.title = '点一下按 ' + r.w + ':' + r.h + ' 出图；长按删除'
+    b.addEventListener('click', () => {
+      imggen.ratio = 'custom:' + r.name
+      imggen.locked = true
+      const chips = document.querySelectorAll('#imggen-ratios .imggen-ratio')
+      for (const c of chips) c.classList.remove('active')
+      const w = imggenSnap8($('imggen-w-num').value)
+      let h = imggenSnap8(w * r.h / r.w)
+      let ww = w
+      if (h > 2048) { h = 2048; ww = imggenSnap8(h * r.w / r.h) }
+      imggenSetSize(ww, h)
+      imggenUpdateLockBtn()
+      imggenSaveSettings()
+    })
+    b.addEventListener('contextmenu', (e) => {
+      e.preventDefault()
+      imggen.customRatios = imggen.customRatios.filter((v) => v !== r)
+      imggenSaveRatios()
+      imggenRenderCustomRatios()
+    })
+    box.appendChild(b)
+  }
+}
+function imggenGcd(a, b) { return b === 0 ? a : imggenGcd(b, a % b) }
+
+/* ── 批量解析：txt 每行一条，A1111 式 --参数 值 逐行覆盖 ── */
+function imggenParseBatchLine(line) {
+  const overrides = {}
+  let rest = String(line || '')
+  const re = /--([a-z_]+)\s+("[^"]*"|'[^']*'|\S+)/g
+  let m
+  while ((m = re.exec(rest)) !== null) {
+    const k = m[1]
+    let v = m[2]
+    if ((v[0] === '"' && v[v.length - 1] === '"') || (v[0] === "'" && v[v.length - 1] === "'")) v = v.slice(1, -1)
+    if (k === 'prompt') overrides.prompt = v
+    else if (k === 'negative_prompt' || k === 'negative') overrides.negative = v
+    else if (k === 'steps') overrides.steps = imggenClampInt(v, 1, 60, 20)
+    else if (k === 'cfg_scale' || k === 'cfg') overrides.cfg = Math.max(1, Math.min(20, parseFloat(v) || 7))
+    else if (k === 'width') overrides.width = imggenSnap8(v)
+    else if (k === 'height') overrides.height = imggenSnap8(v)
+    else if (k === 'seed') overrides.seed = imggenClampInt(v, -1, 2147483647, -1)
+    else if (k === 'sampler') overrides.sampler = v
+    else if (k === 'model') overrides.model = v
+  }
+  rest = rest.replace(/--[a-z_]+\s+("[^"]*"|'[^']*'|\S+)/g, ' ').replace(/\s+/g, ' ').trim()
+  const prompt = overrides.prompt || rest
+  delete overrides.prompt
+  if (!prompt) return null
+  return { prompt, overrides }
+}
+function imggenParseBatch(text) {
+  const out = []
+  for (const line of String(text || '').split(/\r?\n/)) {
+    const t = line.trim()
+    if (!t) continue
+    const parsed = imggenParseBatchLine(t)
+    if (parsed) out.push(parsed)
+  }
+  return out
+}
+
+/* ── 任务队列 ── */
+function imggenNewId() {
+  return 't' + imggenNow().toString(36) + (imggen.tasks.length + Math.floor(Math.random() * 1e6)).toString(36)
+}
+function imggenEnqueue(items) {
+  const base = imggenReadParams()
+  let n = 0
+  for (const it of items) {
+    const p = Object.assign({}, base, it.overrides || {})
+    p.prompt = it.prompt
+    imggen.tasks.push({
+      id: imggenNewId(), prompt: p.prompt, params: p,
+      status: 'pending', createdAt: imggenNow(), startedAt: null, endedAt: null,
+      error: '', detail: '', imageUrl: '', imageData: '',
+    })
+    n++
+  }
+  if (n > 0) { imggenSaveTasks(); imggenRenderAll(); imggenPump() }
+  return n
+}
+function imggenCounts() {
+  const c = { all: imggen.tasks.length, completed: 0, failed: 0 }
+  for (const t of imggen.tasks) {
+    if (t.status === 'completed') c.completed++
+    if (t.status === 'failed') c.failed++
+  }
+  return c
+}
+function imggenTerminalCount() {
+  let n = 0
+  for (const t of imggen.tasks) if (IMGGEN_TERMINAL.indexOf(t.status) !== -1) n++
+  return n
+}
+function imggenRenderProgress() {
+  const total = imggen.tasks.length
+  const done = imggenTerminalCount()
+  const pct = total === 0 ? 0 : Math.round(done / total * 100)
+  const fill = $('imggen-progress-fill')
+  if (fill) fill.style.width = pct + '%'
+  const pctEl = $('imggen-progress-pct')
+  if (pctEl) pctEl.textContent = pct + '%'
+  const label = $('imggen-progress-label')
+  if (!label) return
+  const running = imggen.tasks.find((t) => t.status === 'running')
+  if (running) label.textContent = '生成中：' + imggenSummary(running.prompt, 24)
+  else if (imggen.tasks.some((t) => t.status === 'pending')) label.textContent = '排队中：' + imggen.tasks.filter((t) => t.status === 'pending').length + ' 个待处理'
+  else if (total > 0) label.textContent = done === total ? '全部完成' : '队列空闲'
+  else label.textContent = '队列空闲'
+}
+function imggenStatusText(s) {
+  return { pending: '排队中', running: '生成中', completed: '已完成', failed: '失败', canceled: '已取消' }[s] || s
+}
+function imggenRenderQueue() {
+  const box = $('imggen-queue')
+  if (!box) return
+  clear(box)
+  const c = imggenCounts()
+  const setCount = (id, v) => { const el = $(id); if (el) el.textContent = String(v) }
+  setCount('imggen-count-all', c.all)
+  setCount('imggen-count-completed', c.completed)
+  setCount('imggen-count-failed', c.failed)
+  const tabs = document.querySelectorAll('#imggen-qtabs button')
+  for (const b of tabs) b.classList.toggle('active', b.dataset.qtab === imggen.qtab)
+  const list = imggen.tasks.filter((t) => imggen.qtab === 'all' || (imggen.qtab === 'completed' ? t.status === 'completed' : t.status === 'failed'))
+  const empty = $('imggen-queue-empty')
+  if (empty) empty.hidden = list.length !== 0
+  for (const t of list) {
+    const row = document.createElement('div')
+    row.className = 'imggen-task'
+    const top = document.createElement('div')
+    top.className = 'imggen-task-top'
+    const promptEl = document.createElement('span')
+    promptEl.className = 'imggen-task-prompt'
+    promptEl.textContent = imggenSummary(t.prompt, 40)
+    promptEl.title = t.prompt
+    top.appendChild(promptEl)
+    const pill = document.createElement('span')
+    pill.className = 'imggen-pill st-' + t.status
+    pill.textContent = imggenStatusText(t.status)
+    top.appendChild(pill)
+    row.appendChild(top)
+    const meta = document.createElement('div')
+    meta.className = 'imggen-task-meta'
+    const p = t.params || {}
+    meta.textContent = (p.width || '?') + '×' + (p.height || '?') + ' · 步数 ' + (p.steps || '?') + ' · CFG ' + (p.cfg || '?') + ' · 种子 ' + (p.seed != null ? p.seed : '?')
+    const elapsed = document.createElement('span')
+    elapsed.setAttribute('data-elapsed', t.id)
+    elapsed.textContent = t.status === 'running' ? ' · 已用 0 秒' : (t.startedAt ? ' · 耗时 ' + imggenDur(t) : '')
+    meta.appendChild(elapsed)
+    row.appendChild(meta)
+    if (t.status === 'failed' && t.error) {
+      const err = document.createElement('div')
+      err.className = 'imggen-task-err'
+      err.textContent = t.error
+      row.appendChild(err)
+      if (t.detail) {
+        const d = document.createElement('div')
+        d.className = 'imggen-task-detail'
+        d.textContent = t.detail
+        row.appendChild(d)
+      }
+    }
+    const acts = document.createElement('div')
+    acts.className = 'imggen-task-actions'
+    if (t.status === 'pending' || t.status === 'running') {
+      const cancel = document.createElement('button')
+      cancel.type = 'button'
+      cancel.className = 'ghost'
+      cancel.textContent = '取消'
+      cancel.addEventListener('click', () => imggenCancel(t.id))
+      acts.appendChild(cancel)
+    }
+    if (t.status === 'failed') {
+      const retry = document.createElement('button')
+      retry.type = 'button'
+      retry.className = 'ghost'
+      retry.textContent = '重试'
+      retry.addEventListener('click', () => imggenRetry(t.id))
+      acts.appendChild(retry)
+    }
+    if (acts.children.length > 0) row.appendChild(acts)
+    box.appendChild(row)
+  }
+}
+function imggenRenderGallery() {
+  const box = $('imggen-gallery')
+  if (!box) return
+  clear(box)
+  const done = imggen.tasks.filter((t) => t.status === 'completed' && (t.imageUrl || t.imageData))
+  const empty = $('imggen-gallery-empty')
+  if (empty) empty.hidden = done.length !== 0
+  const zipBtn = $('imggen-zip')
+  if (zipBtn) zipBtn.disabled = done.length === 0
+  for (const t of done) {
+    const src = t.imageUrl || t.imageData
+    const fig = document.createElement('figure')
+    fig.className = 'imggen-figure'
+    const img = document.createElement('img')
+    img.src = src
+    img.alt = imggenSummary(t.prompt, 40)
+    img.loading = 'lazy'
+    img.addEventListener('click', () => {
+      const big = document.createElement('img')
+      big.className = 'imggen-view-img'
+      big.src = src
+      big.alt = t.prompt
+      const cap = document.createElement('p')
+      cap.className = 'hint'
+      cap.textContent = t.prompt
+      openInfo('出图', [big, cap])
+    })
+    fig.appendChild(img)
+    const cap = document.createElement('figcaption')
+    cap.textContent = imggenSummary(t.prompt, 24)
+    fig.appendChild(cap)
+    const row = document.createElement('div')
+    row.className = 'row'
+    const dl = document.createElement('button')
+    dl.type = 'button'
+    dl.className = 'ghost'
+    dl.textContent = '下载'
+    dl.addEventListener('click', () => { imggenDownload(t) })
+    row.appendChild(dl)
+    fig.appendChild(row)
+    box.appendChild(fig)
+  }
+}
+function imggenRenderAll() {
+  imggenRenderProgress()
+  imggenRenderQueue()
+  imggenRenderGallery()
+}
+function imggenCancel(id) {
+  const t = imggen.tasks.find((v) => v.id === id)
+  if (!t) return
+  if (t.status === 'pending') {
+    t.status = 'canceled'
+    t.endedAt = imggenNow()
+    imggenSaveTasks()
+    imggenRenderAll()
+  } else if (t.status === 'running') {
+    t.cancelRequested = true
+    if (imggen.abort) imggen.abort.abort()
+  }
+}
+function imggenRetry(id) {
+  const t = imggen.tasks.find((v) => v.id === id)
+  if (!t) return
+  t.status = 'pending'
+  t.error = ''
+  t.detail = ''
+  t.startedAt = null
+  t.endedAt = null
+  imggenSaveTasks()
+  imggenRenderAll()
+  imggenPump()
+}
+
+/* ── 生成：走真实的 /v1/images/generations；没有上游就诚实失败 ── */
+async function imggenGenerate(task) {
+  const p = task.params || {}
+  const ctrl = new AbortController()
+  imggen.abort = ctrl
+  const timer = setTimeout(() => ctrl.abort(), 180000)
+  try {
+    const res = await fetch(API_BASE + '/v1/images/generations', {
+      method: 'POST',
+      headers: { authorization: 'Bearer ' + apiKey(), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: p.model || undefined,
+        prompt: task.prompt,
+        negative_prompt: p.negative || undefined,
+        size: (p.width || 1024) + 'x' + (p.height || 576),
+        n: 1, steps: p.steps, cfg_scale: p.cfg, seed: p.seed, sampler: p.sampler,
+      }),
+      signal: ctrl.signal,
+    })
+    let data = null
+    try { data = await res.json() } catch { data = null }
+    if (!res.ok) {
+      const gwMsg = data && data.error && typeof data.error.message === 'string' ? data.error.message : ('HTTP ' + res.status)
+      task.status = 'failed'
+      task.error = IMGGEN_UPSTREAM_MSG
+      task.detail = '网关返回：' + gwMsg
+      return
+    }
+    const item = data && Array.isArray(data.data) && data.data[0] ? data.data[0] : null
+    if (item && typeof item.url === 'string' && item.url) {
+      task.status = 'completed'
+      task.imageUrl = item.url
+      if (typeof item.revised_prompt === 'string' && item.revised_prompt) task.detail = '上游改写提示词：' + item.revised_prompt
+      return
+    }
+    if (item && typeof item.b64_json === 'string' && item.b64_json) {
+      task.status = 'completed'
+      task.imageData = 'data:image/png;base64,' + item.b64_json
+      task.detail = 'base64 图片只存本页内存，刷新后不再显示（localStorage 放不下大图）。'
+      return
+    }
+    task.status = 'failed'
+    task.error = IMGGEN_UPSTREAM_MSG
+    task.detail = '网关返回了 200，但响应里没有图片（既无 url 也无 b64_json）。'
+  } catch (e) {
+    if (task.cancelRequested || (e && e.name === 'AbortError')) {
+      task.status = 'canceled'
+      task.error = ''
+      task.detail = ''
+    } else {
+      task.status = 'failed'
+      task.error = IMGGEN_UPSTREAM_MSG
+      task.detail = '请求失败：' + (e && e.message ? e.message : '未知错误')
+    }
+  } finally {
+    clearTimeout(timer)
+    if (imggen.abort === ctrl) imggen.abort = null
+    task.endedAt = imggenNow()
+    imggenSaveTasks()
+    imggenRenderAll()
+  }
+}
+async function imggenPump() {
+  if (imggen.running) return
+  imggen.running = true
+  try {
+    for (;;) {
+      const next = imggen.tasks.find((t) => t.status === 'pending')
+      if (!next) break
+      next.status = 'running'
+      next.startedAt = imggenNow()
+      next.cancelRequested = false
+      imggenSaveTasks()
+      imggenRenderAll()
+      await imggenGenerate(next)
+    }
+  } finally {
+    imggen.running = false
+    imggenRenderAll()
+  }
+}
+
+/* ── PNG 元数据：把生成参数写进 tEXt 块（CRC32 自算，无依赖）── */
+const IMGGEN_CRC_TABLE = (function () {
+  const table = []
+  for (let n = 0; n < 256; n++) {
+    let c = n
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1)
+    table[n] = c >>> 0
+  }
+  return table
+})()
+function imggenCrc32(bytes) {
+  let c = 0xffffffff
+  for (let i = 0; i < bytes.length; i++) c = IMGGEN_CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8)
+  return (c ^ 0xffffffff) >>> 0
+}
+async function imggenAddPngText(blob, keyword, text) {
+  const buf = new Uint8Array(await blob.arrayBuffer())
+  if (buf.length < 8 || buf[0] !== 0x89 || buf[1] !== 0x50 || buf[2] !== 0x4e || buf[3] !== 0x47) return null
+  const enc = new TextEncoder()
+  const kw = enc.encode(keyword)
+  const tx = enc.encode(text)
+  const data = new Uint8Array(kw.length + 1 + tx.length)
+  data.set(kw, 0)
+  data.set(tx, kw.length + 1)
+  const type = enc.encode('tEXt')
+  const chunkData = new Uint8Array(type.length + data.length)
+  chunkData.set(type, 0)
+  chunkData.set(data, type.length)
+  const crc = imggenCrc32(chunkData)
+  const chunk = new Uint8Array(4 + chunkData.length + 4)
+  const view = new DataView(chunk.buffer)
+  view.setUint32(0, data.length)
+  chunk.set(chunkData, 4)
+  view.setUint32(4 + chunkData.length, crc)
+  // 插到 IEND 之前。
+  let off = 8
+  let iend = -1
+  while (off + 8 <= buf.length) {
+    const len = new DataView(buf.buffer, off, 4).getUint32(0)
+    const name = String.fromCharCode(buf[off + 4], buf[off + 5], buf[off + 6], buf[off + 7])
+    if (name === 'IEND') { iend = off; break }
+    off += 12 + len
+  }
+  if (iend === -1) return null
+  const out = new Uint8Array(buf.length + chunk.length)
+  out.set(buf.slice(0, iend), 0)
+  out.set(chunk, iend)
+  out.set(buf.slice(iend), iend + chunk.length)
+  return new Blob([out], { type: 'image/png' })
+}
+function imggenFileName(task) {
+  const p = task.params || {}
+  return 'imggen-' + task.id + '-' + (p.width || '?') + 'x' + (p.height || '?') + '-seed' + (p.seed != null ? p.seed : 'x') + '.png'
+}
+function imggenTriggerDownload(blob, name) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 5000)
+}
+async function imggenDownloadBlob(task) {
+  const src = task.imageUrl || task.imageData
+  const p = task.params || {}
+  const meta = JSON.stringify({ prompt: task.prompt, negative_prompt: p.negative || '', width: p.width, height: p.height, steps: p.steps, cfg: p.cfg, seed: p.seed, sampler: p.sampler, model: p.model })
+  const res = await fetch(src)
+  if (!res.ok) throw new Error('HTTP ' + res.status)
+  let blob = await res.blob()
+  if (blob.type === 'image/png' || (src && src.indexOf('.png') !== -1)) {
+    const withMeta = await imggenAddPngText(blob, 'parameters', meta)
+    if (withMeta) return { blob: withMeta, metaOk: true }
+    return { blob, metaOk: false }
+  }
+  return { blob, metaOk: false }
+}
+async function imggenDownload(task) {
+  const name = imggenFileName(task)
+  try {
+    const r = await imggenDownloadBlob(task)
+    if (!r.metaOk) alert('这张图的 PNG 元数据没写进去，参数已写进文件名。')
+    imggenTriggerDownload(r.blob, name)
+  } catch (e) {
+    // 远程图 fetch 不到（跨域）就直接用原链接下载，不静默失败。
+    const a = document.createElement('a')
+    a.href = task.imageUrl || task.imageData
+    a.download = name
+    a.target = '_blank'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
+}
+async function imggenDownloadZip() {
+  const done = imggen.tasks.filter((t) => t.status === 'completed' && (t.imageUrl || t.imageData))
+  if (done.length === 0) return
+  if (typeof JSZip === 'undefined') {
+    alert('打包组件没加载出来（JSZip CDN），改成逐张下载。')
+    for (const t of done) await imggenDownload(t)
+    return
+  }
+  const zip = new JSZip()
+  let metaFailed = 0
+  for (const t of done) {
+    try {
+      const r = await imggenDownloadBlob(t)
+      if (!r.metaOk) metaFailed++
+      zip.file(imggenFileName(t), r.blob)
+    } catch {
+      // 单张取不到就跳过，不让整包失败。
+      metaFailed++
+    }
+  }
+  const blob = await zip.generateAsync({ type: 'blob' })
+  imggenTriggerDownload(blob, 'imggen-全部-' + done.length + '张.zip')
+  if (metaFailed > 0) alert(metaFailed + ' 张图的元数据没写进去（参数在文件名里），其余已打包。')
+}
+
+/* ── 生图模型下拉 ── */
+async function imggenLoadModels() {
+  const sel = $('imggen-model')
+  if (!sel || imggen.modelsLoaded) return
+  const res = await api('/v1/models')
+  clear(sel)
+  const data = (res.ok && res.body && res.body.data) || []
+  if (data.length === 0) {
+    const o = document.createElement('option')
+    o.value = ''
+    o.textContent = '模型加载失败（密钥或网络问题）'
+    sel.appendChild(o)
+    return
+  }
+  for (const m of data) {
+    if (!m || typeof m.id !== 'string') continue
+    const o = document.createElement('option')
+    o.value = m.id
+    o.textContent = m.name && m.name !== m.id ? m.name + '(' + m.id + ')' : m.id
+    sel.appendChild(o)
+  }
+  const saved = imggenLoadSettings()
+  const prefer = data.find((m) => /image|draw|dall|flux|stable|sd\b|midjourney/i.test(m.id))
+    || data.find((m) => m.id.indexOf('buddy/') === 0)
+    || data[0]
+  sel.value = (saved && saved.model && data.some((m) => m.id === saved.model)) ? saved.model : (prefer ? prefer.id : '')
+  imggen.modelsLoaded = true
+  imggenRefreshNotice(data)
+}
+function imggenRefreshNotice(models) {
+  const notice = $('imggen-notice')
+  if (!notice) return
+  const hasImage = (models || []).some((m) => m && typeof m.id === 'string' && /image|draw|dall|flux|stable|midjourney/i.test(m.id))
+  if (hasImage) {
+    notice.textContent = '已检测到生图模型，点「生成」会真的出图。'
+    notice.style.color = '#86efac'
+    notice.style.borderColor = 'rgba(134, 239, 172, 0.4)'
+    notice.style.background = 'rgba(134, 239, 172, 0.08)'
+  }
+}
+
+/* ── 初始化（只绑一次）── */
+function imggenBindSlider(rangeId, numId, valId, onChange) {
+  const r = $(rangeId), n = $(numId)
+  if (!r || !n) return
+  r.addEventListener('input', () => {
+    n.value = r.value
+    const l = $(valId)
+    if (l) l.textContent = r.value
+    if (onChange) onChange()
+  })
+  n.addEventListener('change', () => {
+    const lo = parseFloat(n.min), hi = parseFloat(n.max)
+    let v = parseFloat(n.value)
+    if (isNaN(v)) v = parseFloat(r.value)
+    v = Math.max(lo, Math.min(hi, v))
+    if (n.step === '8' || r.step === '8') v = imggenSnap8(v)
+    if (n.step === '0.5' || r.step === '0.5') v = Math.round(v * 2) / 2
+    else v = Math.round(v)
+    r.value = v
+    n.value = v
+    const l = $(valId)
+    if (l) l.textContent = String(v)
+    if (onChange) onChange()
+  })
+}
+function initImageGen() {
+  if (imggen.bound) { imggenRenderAll(); return }
+  imggen.bound = true
+  imggenLoadTasks()
+  imggenLoadRatios()
+  const saved = imggenLoadSettings()
+
+  // 比例 chips
+  const box = $('imggen-ratios')
+  for (const name of Object.keys(IMGGEN_RATIOS)) {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.className = 'imggen-ratio' + (name === '16:9' ? ' active' : '')
+    b.dataset.ratio = name
+    b.textContent = name
+    b.addEventListener('click', () => { imggenSetRatio(name, true); imggenSaveSettings() })
+    box.appendChild(b)
+  }
+  imggenRenderCustomRatios()
+
+  // 尺寸联动
+  imggenBindSlider('imggen-w', 'imggen-w-num', 'imggen-w-val', () => imggenFollowFromWidth())
+  imggenBindSlider('imggen-h', 'imggen-h-num', 'imggen-h-val', () => imggenFollowFromHeight())
+  $('imggen-lock').addEventListener('click', () => {
+    imggen.locked = !imggen.locked
+    if (imggen.locked && imggen.ratio === 'Free') imggen.ratio = '16:9'
+    imggenUpdateLockBtn()
+    if (imggen.locked) imggenFollowFromWidth()
+    imggenSaveSettings()
+  })
+  $('imggen-swap').addEventListener('click', () => {
+    const w = imggenSnap8($('imggen-w-num').value)
+    const h = imggenSnap8($('imggen-h-num').value)
+    imggenSetSize(h, w)
+    imggenSaveSettings()
+  })
+  $('imggen-optimize').addEventListener('click', () => {
+    // 恢复推荐尺寸：按当前比例、宽 1024 起算（1:1 则 1024×1024）。
+    if (imggen.ratio === 'Free' || !IMGGEN_RATIOS[imggen.ratio]) { imggenSetSize(1024, 1024) }
+    else {
+      const d = imggenRatioDims(imggen.ratio, 1024)
+      if (d) imggenSetSize(d[0], d[1])
+    }
+    imggenSaveSettings()
+  })
+  $('imggen-ratio-save').addEventListener('click', () => {
+    const name = ($('imggen-ratio-name').value || '').trim()
+    if (!name) { alert('先给自定义比例起个名'); return }
+    if (imggen.customRatios.length >= 50) { alert('自定义比例最多 50 个，先删掉不用的（长按删除）'); return }
+    const w = imggenSnap8($('imggen-w-num').value)
+    const h = imggenSnap8($('imggen-h-num').value)
+    const g = imggenGcd(w, h)
+    const exist = imggen.customRatios.findIndex((r) => r.name === name)
+    const rec = { name, w: w / g, h: h / g }
+    if (exist >= 0) imggen.customRatios[exist] = rec
+    else imggen.customRatios.push(rec)
+    $('imggen-ratio-name').value = ''
+    imggenSaveRatios()
+    imggenRenderCustomRatios()
+  })
+
+  // 其余滑块
+  imggenBindSlider('imggen-cfg', 'imggen-cfg-num', 'imggen-cfg-val', null)
+  imggenBindSlider('imggen-steps', 'imggen-steps-num', 'imggen-steps-val', null)
+  imggenBindSlider('imggen-count', 'imggen-count-num', 'imggen-count-val', null)
+  $('imggen-seed-random').addEventListener('click', () => { $('imggen-seed').value = -1; imggenSaveSettings() })
+  $('imggen-seed-reuse').addEventListener('click', () => {
+    if (imggen.lastSeed == null) {
+      const prev = imggen.tasks.filter((t) => t.params && t.params.seed != null && t.params.seed >= 0).pop()
+      if (prev) imggen.lastSeed = prev.params.seed
+    }
+    if (imggen.lastSeed == null) { alert('还没有用过的种子'); return }
+    $('imggen-seed').value = imggen.lastSeed
+    imggenSaveSettings()
+  })
+
+  // 生成：一次出 N 张，每张一个任务（种子递增，-1 则每张随机）。
+  $('imggen-generate').addEventListener('click', () => {
+    const p = imggenReadParams()
+    if (!p.prompt.trim()) { alert('先写一句提示词'); return }
+    imggenSaveSettings()
+    const items = []
+    let seed = p.seed
+    for (let i = 0; i < p.count; i++) {
+      const s = seed === -1 ? Math.floor(Math.random() * 2147483647) : seed + i
+      imggen.lastSeed = s
+      items.push({ prompt: p.prompt, overrides: { seed: s } })
+    }
+    const n = imggenEnqueue(items)
+    if (n > 0) {
+      const hint = $('imggen-generate-hint')
+      if (hint) hint.textContent = '已加入 ' + n + ' 个任务，串行执行中'
+    }
+  })
+
+  // 批量：文件先读进文本框，再走同一解析。
+  $('imggen-batch-file').addEventListener('change', () => {
+    const f = $('imggen-batch-file').files && $('imggen-batch-file').files[0]
+    const nameEl = $('imggen-batch-file-name')
+    if (!f) { if (nameEl) nameEl.textContent = ''; return }
+    if (nameEl) nameEl.textContent = f.name + '（' + Math.round(f.size / 1024) + 'KB）'
+    const reader = new FileReader()
+    reader.onload = () => { $('imggen-batch-text').value = String(reader.result || '') }
+    reader.onerror = () => alert('文件读不出来，换一个 txt 试试')
+    reader.readAsText(f)
+  })
+  $('imggen-batch-add').addEventListener('click', () => {
+    const text = $('imggen-batch-text').value || ''
+    const parsed = imggenParseBatch(text)
+    const countEl = $('imggen-batch-count')
+    if (parsed.length === 0) {
+      if (countEl) countEl.textContent = '没解析出提示词（每行一条，空行跳过）'
+      return
+    }
+    imggenSaveSettings()
+    const n = imggenEnqueue(parsed)
+    if (countEl) countEl.textContent = '已加入 ' + n + ' 个任务'
+  })
+
+  // 队列 Tab / 清空已完成 / 打包下载
+  for (const b of document.querySelectorAll('#imggen-qtabs button')) {
+    b.addEventListener('click', () => { imggen.qtab = b.dataset.qtab; imggenRenderQueue() })
+  }
+  $('imggen-clear-done').addEventListener('click', () => {
+    imggen.tasks = imggen.tasks.filter((t) => t.status !== 'completed')
+    imggenSaveTasks()
+    imggenRenderAll()
+  })
+  $('imggen-zip').addEventListener('click', () => { imggenDownloadZip() })
+
+  // 恢复上次参数（模型下拉拉完后再套一次 model）
+  imggenApplyParams(saved)
+  if (saved && saved.ratio) imggenSetRatio(saved.ratio, false)
+  imggenLoadModels().then(() => { if (saved && saved.model) $('imggen-model').value = saved.model })
+  imggenRenderAll()
+  // 每秒刷新运行中任务的已用时间（只改文字，不重画列表）。
+  imggen.tickTimer = setInterval(() => {
+    for (const el of document.querySelectorAll('[data-elapsed]')) {
+      const t = imggen.tasks.find((v) => v.id === el.getAttribute('data-elapsed'))
+      if (t && t.status === 'running' && t.startedAt) {
+        el.textContent = ' · 已用 ' + Math.max(0, Math.round((imggenNow() - t.startedAt) / 1000)) + ' 秒'
+      }
+    }
+    imggenRenderProgress()
+  }, 1000)
 }
 
 $('logout').onclick = () => {
