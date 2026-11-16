@@ -4268,6 +4268,33 @@ async function manjuKbSync() {
   finally { manjuKbSyncing = false }
 }
 
+/* ── 短篇小说技能 short-story-forge v1.0.0（网盘同款，放进知识库供聊天引用）── */
+const SHORTSTORY_KB_FILES = [
+  { url: 'data/short-story/00-short-story-forge.md', title: '短篇小说·锻造炉' },
+]
+let shortStoryKbSyncing = false
+async function shortStoryKbSync() {
+  if (shortStoryKbSyncing) return
+  shortStoryKbSyncing = true
+  try {
+    for (const f of SHORTSTORY_KB_FILES) {
+      try {
+        const res = await fetch(f.url, { cache: 'no-cache' })
+        if (!res.ok) continue
+        const text = (await res.text()).replace(/\r\n/g, '\n').trim()
+        if (!text) continue
+        const docs = kbLoadDocs()
+        const old = docs.find((d) => d.title === f.title)
+        if (old && old.text === text) continue // 内容没变就不动
+        if (docs.length >= KB_MAX_DOCS && !old) continue // 库满了就静默跳过
+        if (old) await kbDeleteDoc(old.id)
+        kbAddDoc(f.title, text, 'short-story-skill')
+      } catch { /* 单篇没拿到就跳过，别弹错 */ }
+    }
+  } catch { /* 没网就静默跳过 */ }
+  finally { shortStoryKbSyncing = false }
+}
+
 /* ── 建索引：切块 → 加载模型 → 分批嵌向量 ── */
 let kbIndexing = false
 let kbIndexProgress = ''
@@ -4511,6 +4538,7 @@ async function kbRenderStatus() {
 function initKB() {
   void footballKbSync()
   void manjuKbSync()
+  void shortStoryKbSync()
   kbRenderDocs()
   void kbRenderStatus()
   if (kbBound) return
@@ -5741,6 +5769,7 @@ async function sendChat() {
 function initChat() {
   void footballKbSync()
   void manjuKbSync()
+  void shortStoryKbSync()
   loadChatHistory()
   renderChat()
   void loadChatModels()
