@@ -4532,9 +4532,30 @@ async function kbRetrieve(question) {
  * 开关关掉 / 没命中 / 库是空的 → 返回 ''，调用方一条多余消息都不加。 */
 async function kbBuildSystemMessage(question) {
   if (!kbIsEnabled()) return ''
-  let hits
-  try { hits = await kbRetrieve(question) } catch { return '' }
-  if (!hits.length) return ''
+  const docs = kbLoadDocs()
+  if (!docs.length) return ''
+  // 完整目录：每次对话都全量给模型。以前只给检索命中的 4 块，问“库里有什么”
+  // 时模型只能看到三两篇，还得说“看不到全貌”——目录就是治这个的。
+  const bySource = {}
+  for (const d of docs) {
+    const src = d.source || 'other'
+    ;(bySource[src] = bySource[src] || []).push(d.title)
+  }
+  const sourceLabel = { 'manju-skill': '编导技能·漫剧', 'laobu-skill': '编导技能·老布', 'biandao-skill': '编导技能', 'short-story-skill': '短篇小说', 'memes': '梗库', 'football-daily': '足球预测', 'chat-ai': '对话存入', 'chat': '对话存入', 'upload': '上传' }
+  const sourceOrder = ['manju-skill', 'laobu-skill', 'biandao-skill', 'short-story-skill', 'memes', 'football-daily']
+  const ordered = [...sourceOrder.filter((s) => bySource[s]), ...Object.keys(bySource).filter((s) => !sourceOrder.includes(s)).sort()]
+  const stripPres = ['编导技能·漫剧·', '编导技能·老布·', '编导技能·开源对照·', '编导技能·', '短篇小说·', '梗库·']
+  const lines = ordered.map((src) => {
+    const titles = bySource[src].slice().sort()
+    const short = titles.map((t) => {
+      for (const pre of stripPres) { if (t.startsWith(pre)) return t.slice(pre.length) }
+      return t
+    })
+    return '【' + (sourceLabel[src] || src) + '】' + titles.length + ' 篇：' + short.join('、')
+  })
+  const catalog = '知识库现有 ' + docs.length + ' 篇，完整目录如下（每次对话都有这份目录，问“库里有什么”就按它回答）：\n' + lines.join('\n')
+  let hits = []
+  try { hits = await kbRetrieve(question) } catch { hits = [] }
   let total = 0
   const blocks = []
   for (const h of hits) {
@@ -4544,8 +4565,8 @@ async function kbBuildSystemMessage(question) {
     total += t.length
     blocks.push('[' + (blocks.length + 1) + '] 《' + h.title + '》：\n' + t)
   }
-  if (!blocks.length) return ''
-  return '以下是从你的知识库检索到的资料，请只根据这些资料回答，资料里没有答案就直接说不知道，不要编造；回答时在相关句子后标注来源编号，如 [1]：\n\n' + blocks.join('\n\n')
+  const body = blocks.length ? '\n\n这次检索到的相关资料：\n\n' + blocks.join('\n\n') : '\n\n这次检索没有命中相关块。'
+  return catalog + body + '\n\n只根据上面这些资料回答，资料里没有答案就直接说不知道，不要编造；提到某篇资料时写它的标题，提到检索到的块时在相关句子后标注来源编号，如 [1]。'
 }
 
 
@@ -4557,7 +4578,7 @@ async function kbBuildSystemMessage(question) {
 const KB_SKILL_FULL_MAX_CHARS = 40000
 const SKILL_FULL_READ = [
   { keys: ['老布', '以物喻人'], titles: ['编导技能·老布·以物喻人'], label: '老布褶也技能' },
-  { keys: ['编导', '漫剧', '分镜', '剧本', '短剧'], titles: ['编导技能·总则', '编导技能·漫剧·总控'], label: '编导技能（漫剧）' },
+  { keys: ['编导', '漫剧', '分镜', '剧本', '短剧', '提示词', '参考图', '资产', '打戏', '镜头'], titles: ['编导技能·总则', '编导技能·漫剧·总控', '编导技能·漫剧·02 模型方言', '编导技能·漫剧·04 资产与分镜模板'], label: '编导技能（漫剧）' },
   { keys: ['短篇', '小说', '写故事'], titles: ['短篇小说·锻造炉'], label: '短篇小说技能' },
   { keys: ['梗库'], titles: ['梗库·总则'], label: '梗库' },
 ]
