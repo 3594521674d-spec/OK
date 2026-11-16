@@ -4971,7 +4971,14 @@ function switchToKimi() {
  * 新流程：点麦克风开始录音 → 再点一次停止（或 60 秒自动停）→
  * 本地解码重采样成 16kHz 单声道 WAV → POST 网关 /v1/stt → 文字
  * 追加进输入框，绝不自动发送，等用户确认后再发。
- * 麦克风按钮永远显示（用户要求：标识不变、一直在那儿）。 */
+ * 麦克风按钮永远显示（用户要求：标识不变、一直在那儿）。
+ * v23 诊断版：失败时在聊天里写明卡在哪一步（speechDiag），不要再改回笼统的 alert。 */
+const SPEECH_VERSION = 'v23' // 语音诊断版
+/** 语音诊断：把失败的步骤和原因写进聊天里（不存进历史），用户能直接看到/截图。 */
+function speechDiag(text) {
+  try { f7AddMessage('assistant', '🎙️ 语音诊断 ' + SPEECH_VERSION + '：' + text, 'speech-diag', { readAloud: false }) } catch { /* 忽略 */ }
+  try { console.log('[speech-diag]', text) } catch { /* 忽略 */ }
+}
 let speechRecorder = null // MediaRecorder
 let speechStream = null // getUserMedia 得到的 MediaStream
 let speechChunks = [] // 录到的音频块
@@ -5077,22 +5084,32 @@ async function speechToWav16k(blob) {
     try { await ctx.close() } catch { /* 忽略 */ }
   }
 }
-/** WAV 原始字节 → 网关 /v1/stt，200 回 {"text": "..."}。 */
+/** WAV 原始字节 → 网关 /v1/stt，200 回 {"text": "..."}。30 秒没回就超时，不让按钮一直卡在“转文字”。 */
 async function speechStt(wavBlob) {
   // api() 只拼 Authorization，不强制 JSON Content-Type（见 api 定义），
   // 所以直接用它发音频字节，和 /v1/extract 同款鉴权。
-  const res = await api('/v1/stt', {
-    method: 'POST',
-    headers: { 'content-type': 'audio/wav' },
-    body: wavBlob,
-  })
-  if (!res.ok) throw new Error('stt-failed')
-  const body = res.body
-  if (body && typeof body === 'object') return body.text || ''
-  if (typeof body === 'string') return body
-  return ''
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => { try { ctrl.abort() } catch { /* 忽略 */ } }, 30000)
+  try {
+    const res = await api('/v1/stt', {
+      method: 'POST',
+      headers: { 'content-type': 'audio/wav' },
+      body: wavBlob,
+      signal: ctrl.signal,
+    })
+    if (!res.ok) {
+      const extra = (res && typeof res.body === 'string') ? res.body : ''
+      throw new Error('stt-http-' + res.status + (extra ? ':' + extra : ''))
+    }
+    const body = res.body
+    if (body && typeof body === 'object') return body.text || ''
+    if (typeof body === 'string') return body
+    return ''
+  } finally {
+    clearTimeout(timer)
+  }
 }
-/** 停掉录音，随后转文字、填进输入框（不自动发送）。 */
+/** 停掉录音，随后转文字、填进输入框（不自动发送）。失败时在聊天里写明卡在哪一步。 */
 async function speechStopAndTranscribe() {
   if (!speechRecorder) return
   const rec = speechRecorder
@@ -5103,6 +5120,7 @@ async function speechStopAndTranscribe() {
   setMicState(false) // 刷新 busy 态（按钮变暗，显示“正在转文字…”）
   const chunks = speechChunks
   speechChunks = []
+  const totalBytes = chunks.reduce((n, c) => n + (c && c.size ? c.size : 0), 0)
   try {
     const blob = await new Promise((resolve, reject) => {
       rec.onstop = () => resolve(new Blob(chunks, { type: rec.mimeType || '' }))
@@ -5110,12 +5128,23 @@ async function speechStopAndTranscribe() {
       try { rec.stop() } catch (e) { reject(e) }
     })
     speechReleaseStream()
+    if (!blob || blob.size === 0 || totalBytes === 0) {
+      speechTranscribing = false
+      setMicState(false)
+      speechDiag('第2步录音：录到了 0 字节。麦克风可能被别的 App 占着，或者点停太快了。请先关掉其他用麦克风的 App，再点一次麦克风说句话。')
+      focusChatInput()
+      return
+    }
     const wav = await speechToWav16k(blob)
     const text = await speechStt(wav)
     speechTranscribing = false
     setMicState(false)
     const clean = (text || '').trim()
-    if (!clean) { alert('没听到声音，再说一次'); focusChatInput(); return }
+    if (!clean) {
+      speechDiag('第4步网关回了空文字：录音 ' + Math.round(blob.size / 1024) + 'KB 已发出，网关没听出字。可能是声音太小或太短，再说大声一点、说长一点。')
+      focusChatInput()
+      return
+    }
     const base = chatInputValue()
     chatInputSetValue(base ? base + ' ' + clean : clean)
     focusChatInput()
@@ -5124,8 +5153,12 @@ async function speechStopAndTranscribe() {
     setMicState(false)
     speechReleaseStream()
     const msg = e && e.message ? e.message : ''
-    if (msg === 'stt-failed') alert('转文字失败，请检查网络后重试；也可以直接用 iOS 键盘听写')
-    else alert('录音失败，请重试；也可以直接用 iOS 键盘听写')
+    const detail = (e && (e.name ? e.name + ' ' : '') + (e.message || '')) || '未知错误'
+    if (msg.indexOf('stt-http-401') === 0) speechDiag('第3步发给网关：网关说密钥不对（401）。面板可能没登录，请在设置里重新填一下密钥。')
+    else if (msg.indexOf('stt-http-0') === 0) speechDiag('第3步发给网关：没连上网关' + (/abort/i.test(msg) ? '（30秒没回，超时了）' : '，请检查网络') + '。也可以直接用 iOS 键盘听写。')
+    else if (msg.indexOf('stt-http-') === 0) speechDiag('第3步发给网关：网关返回 ' + msg.slice(9) + '。')
+    else if (msg === 'no-audiocontext') speechDiag('第2步解码：这台设备没有音频解码器，请用 iOS 键盘听写。')
+    else speechDiag('第2步解码/录音失败：' + detail + '。再点一次试试，不行就用 iOS 键盘听写。')
     focusChatInput()
   }
 }
@@ -5133,7 +5166,7 @@ async function toggleSpeech() {
   if (speechTranscribing) return // 转文字期间点的那下丢掉，别重复发
   if (speechRecording) { void speechStopAndTranscribe(); return }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
-    alert('这边用不了录音转文字。点一下输入框，弹出键盘后点键盘上的话筒，说话就能转成文字，不用打字')
+    speechDiag('第0步：这个浏览器不支持录音转文字。点一下输入框，弹出键盘后点键盘上的话筒，说话就能转成文字，不用打字。')
     focusChatInput()
     return
   }
@@ -5143,8 +5176,8 @@ async function toggleSpeech() {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true })
   } catch (e) {
     const name = e && e.name
-    if (name === 'NotAllowedError' || name === 'SecurityError') alert('麦克风权限被拒绝：请在系统设置里允许 Safari 使用麦克风，或直接用 iOS 键盘听写')
-    else alert('麦克风没拿到，请重试；也可以直接用 iOS 键盘听写')
+    if (name === 'NotAllowedError' || name === 'SecurityError') speechDiag('第1步麦克风：权限被拒绝。请在系统设置里允许 Safari 使用麦克风，或直接用 iOS 键盘听写。')
+    else speechDiag('第1步麦克风：没拿到麦克风，错误是 ' + (name || '未知') + '。请重试，也可以直接用 iOS 键盘听写。')
     focusChatInput()
     return
   }
@@ -5157,9 +5190,9 @@ async function toggleSpeech() {
   let rec
   try {
     rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
-  } catch {
+  } catch (e) {
     speechReleaseStream()
-    alert('录音启动失败，请重试；也可以直接用 iOS 键盘听写')
+    speechDiag('第1步录音启动失败：' + ((e && e.name) || '未知错误') + '。请重试，也可以直接用 iOS 键盘听写。')
     focusChatInput()
     return
   }
@@ -5167,10 +5200,10 @@ async function toggleSpeech() {
   rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) speechChunks.push(ev.data) }
   try {
     rec.start(250)
-  } catch {
+  } catch (e) {
     speechRecorder = null
     speechReleaseStream()
-    alert('录音启动失败，请重试；也可以直接用 iOS 键盘听写')
+    speechDiag('第1步录音启动失败：' + ((e && e.name) || '未知错误') + '。请重试，也可以直接用 iOS 键盘听写。')
     focusChatInput()
     return
   }
