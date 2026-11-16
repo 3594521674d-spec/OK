@@ -243,7 +243,9 @@ html.lg-lens .login-card, html.lg-lens .sheet-modal {
   /* 顶栏是 sticky（在文档流里占位），内容不需要再顶 64px 空出来——
      之前 calc(var(--appbar-h) + 4px) 是给 fixed 顶栏留的，换成 sticky 后
      就成了顶栏和模型选择器之间一大块空地（2026-11-16 用户红圈指出）。 */
-  padding: 10px 14px calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px);
+  /* 下边距只留导航栏高 + 安全区 + 2px：之前 +24px 让输入框和导航栏
+     之间空出一大截（2026-11-16 用户骂：导航栏和对话框为什么还有间距）。 */
+  padding: 10px 14px calc(var(--nav-h) + env(safe-area-inset-bottom) + 2px);
 }
 
 main { display: block; }
@@ -893,6 +895,24 @@ html.lg-lens .sheet-modal {
   min-height: 0;
   max-height: calc(100dvh - 300px);
   scrollbar-width: thin;
+}
+/* ── 对话视图：整屏撑满，输入框钉在导航栏上面 ──
+   之前对话区是 block 流，消息一少输入框就悬在半空、和导航栏之间
+   空一大截（2026-11-16 用户骂的就是这截空）。
+   改成 flex 列：视图最少占满一屏（顶栏 73 + 内容上边距 10 +
+   导航 56 + 安全区 + 下边距 2 = 141px + 安全区），消息区 flex:1
+   吸掉所有剩余空间、内部自己滚动，输入框永远贴在导航栏上沿 8px 处。
+   ⚠️ 必须写 :not([hidden])，不然 display:flex 会盖过
+   main > .view[hidden]{display:none}，视图切换又叠在一起。 */
+#view-chat:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 141px - env(safe-area-inset-bottom));
+}
+#view-chat:not([hidden]) #chat-messages {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
 }
 /* 对话气泡（app.js 没 Ionic 时就走这套原生气泡） */
 .chat-msg { display: flex; }
