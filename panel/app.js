@@ -4953,13 +4953,15 @@ let speechListening = false
 // 写回来（2026-11-16 11:02 用户报的 bug：第二次点麦克风，输入框里
 // 直接出现上一句语音转出来的文字）。onresult/onerror 先对号，对不上就扔掉。
 let speechSession = 0
-// 旧会话正在收尾：stop() 之后 iOS 不会立刻放开麦克风，旧会话的 onend
-// 还没到就建新会话，新会话常常只亮麦克风图标、收不到任何声音
+// 旧会话正在收尾：stop()/abort() 之后 iOS 不会立刻放开麦克风，旧会话的
+// onend 还没到就建新会话，新会话常常只亮麦克风图标、收不到任何声音
 // （2026-11-16 11:54 用户在车里报的 bug：第二下麦克风显示开着，
-// 说了好几句都不转换）。收尾期间点麦克风先排队，等放开再自动起。
+// 说了好几句都不转换）。收尾期间麦克风按钮显示“忙”，点的那下不做事，
+// 等用户再点一次（那次是真手势）才起新会话——iOS 上 recognition.start()
+// 必须在点按手势里调，从 onend/定时器里自动起常常被拒或建出聋会话
+// （2026-11-16 12:33 用户第三次报：第二下死活出不了字，只能大退后台重进）。
 let speechStopping = false
 let speechStoppingTimer = null
-let speechPendingStart = false
 // 看门狗：开始后 8 秒还没收到任何声音/结果，说明这次识别卡死了，
 // 自动停掉重置，别让麦克风一直亮着却什么都不转。
 let speechWatchdog = null
@@ -4970,29 +4972,36 @@ function speechReleaseStopping() {
   if (!speechStopping) return
   speechStopping = false
   if (speechStoppingTimer) { clearTimeout(speechStoppingTimer); speechStoppingTimer = null }
-  if (speechPendingStart && document.visibilityState === 'visible') {
-    speechPendingStart = false
-    toggleSpeech()
-  } else {
-    speechPendingStart = false
-  }
+  setMicState(false)
+  // 注意：这里不再自动起新会话（2026-11-16 12:33 第三次报修的教训）。
+  // 之前排队自动起的那版，从 onend/定时器回调里调 toggleSpeech()——不在
+  // 用户手势里，iOS 常常直接拒掉 start()，或建出一个只亮图标不收音的
+  // 聋会话，之后再怎么点都起不来，只能大退后台。收尾期间点的那下直接
+  // 丢掉，等用户下一次点按（真手势）再起，稳得多。
 }
 /** 停掉语音识别，并让它之后再到的结果全部作废。 */
 function speechStop() {
   speechSession++
   speechClearWatchdog()
   const old = speechRec
-  try { old && old.stop() } catch { /* 忽略 */ }
   speechRec = null
-  setMicState(false)
-  speechStopping = true
-  if (speechStoppingTimer) clearTimeout(speechStoppingTimer)
-  // 旧会话收尾完成（onend）或 1.5 秒超时，都算放开。
+  // 先挂好收尾回调再撕会话：有的实现会在 abort()/stop() 里同步触发 onend，
+  // 后挂就永远等不到它，收尾锁只能靠超时放开。
   if (old) {
     const prevOnEnd = old.onend
     old.onend = (ev) => { try { prevOnEnd && prevOnEnd(ev) } catch { /* 忽略 */ } speechReleaseStopping() }
   }
-  speechStoppingTimer = setTimeout(speechReleaseStopping, 1500)
+  // abort() 比 stop() 更彻底：直接丢弃还没出的最终结果——11:02 旧句复活的
+  // 根就是 stop() 之后补发的那次最终结果；iOS 上 abort 也更容易真正放开
+  // 麦克风，不给新会话留一个半死不活的旧会话抢麦。
+  try { old && (typeof old.abort === 'function' ? old.abort() : old.stop()) } catch { /* 忽略 */ }
+  speechStopping = true
+  if (speechStoppingTimer) clearTimeout(speechStoppingTimer)
+  setMicState(false)
+  // 旧会话收尾完成（onend）或 3 秒超时，都算放开。3 秒是给 iOS 放开麦克风
+  // 留的余量：之前 1.5 秒在真机上偏短，放开之前建新会话，新会话常常只亮
+  // 图标不收音。收尾期间按钮显示“忙”，点的那下丢掉，等下一次点按再起。
+  speechStoppingTimer = setTimeout(speechReleaseStopping, 3000)
 }
 function speechSupported() {
   return 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window
@@ -5002,7 +5011,8 @@ function setMicState(listening) {
   const btn = $('chat-mic')
   if (btn) {
     btn.classList.toggle('listening', listening)
-    btn.title = listening ? '正在听…再点一次停止' : '语音输入：点一下说话，文字进输入框（说完再点一下停止）'
+    btn.classList.toggle('busy', !listening && speechStopping)
+    btn.title = listening ? '正在听…再点一次停止' : (speechStopping ? '正在收尾，稍等再点' : '语音输入：点一下说话，文字进输入框（说完再点一下停止）')
   }
 }
 function focusChatInput() {
@@ -5018,9 +5028,10 @@ function toggleSpeech() {
     speechStop()
     return
   }
-  // 旧会话还没收尾：排队，等放开再自动起，别硬建新会话抢麦克风。
+  // 旧会话还没收尾：这一下直接丢掉，不排队、不自动起。按钮正显示“收尾中”，
+  // 等用户再点一次（那次是真手势）才起新会话——自动起的那版在真机上建出
+  // 过聋会话，之后再怎么点都起不来，只能大退后台。
   if (speechStopping) {
-    speechPendingStart = true
     return
   }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -5081,6 +5092,7 @@ function toggleSpeech() {
       alert('语音识别没反应，已重置：点麦克风再说一次；不行就用 iOS 键盘上的话筒听写')
     }, 8000)
   } catch {
+    speechRec = null
     alert('语音识别启动失败，可用 iOS 键盘听写代替')
     setMicState(false)
   }
@@ -5511,7 +5523,7 @@ async function sendChat() {
     return
   }
   ttsStop()
-  // 发之前先停语音识别：stop() 之后识别还会补发一次最终结果，不先作废
+  // 发之前先停语音识别：停掉时识别可能还会补发一次最终结果，不先作废
   // 它，那句旧话会在清空之后又写回输入框（2026-11-16 11:02 用户报的 bug）。
   if (speechListening) speechStop()
   // 附件拼成 OpenAI 多模态数组；纯文字保持字符串。

@@ -1182,6 +1182,8 @@ html.lg-lens .sheet-modal {
   animation: mic-pulse 1.2s ease-in-out infinite;
 }
 @keyframes mic-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+/* 语音收尾中：麦克风变暗，提示这一下点也没用，等放开再点 */
+#chat-composer .composer-btn.busy { opacity: .45; }
 /* 附件预览（输入框上方）：chips 横向排，每个带 ×；文件 chip 带去向切换 */
 #chat-composer .img-preview {
   display: flex;
