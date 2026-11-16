@@ -4575,9 +4575,9 @@ async function kbBuildSystemMessage(question) {
  * 问“按技能出内容”时模型只看到碎片，规则会漏。
  * 用户问编导/漫剧/老布/短篇这些要出内容的事时，把对应技能的核心文档全文拼进对话，
  * 并告诉模型先按全文出。只认一个技能，不叠加；超过上限就截断。 */
-const KB_SKILL_FULL_MAX_CHARS = 120000
+const KB_SKILL_FULL_MAX_CHARS = 200000
 const SKILL_FULL_READ = [
-  { keys: ['老布', '以物喻人'], titles: ['编导技能·老布·以物喻人'], label: '老布褶也技能' },
+  { keys: ['老布', '以物喻人', '编导', '做视频', '出片', '成片', '拍片', '开拍'], titles: ["编导技能·老布·以物喻人", "编导技能·老布·01 假花", "编导技能·老布·02 外内", "编导技能·老布·03 鱼刺", "编导技能·老布·04 占无", "编导技能·老布·05 得吃", "编导技能·老布·06 最佳状态", "编导技能·老布·07 同款杯剧", "编导技能·老布·08 你的背包", "编导技能·老布·09 我们是谁", "编导技能·老布·10 合脚", "编导技能·老布·11 红线", "编导技能·老布·12 一锅粥", "编导技能·老布·13 水", "编导技能·老布·15 心现", "编导技能·老布·16 好鞋", "编导技能·老布·17 附寸", "编导技能·老布·18 一半结局", "编导技能·老布·19 牛奶杯", "编导技能·老布·20 长大", "编导技能·老布·21 习惯", "编导技能·老布·22 条件", "编导技能·老布·23 租购", "编导技能·老布·24 那根棍子", "编导技能·老布·25 回家", "编导技能·老布·26 人情", "编导技能·老布·27 西门少年", "编导技能·老布·28 欢迎回家", "编导技能·老布·29 迷失归途", "编导技能·老布·30 草莓罐头", "编导技能·老布·31 喜喜车", "编导技能·老布·32 原味", "编导技能·老布·33 先后", "编导技能·老布·34 生日快乐", "编导技能·老布·35 sha瓜", "编导技能·老布·36 正好", "编导技能·老布·37 衣前以后", "编导技能·老布·38 爱情的苦", "编导技能·老布·39 鸟笼"], label: '老布褶也技能' },
   { keys: ['编导', '漫剧', '分镜', '剧本', '短剧', '提示词', '参考图', '资产', '打戏', '镜头', '做视频', '出片', '成片', '拍片', '开拍'], titles: ['编导技能·总则', '编导技能·漫剧·总控', '编导技能·漫剧·01 题材配置表', '编导技能·漫剧·02 模型方言', '编导技能·漫剧·03 打戏引擎', '编导技能·漫剧·04 资产与分镜模板', '编导技能·漫剧·05 对标与改编', '编导技能·漫剧·06 经验卡机制'], label: '编导技能（漫剧）' },
   { keys: ['短篇', '小说', '写故事'], titles: ['短篇小说·锻造炉'], label: '短篇小说技能' },
   { keys: ['梗库'], titles: ['梗库·总则'], label: '梗库' },
@@ -4585,12 +4585,15 @@ const SKILL_FULL_READ = [
 function kbBuildSkillSystemMessage(question) {
   const q = String(question || '')
   if (!q) return ''
-  const hit = SKILL_FULL_READ.find((s) => s.keys.some((k) => q.includes(k)))
-  if (!hit) return ''
+  const hits = SKILL_FULL_READ.filter((s) => s.keys.some((k) => q.includes(k)))
+  if (!hits.length) return ''
+  const titles = []
+  for (const h of hits) for (const t of h.titles) if (!titles.includes(t)) titles.push(t)
+  const label = hits.map((h) => h.label).join(' + ')
   const docs = kbLoadDocs()
   let total = 0
   const blocks = []
-  for (const title of hit.titles) {
+  for (const title of titles) {
     const d = docs.find((x) => x.title === title)
     if (!d || !d.text) continue
     let t = d.text
@@ -4600,7 +4603,7 @@ function kbBuildSkillSystemMessage(question) {
     blocks.push('《' + title + '》全文：\n' + t)
   }
   if (!blocks.length) return ''
-  return '以下是《' + hit.label + '》的全文（不是检索片段）。用户这次是让你按这个技能出内容：先通读全文再动手，技能里的规则、步骤、格式、禁忌都要照着做，不要只凭印象或检索片段发挥；技能里没有的，再用下面检索到的资料补；不要编造技能里没有的规则。\n\n' + blocks.join('\n\n')
+  return '以下是《' + label + '》的全文（不是检索片段）。用户这次是让你按这个技能出内容：先通读全文再动手，技能里的规则、步骤、格式、禁忌都要照着做，不要只凭印象或检索片段发挥；技能里没有的，再用下面检索到的资料补；不要编造技能里没有的规则。\n\n' + blocks.join('\n\n')
 }
 
 /* ── 文件抽文本：txt/md 直接读；文本型 PDF 用 pdf.js；DOCX 用 mammoth ── */
