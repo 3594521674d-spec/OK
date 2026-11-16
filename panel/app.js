@@ -4030,7 +4030,10 @@ async function chatComplete(model, messages, onToken, signal) {
   const res = await fetch(API_BASE + '/v1/chat/completions', {
     method: 'POST',
     headers: { authorization: 'Bearer ' + apiKey(), 'content-type': 'application/json' },
-    body: JSON.stringify({ model, messages, stream: true }),
+    // ⚠️ 面板对话不走破甲：破甲是给外部调用的“成品交付”预设，面板里它会把
+    // 预设格式指令漏进可见回复（用户截图：模型回了 "## … Bench Status … payload"）。
+    // 网关收到 pojia:false 就跳过预设注入（字段在转发上游前会被剥掉）。
+    body: JSON.stringify({ model, messages, stream: true, pojia: false }),
     signal,
   })
   if (!res.ok) {

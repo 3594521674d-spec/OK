@@ -18,12 +18,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<!-- Framework7 v9（iOS 外观 + 动效 + 交互）：CDN 引入，不用构建。
-  CSS 在 style.css 之前加载，咱们的样式覆盖在上；JS 在 body 末尾、app.js 之前。 -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/framework7@9/framework7-bundle.min.css">
-<link rel="stylesheet" href="style.css?v=8">
+<!-- Ionic 8（iOS 外观 + 动效 + 交互）：CDN 引入，不用构建。
+  CSS 在 style.css 之前加载，咱们的样式覆盖在上；JS 在 body 末尾、app.js 之前。
+  各组件用 mode="ios" 强制 iOS 外观（桌面 Chrome 也按 iOS 渲染）。 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ionic/core@8/css/ionic.bundle.css">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
+<ion-app>
 <!-- 液态玻璃透镜：SVG feDisplacementMap（glass.js 生成位移图）。
   只有 Chromium 才有完整折射；Safari/Firefox 退化为毛玻璃（glass.js 会检测）。 -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -37,37 +39,37 @@
 <!-- 下拉刷新指示器 -->
 <div id="ptr-indicator" class="ptr-indicator" aria-hidden="true"><span class="preloader"></span><span id="ptr-label">下拉刷新</span></div>
 <div class="shell">
-<header class="appbar navbar">
+<ion-header class="appbar">
   <div class="navbar-bg"></div>
   <span class="glass-glow" aria-hidden="true"></span>
   <div class="navbar-inner">
   <div class="left">
-  <button id="settings-back" class="ghost icon-btn" title="返回设置" aria-label="返回设置" hidden>
+  <ion-button id="settings-back" mode="ios" fill="clear" shape="round" class="icon-btn" title="返回设置" aria-label="返回设置" hidden>
     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
-  </button>
+  </ion-button>
   <div class="brand"><img class="brand-mark" src="data:image/webp;base64,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" alt="小pa"><div class="brand-text"><h1>page算力池</h1><span class="brand-sub">WorkBuddy 账号池</span></div><span class="brand-seal" aria-hidden="true">算</span><span id="auth-status" class="pill" hidden></span></div>
   </div>
-  <div class="right auth"><button id="menu-toggle" class="ghost icon-btn" title="菜单" aria-label="打开菜单">
+  <div class="right auth"><ion-button id="menu-toggle" mode="ios" fill="clear" shape="round" class="icon-btn" title="菜单" aria-label="打开菜单">
     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
       <path d="M4 7h16M4 12h16M4 17h16" />
     </svg>
-  </button>
-<button id="toggle-theme" class="ghost icon-btn" title="切换主题（自动/浅色/深色）" aria-label="切换主题">
-  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+  </ion-button>
+<ion-button id="toggle-theme" mode="ios" fill="clear" shape="round" class="icon-btn" title="切换主题（自动/浅色/深色）" aria-label="切换主题">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
        stroke-width="2" stroke-linecap="round" aria-hidden="true">
     <circle cx="12" cy="12" r="9" />
     <path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none" />
   </svg>
-</button>
-<button id="logout" class="ghost icon-btn" title="退出登录" aria-label="退出登录">
-  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+  </ion-button>
+<ion-button id="logout" mode="ios" fill="clear" shape="round" class="icon-btn" title="退出登录" aria-label="退出登录">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
        stroke-width="2" stroke-linecap="round" aria-hidden="true">
     <path d="M12 3v9" />
     <path d="M6.5 6.8a8 8 0 1 0 11 0" />
   </svg>
-</button></div>
+  </ion-button></div>
   </div>
-</header>
+</ion-header>
 <div class="content">
 
 <main>
@@ -90,17 +92,13 @@
       <p class="empty-title">选个模型，开始聊天</p>
       <p class="hint">直接调网关的对话接口，用的是你登录面板的密钥；对话记录只存在本机浏览器里。</p>
     </div>
-    <!-- Framework7 Messagebar：自动长高的大圆角输入框 + 圆形金色发送键 -->
-    <div id="chat-composer" class="toolbar messagebar">
-      <div class="toolbar-inner">
-        <div class="messagebar-area">
-          <textarea id="chat-input" class="resizable" rows="1" placeholder="输入消息…" aria-label="输入消息"></textarea>
-        </div>
-        <a class="link chat-send-link" id="chat-send" role="button" aria-label="发送">
-          <span class="send-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>
-          <span class="stop-icon" hidden><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></span>
-        </a>
-      </div>
+    <!-- Ionic 输入条：ion-textarea 自动长高 + 圆形金色发送键 -->
+    <div id="chat-composer" class="composer">
+      <ion-textarea id="chat-input" mode="ios" auto-grow="true" rows="1" placeholder="输入消息…" aria-label="输入消息"></ion-textarea>
+      <ion-button id="chat-send" mode="ios" shape="round" aria-label="发送">
+        <span class="send-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>
+        <span class="stop-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></span>
+      </ion-button>
     </div>
   </section>
 
@@ -109,74 +107,37 @@
     <div class="page-head">
       <h2>设置</h2>
     </div>
-        <!-- Framework7 inset list：iOS 分组列表，细分隔线 + 右箭头 -->
-    <div class="list inset settings-list">
-      <ul>
-        <li>
-          <a class="item-link item-content settings-row" data-section="apikeys">
-            <div class="item-media"><span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span></div>
-            <div class="item-inner">
-              <div class="item-title-row"><div class="item-title">API Key</div></div>
-              <div class="item-subtitle">管理发给外部应用的子密钥</div>
-            </div>
-          </a>
-        </li>
-        <li>
-          <a class="item-link item-content settings-row" data-section="usage">
-            <div class="item-media"><span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></span></div>
-            <div class="item-inner">
-              <div class="item-title-row"><div class="item-title">用量</div></div>
-              <div class="item-subtitle">查看使用记录与统计</div>
-            </div>
-          </a>
-        </li>
-        <li>
-          <a class="item-link item-content settings-row" data-section="providers">
-            <div class="item-media"><span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span></div>
-            <div class="item-inner">
-              <div class="item-title-row"><div class="item-title">账号</div></div>
-              <div class="item-subtitle">供应商与账号</div>
-            </div>
-          </a>
-        </li>
-        <li>
-          <a class="item-link item-content settings-row" data-section="tasks">
-            <div class="item-media"><span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span></div>
-            <div class="item-inner">
-              <div class="item-title-row"><div class="item-title">任务</div></div>
-              <div class="item-subtitle">签到与每日任务</div>
-            </div>
-          </a>
-        </li>
-        <li>
-          <a class="item-link item-content settings-row" data-section="models">
-            <div class="item-media"><span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span></div>
-            <div class="item-inner">
-              <div class="item-title-row"><div class="item-title">模型</div></div>
-              <div class="item-subtitle">模型目录</div>
-            </div>
-          </a>
-        </li>
-        <li>
-          <a class="item-link item-content settings-row" data-section="logs">
-            <div class="item-media"><span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg></span></div>
-            <div class="item-inner">
-              <div class="item-title-row"><div class="item-title">日志</div></div>
-              <div class="item-subtitle">请求日志</div>
-            </div>
-          </a>
-        </li>
-        <li>
-          <a class="item-link item-content settings-row" data-section="config">
-            <div class="item-media"><span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg></span></div>
-            <div class="item-inner">
-              <div class="item-title-row"><div class="item-title">设置</div></div>
-              <div class="item-subtitle">配置与状态</div>
-            </div>
-          </a>
-        </li>
-      </ul>
-    </div>
+    <!-- Ionic inset list：iOS 分组列表，细分隔线 + 右箭头 -->
+    <ion-list class="settings-list" lines="full" mode="ios">
+      <ion-item button detail class="settings-row" data-section="apikeys" mode="ios">
+        <span class="qa-icon" slot="start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+        <ion-label><span class="set-title">API Key</span><span class="set-sub">管理发给外部应用的子密钥</span></ion-label>
+      </ion-item>
+      <ion-item button detail class="settings-row" data-section="usage" mode="ios">
+        <span class="qa-icon" slot="start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></span>
+        <ion-label><span class="set-title">用量</span><span class="set-sub">查看使用记录与统计</span></ion-label>
+      </ion-item>
+      <ion-item button detail class="settings-row" data-section="providers" mode="ios">
+        <span class="qa-icon" slot="start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span>
+        <ion-label><span class="set-title">账号</span><span class="set-sub">供应商与账号</span></ion-label>
+      </ion-item>
+      <ion-item button detail class="settings-row" data-section="tasks" mode="ios">
+        <span class="qa-icon" slot="start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+        <ion-label><span class="set-title">任务</span><span class="set-sub">签到与每日任务</span></ion-label>
+      </ion-item>
+      <ion-item button detail class="settings-row" data-section="models" mode="ios">
+        <span class="qa-icon" slot="start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        <ion-label><span class="set-title">模型</span><span class="set-sub">模型目录</span></ion-label>
+      </ion-item>
+      <ion-item button detail class="settings-row" data-section="logs" mode="ios">
+        <span class="qa-icon" slot="start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg></span>
+        <ion-label><span class="set-title">日志</span><span class="set-sub">请求日志</span></ion-label>
+      </ion-item>
+      <ion-item button detail class="settings-row" data-section="config" mode="ios">
+        <span class="qa-icon" slot="start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg></span>
+        <ion-label><span class="set-title">设置</span><span class="set-sub">配置与状态</span></ion-label>
+      </ion-item>
+    </ion-list>
   </section>
 
   <!-- ───────── 仪表盘（照观澜 AI 的版式：统计卡 → 筛选条 → 图表行 → 最近使用 + 快捷操作） ───────── -->
@@ -251,23 +212,23 @@
     <p class="hint">点一下就跑完，不用选。所有任务都是幂等的，重复点安全。</p>
 
     <div class="task-cards">
-      <div class="task-card">
+      <ion-card class="task-card" mode="ios">
         <h3>全部供应商一键签到</h3>
         <p class="hint">对所有账号逐个签到（串行，避免触发风控）。
         不支持的供应商会说明原因，不会静默跳过。</p>
         <button id="run-checkin-all">一键签到</button>
-      </div>
+      </ion-card>
 
-      <div class="task-card">
+      <ion-card class="task-card" mode="ios">
         <h3>Buddy 每日任务</h3>
         <p class="hint">对国内版（buddy）全部账号执行：签到 → 全部成长任务 →
         真实对话任务（专家召唤 / 技能加载 / 夜猫子，这些才给积分）→ 自动领奖。</p>
         <p class="hint">真实对话会消耗极少量配额（每次都是最短对话，且已达标的任务自动跳过，
         不会重复消耗）。重复点按钮安全。</p>
         <button id="run-daily-all">执行每日任务</button>
-      </div>
+      </ion-card>
 
-      <div class="task-card">
+      <ion-card class="task-card" mode="ios">
         <h3>星巴克运营活动</h3>
         <p class="hint">活动期 11 月 12 日 ~ 16 日：对国内版（buddy）全部账号读活动进度，
         已达标的任务先标记已看再领奖。进度由服务端算（只认小程序里的真实会话，
@@ -276,7 +237,7 @@
         重复点安全（已领过的不会重复领）。</p>
         <button id="run-campaign-status">查进度</button>
         <button id="run-campaign-claim" class="ghost">一键领奖</button>
-      </div>
+      </ion-card>
     </div>
 
     <section class="panel">
@@ -417,14 +378,11 @@
   </section>
 </main>
 </div>
-<!-- Framework7 底部 tabbar：玻璃条 + iOS tab 切换 -->
-<nav id="nav" class="toolbar toolbar-bottom tabbar">
-  <span class="glass-glow" aria-hidden="true"></span>
-  <div class="toolbar-inner">
-    <a class="tab-link nav-item active" data-view="chat"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span class="tabbar-label">首页</span></a>
-    <a class="tab-link nav-item" data-view="settings"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg><span class="tabbar-label">设置</span></a>
-  </div>
-</nav>
+<!-- Ionic 底部 tabbar：玻璃条 + iOS tab 切换 -->
+<ion-tab-bar id="nav" mode="ios">
+  <ion-tab-button tab="chat" class="tab-link nav-item active" data-view="chat"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span class="tabbar-label">首页</span></ion-tab-button>
+  <ion-tab-button tab="settings" class="tab-link nav-item" data-view="settings"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg><span class="tabbar-label">设置</span></ion-tab-button>
+</ion-tab-bar>
 </div>
 <div id="nav-scrim" class="scrim" hidden></div>
 
@@ -442,7 +400,7 @@
   屏幕阅读器不会宣告「对话框已打开」，也不会报出标题。
   `aria-labelledby` 指向已有的 `<h3>`（两者都在页面上，无需重复文字）。
 -->
-<!-- Framework7 Sheet：从底部上滑的玻璃抽屉，可下滑关闭 -->
+<!-- 底部抽屉：玻璃底，从底部上滑 -->
 <div id="info-modal" class="sheet-modal" role="dialog" aria-modal="true" aria-labelledby="info-title" hidden>
   <div class="sheet-modal-inner">
     <div class="sheet-grabber" aria-hidden="true"></div>
@@ -484,7 +442,9 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/framework7@9/framework7-bundle.min.js"></script>
+</ion-app>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@ionic/core@8/dist/ionic/ionic.esm.js"></script>
+<script nomodule src="https://cdn.jsdelivr.net/npm/@ionic/core@8/dist/ionic/ionic.js"></script>
 <script src="glass.js?v=1"></script>
 <script src="app.js?v=4"></script>
 </body>

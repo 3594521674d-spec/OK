@@ -1,30 +1,24 @@
 /* ════════════════════════════════════════════════════════════════════
-   page算力池 · panel 样式 — Framework7 iOS 结构 + 液态玻璃（iOS 26）
+   page算力池 · panel 样式 — Ionic 8 iOS 结构 + 液态玻璃（iOS 26）
    ────────────────────────────────────────────────────────────────────
-   读了什么（出处都写在这，方便以后核对）：
-   · Framework7 v9 官方文档 framework7.io/docs/：app（init 参数、theme ios、
-     darkMode、colors.primary、iosTranslucentBars/Modals）、sheet-modal、
-     messages、messagebar、tabbar、list、toggle、segmented、preloader、
-     touch/activeState。CDN：jsdelivr framework7@9 bundle（CSS 526KB /
-     JS 765KB，200）。kitchen-sink 演示对照过。
+   读了什么：
+   · Ionic 8 官方文档 ionicframework.com/docs/：ion-app / ion-header /
+     ion-tab-bar / ion-tab-button / ion-list / ion-item / ion-label /
+     ion-textarea / ion-button / ion-card（mode="ios" 强制 iOS 外观）。
+     CDN：jsdelivr @ionic/core@8（css/ionic.bundle.css + dist/ionic/ionic.esm.js）。
    · 液态玻璃做法：axot/agent-skills liquid-glass SKILL.md（SVG
      feDisplacementMap + canvas 生成的 squircle SDF 位移图、色散边缘、
-     高光、静态极光背景）+ kartie/liquid-glass-react（同样的透镜思路，
-     含 Firefox/Safari 退化说明）+ LogRocket/dev.to 的文章（url() 透镜
-     只有 Chrome/Edge 支持；Safari 的 @supports 会误报 true）。
-   · liquid_glass_widgets（Flutter 的，iOS 26 液态玻璃）只当概念参考，
-     网页端没法直接用；网页端用上面那套 SVG 透镜。
+     高光、静态极光背景）+ kartie/liquid-glass-react + LogRocket/dev.to。
    怎么做：
-   · Framework7 只当“iOS 结构 + 动效 + 交互”：导航栏、底部 tabbar、
-     设置分组列表、抽屉、消息气泡、输入条、开关、分段选择器、加载圈。
-     它的 CSS 在 index.html 里先于本文件加载，本文件覆盖在上。
-   · 液态玻璃 = 毛玻璃（backdrop-filter blur+saturate）+ 透镜（只有
-     Chromium 才开，glass.js 给 <html> 加 .lg-lens 类；Safari/Firefox
-     退化为纯毛玻璃）+ 色散边缘（::before 锥形渐变细环）+ 高光（::after
-     顶部冷光 + 底部金光）+ 静态极光背景（折射要有东西可折）。
-     透镜只加在外层卡片/导航栏/底部栏/抽屉/输入条上，内层子卡片只给
-     浅色毛玻璃，不套第二层透镜（两层透镜会把背景折成浆糊）。
-   · 配色不变：深蓝黑底 + 金色点缀（用户认这个），不改浅色蓝主色。
+   · Ionic 只当“iOS 结构 + 交互”：顶栏、底部 tabbar、设置分组列表、
+     输入框、发送键、任务卡片。它的 CSS 在 index.html 里先于本文件加载，
+     本文件覆盖在上；组件只用 Ionic 自己的 CSS 变量调色，不手改尺寸。
+   · ⚠️ Ionic bundle 会把 body 钉死（position:fixed + overflow:hidden，
+     配合 ion-content 滚动）；本面板是窗口滚动的普通页面（下拉刷新 /
+     左滑返回都依赖 window.scrollY），所以下面把 body 还原成正常流式。
+   · 液态玻璃 = 毛玻璃 + 透镜（只有 Chromium 才开，glass.js 加 .lg-lens；
+     Safari/Firefox 退化为纯毛玻璃）+ 色散边缘 + 高光 + 静态极光背景。
+   · 配色不变：深蓝黑底 + 金色点缀，不改浅色蓝主色。
    · 功能一个不少：app.js 的 id/类名/JS 钩子全保留；图表继续用 CSS 藏掉。
    ════════════════════════════════════════════════════════════════════ */
 
@@ -43,7 +37,7 @@
   --cyan: #22d3ee;
   --radius: 20px;
   --appbar-h: 60px;
-  --nav-h: 50px;
+  --nav-h: 56px;
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
@@ -52,34 +46,30 @@
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "SFMono-Regular",
     Menlo, Consolas, "PingFang SC", monospace;
 
-  /* ── Framework7 变量覆盖（让 F7 的组件套上咱们的深色 + 金色）── */
-  --f7-theme-color: #d9a441;
-  --f7-bars-bg-color: rgba(13, 20, 36, 0.55);
-  --f7-bars-border-color: rgba(255, 255, 255, 0.08);
-  --f7-list-bg-color: rgba(255, 255, 255, 0.04);
-  --f7-list-border-color: rgba(255, 255, 255, 0.08);
-  --f7-list-item-text-color: var(--foreground);
-  --f7-list-item-title-font-size: 14px;
-  --f7-list-item-subtitle-font-size: 11px;
-  --f7-sheet-bg-color: rgba(18, 26, 44, 0.72);
-  --f7-sheet-border-radius: 28px;
-  --f7-sheet-transition-duration: 380ms;
-  --f7-sheet-transition-timing-function: var(--spring);
-  --f7-message-bubble-border-radius: 18px;
-  --f7-message-bubble-font-size: 14px;
-  --f7-message-sent-bg-color: #d9a441;
-  --f7-message-sent-text-color: #1a1405;
-  --f7-message-received-bg-color: rgba(255, 255, 255, 0.08);
-  --f7-message-received-text-color: var(--foreground);
-  --f7-messagebar-bg-color: transparent;
-  --f7-messagebar-textarea-bg-color: transparent;
-  --f7-toggle-active-color: #d9a441;
-  --f7-toggle-width: 44px;
-  --f7-toggle-height: 24px;
-  --f7-tabbar-link-active-color: #e8c268;
-  --f7-tabbar-link-inactive-color: rgba(139, 148, 169, 0.9);
-  --f7-preloader-color: #d9a441;
-  --f7-link-highlight-color: rgba(217, 164, 65, 0.18);
+  /* ── Ionic 变量覆盖（让 Ionic 的组件套上咱们的深色 + 金色）── */
+  --ion-background-color: #070b16;
+  --ion-text-color: rgba(233, 237, 245, 0.92);
+  --ion-color-primary: #d9a441;
+  --ion-color-primary-rgb: 217, 164, 65;
+  --ion-color-primary-contrast: #1a1405;
+  --ion-color-primary-shade: #bf9139;
+  --ion-color-primary-tint: #ddad54;
+  --ion-color-secondary: #22d3ee;
+  --ion-color-secondary-rgb: 34, 211, 238;
+  --ion-color-secondary-contrast: #062a30;
+  --ion-color-success: #34d399;
+  --ion-color-danger: #f87171;
+  --ion-color-medium: rgba(139, 148, 169, 0.9);
+  --ion-color-light: rgba(255, 255, 255, 0.06);
+  --ion-item-background: rgba(255, 255, 255, 0.04);
+  --ion-item-border-color: rgba(255, 255, 255, 0.08);
+  --ion-toolbar-background: rgba(13, 20, 36, 0.55);
+  --ion-toolbar-color: var(--foreground);
+  --ion-tab-bar-background: rgba(13, 20, 36, 0.55);
+  --ion-tab-bar-color: rgba(139, 148, 169, 0.9);
+  --ion-tab-bar-color-selected: #e8c268;
+  --ion-card-background: rgba(255, 255, 255, 0.045);
+  --ion-font-family: var(--font-sans);
 
   /* 旧版留下的 token（下面搬回的规则还在用） */
   --card-2: #141d33;
@@ -106,10 +96,19 @@
 
 /* 手机锁宽：任何元素都不能把页面撑得比手机屏幕宽（否则看起来像电脑版，右边被裁掉）。
    2026-11-16 用户截图：右上角月亮按钮被裁掉一半，就是横向溢出撑宽了。 */
-html, body { overflow-x: clip; }
+/* Ionic bundle 没有全局 [hidden] 规则（自定义元素不会自动藏），
+   而 app.js 全靠 hidden 开关视图 / 弹窗 / 按钮 —— 这里统一补上。 */
+[hidden] { display: none !important; }
+
+/* ⚠️ Ionic bundle 把 body 钉死（position:fixed + overflow:hidden + height:100%），
+   那是给 ion-content 内部滚动准备的；本面板是窗口滚动（下拉刷新 / 左滑返回
+   都读 window.scrollY），必须把 body 还原成正常流式布局。 */
+html, body { overflow-x: clip; overflow-y: auto; }
 @supports not (overflow-x: clip) {
-  html, body { overflow-x: hidden; }
+  html, body { overflow-x: hidden; overflow-y: auto; }
 }
+body { position: static; height: auto; max-height: none; }
+ion-app { display: block; position: static; height: auto; }
 
 body {
   margin: 0;
@@ -237,8 +236,8 @@ main > .view { display: block; }
    （2026-11-16 用户截图：对话输入框和设置列表同时出现，就是这条的锅）。 */
 main > .view[hidden] { display: none; }
 
-/* ── 导航栏（Framework7 .navbar 结构，sticky 在顶上，玻璃底）── */
-header.appbar {
+/* ── 导航栏（Ionic ion-header 结构，sticky 在顶上，玻璃底）── */
+ion-header.appbar {
   position: sticky;
   top: 0;
   z-index: 60;
@@ -246,7 +245,7 @@ header.appbar {
   padding: 0;
   overflow: hidden;
 }
-header.appbar .navbar-bg {
+ion-header.appbar .navbar-bg {
   position: absolute;
   inset: 0;
   background: rgba(13, 20, 36, 0.55);
@@ -254,11 +253,11 @@ header.appbar .navbar-bg {
   -webkit-backdrop-filter: blur(18px) saturate(1.6);
   border-bottom: 1px solid var(--border);
 }
-html.lg-lens header.appbar .navbar-bg {
+html.lg-lens ion-header.appbar .navbar-bg {
   backdrop-filter: url(#lg-lens) blur(4px) saturate(1.55) brightness(1.06);
   -webkit-backdrop-filter: url(#lg-lens) blur(4px) saturate(1.55) brightness(1.06);
 }
-header.appbar .navbar-inner {
+ion-header.appbar .navbar-inner {
   position: relative;
   z-index: 1;
   display: flex;
@@ -269,13 +268,13 @@ header.appbar .navbar-inner {
   max-width: 1080px;
   margin: 0 auto;
 }
-header.appbar .navbar-inner .left {
+ion-header.appbar .navbar-inner .left {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
 }
-header.appbar .navbar-inner .right {
+ion-header.appbar .navbar-inner .right {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -324,59 +323,45 @@ header.appbar .navbar-inner .right {
 .auth .pill { white-space: nowrap; }
 #settings-back { flex: none; }
 
-/* ── 底部导航（Framework7 .tabbar 结构，玻璃条）── */
-nav#nav {
+/* ── 底部导航（Ionic ion-tab-bar：玻璃条，fixed 在底上）── */
+ion-tab-bar#nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 70;
-  display: block;
-  height: auto;
-  padding-bottom: env(safe-area-inset-bottom);
-  background: rgba(13, 20, 36, 0.55);
+  max-width: 480px;
+  margin: 0 auto;
+  --background: rgba(13, 20, 36, 0.55);
+  --color: var(--muted-foreground);
+  --color-selected: var(--gold-text);
   backdrop-filter: blur(18px) saturate(1.6);
   -webkit-backdrop-filter: blur(18px) saturate(1.6);
   border-top: 1px solid var(--border);
-  overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
 }
-html.lg-lens nav#nav {
+html.lg-lens ion-tab-bar#nav {
   backdrop-filter: url(#lg-lens) blur(4px) saturate(1.55) brightness(1.06);
   -webkit-backdrop-filter: url(#lg-lens) blur(4px) saturate(1.55) brightness(1.06);
 }
-nav#nav .toolbar-inner {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  max-width: 480px;
-  margin: 0 auto;
-  padding: 0;
-}
-nav#nav .tab-link {
+ion-tab-bar#nav ion-tab-button.nav-item {
+  --color: var(--muted-foreground);
+  --color-selected: var(--gold-text);
+  --ripple-color: rgba(217, 164, 65, 0.18);
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  padding: 5px 0 4px;
-  margin: 2px 6px;
-  border: none;
-  border-radius: 12px;
-  background: none;
-  color: var(--muted-foreground);
-  text-decoration: none;
-  cursor: pointer;
-  transition: color 0.2s, background 0.2s, transform 0.18s var(--spring);
+  max-width: none;
 }
-nav#nav .tab-link svg { width: 20px; height: 20px; }
-nav#nav .tab-link .tabbar-label {
+ion-tab-bar#nav ion-tab-button.nav-item svg { width: 20px; height: 20px; }
+ion-tab-bar#nav ion-tab-button.nav-item .tabbar-label {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
-nav#nav .tab-link.active { color: var(--gold-text); background: rgba(217, 164, 65, 0.12); }
-nav#nav .tab-link:active { transform: scale(0.94); }
+ion-tab-bar#nav ion-tab-button.nav-item.active {
+  --color: var(--gold-text);
+  background: rgba(217, 164, 65, 0.12);
+  border-radius: 12px;
+}
 
 /* ── 按钮 ── */
 button {
@@ -426,6 +411,17 @@ button.link-btn {
   flex: none;
 }
 button:disabled { opacity: 0.45; cursor: default; }
+
+/* Ionic 图标按钮：用 Ionic 自己的变量定圆角与内边距，不手改尺寸 */
+ion-button.icon-btn {
+  --padding-start: 0;
+  --padding-end: 0;
+  --border-radius: 50%;
+  --color: var(--foreground);
+  width: 34px;
+  height: 34px;
+  margin: 0;
+}
 button.busy { opacity: 0.6; pointer-events: none; }
 
 /* ── 输入 ── */
@@ -522,11 +518,10 @@ input::placeholder, textarea::placeholder { color: rgba(139, 148, 169, 0.7); }
 .empty-state h3 { margin: 0 0 6px; color: var(--foreground); font-size: 15px; }
 .empty-state p { margin: 0; font-size: 12px; }
 
-/* ── 分段选择器（Framework7 .segmented）── */
+/* ── 分段选择器 ── */
 .segmented {
   display: inline-flex;
   max-width: 100%;
-  --f7-segmented-strong-bg-color: rgba(255, 255, 255, 0.06);
 }
 .segmented .button {
   font-size: 12px;
@@ -734,7 +729,7 @@ input::placeholder, textarea::placeholder { color: rgba(139, 148, 169, 0.7); }
 .task-card .task-next { margin-left: auto; }
 .task-time { font-size: 11px; color: var(--muted-foreground); }
 
-/* ── 模型列表（Framework7 Toggle 开关）── */
+/* ── 模型列表（开关）── */
 .model-list { display: flex; flex-direction: column; }
 .model-row {
   display: flex;
@@ -750,6 +745,23 @@ input::placeholder, textarea::placeholder { color: rgba(139, 148, 169, 0.7); }
 .model-row .toggle { flex: none; margin-left: auto; }
 .model-row .tag + .toggle { margin-left: 0; }
 
+/* 模型开关（原生 iOS 风格开关：Ionic 的 Toggle CSS 没了，这里自己画；
+   app.js 建的是 label.toggle > input[type=checkbox] + span.toggle-icon） */
+.toggle { position: relative; flex: none; width: 44px; height: 24px; cursor: pointer; margin-left: auto; }
+.toggle input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.toggle .toggle-icon {
+  display: block; width: 44px; height: 24px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14); border: 1px solid var(--border);
+  transition: background 0.2s; position: relative;
+}
+.toggle .toggle-icon::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
+  border-radius: 50%; background: #fff; transition: transform 0.2s var(--spring);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.toggle input:checked + .toggle-icon { background: var(--gold); border-color: transparent; }
+.toggle input:checked + .toggle-icon::after { transform: translateX(20px); }
+
 /* ── 密钥卡片 ── */
 .key-card {
   border: 1px solid var(--border);
@@ -762,9 +774,14 @@ input::placeholder, textarea::placeholder { color: rgba(139, 148, 169, 0.7); }
 .key-card .key-sub { font-size: 12px; color: var(--muted-foreground); margin-top: 8px; }
 .key-card .key-sub b { color: var(--foreground); font-weight: 600; }
 
-/* ── 抽屉（Framework7 .sheet-modal：从底部上滑的玻璃抽屉，可下滑关闭）── */
+/* ── 抽屉（底部上滑的玻璃抽屉）── */
 .sheet-modal {
   background: rgba(18, 26, 44, 0.72);
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 90;
   backdrop-filter: blur(24px) saturate(1.6) brightness(1.05);
   -webkit-backdrop-filter: blur(24px) saturate(1.6) brightness(1.05);
   border-radius: 28px 28px 0 0;
@@ -848,7 +865,7 @@ html.lg-lens .sheet-modal {
 .qr-box code { display: block; font-family: var(--font-mono); font-size: 12px; margin: 10px 0; word-break: break-all; }
 .qr-box button { margin-top: 6px; }
 
-/* ── 对话（Framework7 Messages + Messagebar）── */
+/* ── 对话（Ionic 输入条 + 原生气泡）── */
 .chat-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; padding: 10px 12px; }
 .chat-bar select { flex: 1; min-width: 0; }
 #chat-messages {
@@ -861,28 +878,7 @@ html.lg-lens .sheet-modal {
   max-height: calc(100dvh - 300px);
   scrollbar-width: thin;
 }
-/* F7 气泡覆盖：发送 = 金色，接收 = 玻璃 */
-.message .message-bubble { border-radius: 18px; }
-.message-sent .message-bubble {
-  background: linear-gradient(180deg, #e8bd60, #cf9c31);
-  color: #1a1405;
-  border: none;
-  box-shadow: 0 2px 8px rgba(217, 164, 65, 0.25);
-}
-.message-received .message-bubble {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--foreground);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-.message .message-text { font-size: 14px; line-height: 1.6; word-break: break-word; }
-.message.chat-err .message-bubble {
-  background: rgba(248, 113, 113, 0.16);
-  border-color: rgba(248, 113, 113, 0.5);
-  color: #fca5a5;
-}
-/* F7 CDN 挂了时的兜底气泡（平时用 F7 Messages，不走这里） */
+/* 对话气泡（app.js 没 Ionic 时就走这套原生气泡） */
 .chat-msg { display: flex; }
 .chat-msg.user { justify-content: flex-end; }
 .chat-msg .chat-bubble {
@@ -906,15 +902,14 @@ html.lg-lens .sheet-modal {
   border-color: rgba(248, 113, 113, 0.5);
   color: #fca5a5;
 }
-/* F7 输入条：玻璃底 + 大圆角自动长高输入框 + 圆形金色发送键 */
-#chat-composer.toolbar.messagebar {
+/* 输入条：玻璃底 + ion-textarea 自动长高 + 圆形金色发送键 */
+#chat-composer.composer {
   position: relative;
   z-index: 5;
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  height: auto;
-  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  padding: 8px 10px;
   margin-top: 10px;
   background: rgba(255, 255, 255, 0.045);
   backdrop-filter: blur(18px) saturate(1.6);
@@ -923,64 +918,66 @@ html.lg-lens .sheet-modal {
   border-radius: 20px;
   overflow: hidden;
 }
-html.lg-lens #chat-composer.toolbar.messagebar {
+html.lg-lens #chat-composer.composer {
   backdrop-filter: url(#lg-lens) blur(4px) saturate(1.55) brightness(1.06);
   -webkit-backdrop-filter: url(#lg-lens) blur(4px) saturate(1.55) brightness(1.06);
 }
-#chat-composer .toolbar-inner { display: flex; align-items: flex-end; gap: 8px; width: 100%; padding: 0; }
-#chat-composer .messagebar-area { flex: 1; min-width: 0; display: flex; }
-#chat-composer .messagebar-area textarea {
-  width: 100%;
-  background: transparent;
-  border: none;
-  outline: none;
-  resize: none;
-  color: var(--foreground);
-  font: inherit;
+#chat-composer ion-textarea#chat-input {
+  flex: 1;
+  min-width: 0;
+  --background: transparent;
+  --color: var(--foreground);
+  --placeholder-color: rgba(139, 148, 169, 0.7);
+  --padding-top: 8px;
+  --padding-bottom: 8px;
+  --padding-start: 4px;
+  --padding-end: 4px;
   font-size: 14px;
   line-height: 1.5;
-  padding: 8px 4px;
   max-height: 120px;
-  box-shadow: none;
 }
-#chat-composer .messagebar-area textarea:focus { box-shadow: none; }
-#chat-composer .chat-send-link {
+#chat-composer #chat-send {
   flex: none;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: linear-gradient(180deg, #e8bd60, #cf9c31);
-  color: #1a1405;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(217, 164, 65, 0.35);
-  transition: transform 0.18s var(--spring), opacity 0.2s, background 0.2s;
-  margin-bottom: 2px;
+  --background: linear-gradient(180deg, #e8bd60, #cf9c31);
+  --color: #1a1405;
+  --border-radius: 50%;
+  --padding-start: 0;
+  --padding-end: 0;
+  --box-shadow: 0 4px 12px rgba(217, 164, 65, 0.35);
+  width: 40px;
+  height: 40px;
+  margin: 0 0 2px;
 }
-#chat-composer .chat-send-link:active { transform: scale(0.9); }
-#chat-composer .chat-send-link .stop-icon { display: none; }
-#chat-composer .chat-send-link.streaming { background: var(--muted); color: var(--foreground); box-shadow: none; }
-#chat-composer .chat-send-link.streaming .send-icon { display: none; }
-#chat-composer .chat-send-link.streaming .stop-icon { display: flex; }
+#chat-composer #chat-send:active { transform: scale(0.9); }
+#chat-composer #chat-send .stop-icon { display: none; }
+#chat-composer #chat-send.streaming { --background: var(--muted); --color: var(--foreground); --box-shadow: none; }
+#chat-composer #chat-send.streaming .send-icon { display: none; }
+#chat-composer #chat-send.streaming .stop-icon { display: flex; }
 
-/* ── 设置菜单（Framework7 inset list：iOS 分组列表）── */
-/* 设置菜单行（JS 用它当钩子绑点击；外观由 Framework7 list 负责） */
+/* ── 设置菜单（Ionic inset list：iOS 分组列表）── */
 .settings-row { cursor: pointer; }
-.settings-list.list { margin: 0; }
-.settings-list.list ul {
-  background: rgba(255, 255, 255, 0.04);
+ion-list.settings-list {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  --background: transparent;
   border: 1px solid var(--border);
   border-radius: 20px;
   overflow: hidden;
 }
-.settings-list .item-link .item-inner { padding-right: 28px; }
-.settings-list .item-media { align-self: center; }
-.settings-list .item-media .qa-icon { width: 34px; height: 34px; }
-.settings-list .item-title { font-size: 14px; font-weight: 600; color: var(--foreground); }
-.settings-list .item-subtitle { font-size: 11px; color: var(--muted-foreground); margin-top: 1px; }
-.settings-list .item-link:active { background: rgba(255, 255, 255, 0.05); }
+ion-list.settings-list ion-item.settings-row {
+  --background: rgba(255, 255, 255, 0.04);
+  --border-color: var(--border);
+  --color: var(--foreground);
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --min-height: 56px;
+  --detail-icon-color: rgba(139, 148, 169, 0.7);
+  --detail-icon-font-size: 16px;
+}
+ion-list.settings-list .qa-icon { width: 34px; height: 34px; margin: 0; }
+ion-list.settings-list ion-label .set-title { display: block; font-size: 14px; font-weight: 600; color: var(--foreground); }
+ion-list.settings-list ion-label .set-sub { display: block; font-size: 11px; color: var(--muted-foreground); margin-top: 1px; }
 
 /* ── 下拉刷新指示器 ── */
 .ptr-indicator {
@@ -1006,6 +1003,13 @@ html.lg-lens #chat-composer.toolbar.messagebar {
 }
 .ptr-indicator.visible { transform: translate(-50%, 0); }
 .ptr-indicator .preloader { width: 16px; height: 16px; }
+.preloader {
+  border: 2px solid rgba(217, 164, 65, 0.3);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── 页面切换动效（iOS 推入 / 返回 / tab 淡入，弹簧曲线）── */
 @keyframes f7-push-in {
