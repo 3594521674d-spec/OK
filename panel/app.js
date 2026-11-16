@@ -4235,15 +4235,24 @@ async function footballKbSync() {
   finally { footballKbSyncing = false }
 }
 
+
+/** 清掉本 source 里不在新列表里的旧标题文档（改名后用：旧标题的孤儿文档不留）。 */
+async function kbPruneStale(source, files) {
+  const keep = new Set(files.map((f) => f.title))
+  for (const d of kbLoadDocs()) {
+    if (d.source === source && !keep.has(d.title)) { try { await kbDeleteDoc(d.id) } catch { /* 删不掉就下次再说 */ } }
+  }
+}
+
 /* ── 漫剧技能 manju-fusion v1.0.0（网盘同款，放进知识库供聊天引用）── */
 const MANJU_KB_FILES = [
-  { url: 'data/manju/00-overview.md', title: '漫剧技能·总控' },
-  { url: 'data/manju/01-genres.md', title: '漫剧技能·01 题材配置表' },
-  { url: 'data/manju/02-dialects.md', title: '漫剧技能·02 模型方言' },
-  { url: 'data/manju/03-combat.md', title: '漫剧技能·03 打戏引擎' },
-  { url: 'data/manju/04-assets.md', title: '漫剧技能·04 资产与分镜模板' },
-  { url: 'data/manju/05-benchmark.md', title: '漫剧技能·05 对标与改编' },
-  { url: 'data/manju/06-knowhow.md', title: '漫剧技能·06 经验卡机制' },
+  { url: 'data/manju/00-overview.md', title: '编导技能·漫剧·总控' },
+  { url: 'data/manju/01-genres.md', title: '编导技能·漫剧·01 题材配置表' },
+  { url: 'data/manju/02-dialects.md', title: '编导技能·漫剧·02 模型方言' },
+  { url: 'data/manju/03-combat.md', title: '编导技能·漫剧·03 打戏引擎' },
+  { url: 'data/manju/04-assets.md', title: '编导技能·漫剧·04 资产与分镜模板' },
+  { url: 'data/manju/05-benchmark.md', title: '编导技能·漫剧·05 对标与改编' },
+  { url: 'data/manju/06-knowhow.md', title: '编导技能·漫剧·06 经验卡机制' },
 ]
 let manjuKbSyncing = false
 async function manjuKbSync() {
@@ -4264,6 +4273,7 @@ async function manjuKbSync() {
         kbAddDoc(f.title, text, 'manju-skill')
       } catch { /* 单篇没拿到就跳过，别弹错 */ }
     }
+    await kbPruneStale('manju-skill', MANJU_KB_FILES)
   } catch { /* 没网就静默跳过 */ }
   finally { manjuKbSyncing = false }
 }
@@ -4297,45 +4307,45 @@ async function shortStoryKbSync() {
 
 /* ── 老布褶也技能 laobu-zheye（以物喻人短片写法，放进知识库供聊天引用）── */
 const LAOBU_KB_FILES = [
-  { url: 'data/laobu-zheye/00-laobu-zheye.md', title: '老布技能·以物喻人' },
-  { url: 'data/laobu-zheye/01-假花.md', title: '老布技能·01 假花' },
-  { url: 'data/laobu-zheye/02-外内.md', title: '老布技能·02 外内' },
-  { url: 'data/laobu-zheye/03-鱼刺.md', title: '老布技能·03 鱼刺' },
-  { url: 'data/laobu-zheye/04-占无.md', title: '老布技能·04 占无' },
-  { url: 'data/laobu-zheye/05-得吃.md', title: '老布技能·05 得吃' },
-  { url: 'data/laobu-zheye/06-最佳状态.md', title: '老布技能·06 最佳状态' },
-  { url: 'data/laobu-zheye/07-同款杯剧.md', title: '老布技能·07 同款杯剧' },
-  { url: 'data/laobu-zheye/08-你的背包.md', title: '老布技能·08 你的背包' },
-  { url: 'data/laobu-zheye/09-我们是谁.md', title: '老布技能·09 我们是谁' },
-  { url: 'data/laobu-zheye/10-合脚.md', title: '老布技能·10 合脚' },
-  { url: 'data/laobu-zheye/11-红线.md', title: '老布技能·11 红线' },
-  { url: 'data/laobu-zheye/12-一锅粥.md', title: '老布技能·12 一锅粥' },
-  { url: 'data/laobu-zheye/13-水.md', title: '老布技能·13 水' },
-  { url: 'data/laobu-zheye/15-心现.md', title: '老布技能·15 心现' },
-  { url: 'data/laobu-zheye/16-好鞋.md', title: '老布技能·16 好鞋' },
-  { url: 'data/laobu-zheye/17-附寸.md', title: '老布技能·17 附寸' },
-  { url: 'data/laobu-zheye/18-一半结局.md', title: '老布技能·18 一半结局' },
-  { url: 'data/laobu-zheye/19-牛奶杯.md', title: '老布技能·19 牛奶杯' },
-  { url: 'data/laobu-zheye/20-长大.md', title: '老布技能·20 长大' },
-  { url: 'data/laobu-zheye/21-习惯.md', title: '老布技能·21 习惯' },
-  { url: 'data/laobu-zheye/22-条件.md', title: '老布技能·22 条件' },
-  { url: 'data/laobu-zheye/23-租购.md', title: '老布技能·23 租购' },
-  { url: 'data/laobu-zheye/24-那根棍子.md', title: '老布技能·24 那根棍子' },
-  { url: 'data/laobu-zheye/25-回家.md', title: '老布技能·25 回家' },
-  { url: 'data/laobu-zheye/26-人情.md', title: '老布技能·26 人情' },
-  { url: 'data/laobu-zheye/27-西门少年.md', title: '老布技能·27 西门少年' },
-  { url: 'data/laobu-zheye/28-欢迎回家.md', title: '老布技能·28 欢迎回家' },
-  { url: 'data/laobu-zheye/29-迷失归途.md', title: '老布技能·29 迷失归途' },
-  { url: 'data/laobu-zheye/30-草莓罐头.md', title: '老布技能·30 草莓罐头' },
-  { url: 'data/laobu-zheye/31-喜喜车.md', title: '老布技能·31 喜喜车' },
-  { url: 'data/laobu-zheye/32-原味.md', title: '老布技能·32 原味' },
-  { url: 'data/laobu-zheye/33-先后.md', title: '老布技能·33 先后' },
-  { url: 'data/laobu-zheye/34-生日快乐.md', title: '老布技能·34 生日快乐' },
-  { url: 'data/laobu-zheye/35-sha瓜.md', title: '老布技能·35 sha瓜' },
-  { url: 'data/laobu-zheye/36-正好.md', title: '老布技能·36 正好' },
-  { url: 'data/laobu-zheye/37-衣前以后.md', title: '老布技能·37 衣前以后' },
-  { url: 'data/laobu-zheye/38-爱情的苦.md', title: '老布技能·38 爱情的苦' },
-  { url: 'data/laobu-zheye/39-鸟笼.md', title: '老布技能·39 鸟笼' },
+  { url: 'data/laobu-zheye/00-laobu-zheye.md', title: '编导技能·老布·以物喻人' },
+  { url: 'data/laobu-zheye/01-假花.md', title: '编导技能·老布·01 假花' },
+  { url: 'data/laobu-zheye/02-外内.md', title: '编导技能·老布·02 外内' },
+  { url: 'data/laobu-zheye/03-鱼刺.md', title: '编导技能·老布·03 鱼刺' },
+  { url: 'data/laobu-zheye/04-占无.md', title: '编导技能·老布·04 占无' },
+  { url: 'data/laobu-zheye/05-得吃.md', title: '编导技能·老布·05 得吃' },
+  { url: 'data/laobu-zheye/06-最佳状态.md', title: '编导技能·老布·06 最佳状态' },
+  { url: 'data/laobu-zheye/07-同款杯剧.md', title: '编导技能·老布·07 同款杯剧' },
+  { url: 'data/laobu-zheye/08-你的背包.md', title: '编导技能·老布·08 你的背包' },
+  { url: 'data/laobu-zheye/09-我们是谁.md', title: '编导技能·老布·09 我们是谁' },
+  { url: 'data/laobu-zheye/10-合脚.md', title: '编导技能·老布·10 合脚' },
+  { url: 'data/laobu-zheye/11-红线.md', title: '编导技能·老布·11 红线' },
+  { url: 'data/laobu-zheye/12-一锅粥.md', title: '编导技能·老布·12 一锅粥' },
+  { url: 'data/laobu-zheye/13-水.md', title: '编导技能·老布·13 水' },
+  { url: 'data/laobu-zheye/15-心现.md', title: '编导技能·老布·15 心现' },
+  { url: 'data/laobu-zheye/16-好鞋.md', title: '编导技能·老布·16 好鞋' },
+  { url: 'data/laobu-zheye/17-附寸.md', title: '编导技能·老布·17 附寸' },
+  { url: 'data/laobu-zheye/18-一半结局.md', title: '编导技能·老布·18 一半结局' },
+  { url: 'data/laobu-zheye/19-牛奶杯.md', title: '编导技能·老布·19 牛奶杯' },
+  { url: 'data/laobu-zheye/20-长大.md', title: '编导技能·老布·20 长大' },
+  { url: 'data/laobu-zheye/21-习惯.md', title: '编导技能·老布·21 习惯' },
+  { url: 'data/laobu-zheye/22-条件.md', title: '编导技能·老布·22 条件' },
+  { url: 'data/laobu-zheye/23-租购.md', title: '编导技能·老布·23 租购' },
+  { url: 'data/laobu-zheye/24-那根棍子.md', title: '编导技能·老布·24 那根棍子' },
+  { url: 'data/laobu-zheye/25-回家.md', title: '编导技能·老布·25 回家' },
+  { url: 'data/laobu-zheye/26-人情.md', title: '编导技能·老布·26 人情' },
+  { url: 'data/laobu-zheye/27-西门少年.md', title: '编导技能·老布·27 西门少年' },
+  { url: 'data/laobu-zheye/28-欢迎回家.md', title: '编导技能·老布·28 欢迎回家' },
+  { url: 'data/laobu-zheye/29-迷失归途.md', title: '编导技能·老布·29 迷失归途' },
+  { url: 'data/laobu-zheye/30-草莓罐头.md', title: '编导技能·老布·30 草莓罐头' },
+  { url: 'data/laobu-zheye/31-喜喜车.md', title: '编导技能·老布·31 喜喜车' },
+  { url: 'data/laobu-zheye/32-原味.md', title: '编导技能·老布·32 原味' },
+  { url: 'data/laobu-zheye/33-先后.md', title: '编导技能·老布·33 先后' },
+  { url: 'data/laobu-zheye/34-生日快乐.md', title: '编导技能·老布·34 生日快乐' },
+  { url: 'data/laobu-zheye/35-sha瓜.md', title: '编导技能·老布·35 sha瓜' },
+  { url: 'data/laobu-zheye/36-正好.md', title: '编导技能·老布·36 正好' },
+  { url: 'data/laobu-zheye/37-衣前以后.md', title: '编导技能·老布·37 衣前以后' },
+  { url: 'data/laobu-zheye/38-爱情的苦.md', title: '编导技能·老布·38 爱情的苦' },
+  { url: 'data/laobu-zheye/39-鸟笼.md', title: '编导技能·老布·39 鸟笼' },
 ]
 let laobuKbSyncing = false
 async function laobuKbSync() {
@@ -4356,6 +4366,7 @@ async function laobuKbSync() {
         kbAddDoc(f.title, text, 'laobu-skill')
       } catch { /* 单篇没拿到就跳过，别弹错 */ }
     }
+    await kbPruneStale('laobu-skill', LAOBU_KB_FILES)
   } catch { /* 没网就静默跳过 */ }
   finally { laobuKbSyncing = false }
 }
@@ -4386,8 +4397,38 @@ async function memesKbSync() {
         kbAddDoc(f.title, text, 'memes')
       } catch { /* 单篇没拿到就跳过，别弹错 */ }
     }
+    await kbPruneStale('memes', MEMES_KB_FILES)
   } catch { /* 没网就静默跳过 */ }
   finally { memesKbSyncing = false }
+}
+
+
+/* ── 编导技能总则 biandao（老布以物喻人 + 漫剧全流程合起来就是编导技能）── */
+const BIANDAO_KB_FILES = [
+  { url: 'data/biandao/00-编导技能.md', title: '编导技能·总则' },
+]
+let biandaoKbSyncing = false
+async function biandaoKbSync() {
+  if (biandaoKbSyncing) return
+  biandaoKbSyncing = true
+  try {
+    for (const f of BIANDAO_KB_FILES) {
+      try {
+        const res = await fetch(f.url, { cache: 'no-cache' })
+        if (!res.ok) continue
+        const text = (await res.text()).replace(/\r\n/g, '\n').trim()
+        if (!text) continue
+        const docs = kbLoadDocs()
+        const old = docs.find((d) => d.title === f.title)
+        if (old && old.text === text) continue // 内容没变就不动
+        if (docs.length >= KB_MAX_DOCS && !old) continue // 库满了就静默跳过
+        if (old) await kbDeleteDoc(old.id)
+        kbAddDoc(f.title, text, 'biandao-skill')
+      } catch { /* 单篇没拿到就跳过，别弹错 */ }
+    }
+    await kbPruneStale('biandao-skill', BIANDAO_KB_FILES)
+  } catch { /* 没网就静默跳过 */ }
+  finally { biandaoKbSyncing = false }
 }
 
 /* ── 建索引：切块 → 加载模型 → 分批嵌向量 ── */
@@ -4636,6 +4677,7 @@ function initKB() {
   void shortStoryKbSync()
   void laobuKbSync()
   void memesKbSync()
+  void biandaoKbSync()
   kbRenderDocs()
   void kbRenderStatus()
   if (kbBound) return
@@ -5939,6 +5981,7 @@ function initChat() {
   void shortStoryKbSync()
   void laobuKbSync()
   void memesKbSync()
+  void biandaoKbSync()
   loadChatHistory()
   renderChat()
   void loadChatModels()
