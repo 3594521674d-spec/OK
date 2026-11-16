@@ -4235,6 +4235,39 @@ async function footballKbSync() {
   finally { footballKbSyncing = false }
 }
 
+/* ── 漫剧技能 manju-fusion v1.0.0（网盘同款，放进知识库供聊天引用）── */
+const MANJU_KB_FILES = [
+  { url: 'data/manju/00-overview.md', title: '漫剧技能·总控' },
+  { url: 'data/manju/01-genres.md', title: '漫剧技能·01 题材配置表' },
+  { url: 'data/manju/02-dialects.md', title: '漫剧技能·02 模型方言' },
+  { url: 'data/manju/03-combat.md', title: '漫剧技能·03 打戏引擎' },
+  { url: 'data/manju/04-assets.md', title: '漫剧技能·04 资产与分镜模板' },
+  { url: 'data/manju/05-benchmark.md', title: '漫剧技能·05 对标与改编' },
+  { url: 'data/manju/06-knowhow.md', title: '漫剧技能·06 经验卡机制' },
+]
+let manjuKbSyncing = false
+async function manjuKbSync() {
+  if (manjuKbSyncing) return
+  manjuKbSyncing = true
+  try {
+    for (const f of MANJU_KB_FILES) {
+      try {
+        const res = await fetch(f.url, { cache: 'no-cache' })
+        if (!res.ok) continue
+        const text = (await res.text()).replace(/\r\n/g, '\n').trim()
+        if (!text) continue
+        const docs = kbLoadDocs()
+        const old = docs.find((d) => d.title === f.title)
+        if (old && old.text === text) continue // 内容没变就不动
+        if (docs.length >= KB_MAX_DOCS && !old) continue // 库满了就静默跳过
+        if (old) await kbDeleteDoc(old.id)
+        kbAddDoc(f.title, text, 'manju-skill')
+      } catch { /* 单篇没拿到就跳过，别弹错 */ }
+    }
+  } catch { /* 没网就静默跳过 */ }
+  finally { manjuKbSyncing = false }
+}
+
 /* ── 建索引：切块 → 加载模型 → 分批嵌向量 ── */
 let kbIndexing = false
 let kbIndexProgress = ''
@@ -4477,6 +4510,7 @@ async function kbRenderStatus() {
 }
 function initKB() {
   void footballKbSync()
+  void manjuKbSync()
   kbRenderDocs()
   void kbRenderStatus()
   if (kbBound) return
@@ -4489,45 +4523,9 @@ function initKB() {
       kbSetStatus(toggle.checked ? '知识库已开启，对话时会先检索再回答。' : '知识库已关闭，对话不再拼任何资料。')
     }
   }
-  const uploadBtn = $('kb-upload-btn')
-  const fileInput = $('kb-file')
-  if (uploadBtn && fileInput) {
-    uploadBtn.onclick = () => fileInput.click()
-    fileInput.onchange = async () => {
-      const files = [...(fileInput.files || [])]
-      fileInput.value = ''
-      if (!files.length) return
-      for (const f of files) {
-        try {
-          kbSetStatus('正在读《' + f.name + '》…')
-          const out = await kbExtractFile(f)
-          const src = /\.pdf$/i.test(f.name) ? 'pdf' : /\.docx$/i.test(f.name) ? 'docx' : 'upload'
-          const doc = kbAddDoc(out.title, out.text, src)
-          if (doc) kbSetStatus('已入库《' + doc.title + '》（' + doc.chars + ' 字）。')
-        } catch (e) {
-          alert(e && e.message ? e.message : '读取失败')
-          kbSetStatus('')
-        }
-      }
-      kbRenderDocs()
-      void kbRenderStatus()
-    }
-  }
-  const pasteBtn = $('kb-paste-add')
-  if (pasteBtn) {
-    pasteBtn.onclick = () => {
-      const titleEl = $('kb-paste-title')
-      const textEl = $('kb-paste-text')
-      const text = textEl ? textEl.value : ''
-      const title = titleEl && titleEl.value.trim() ? titleEl.value.trim() : '粘贴文档'
-      const doc = kbAddDoc(title, text, 'paste')
-      if (doc) {
-        if (titleEl) titleEl.value = ''
-        if (textEl) textEl.value = ''
-        kbSetStatus('已入库《' + doc.title + '》（' + doc.chars + ' 字）。')
-      }
-    }
-  }
+  // 手动“上传文档”卡片已按用户要求去掉（2026-11-16：他说小pa帮他上传，这个多余）。
+  // 入库仍走同步加载器（足球预测 / 漫剧技能）与聊天里的 AI 存库动作；kbExtractFile
+  // 留给聊天附件（onAttachFile）继续用，别删。
   const indexBtn = $('kb-index-btn')
   if (indexBtn) indexBtn.onclick = () => { void kbIndexAll() }
   const clearBtn = $('kb-clear-btn')
@@ -5742,6 +5740,7 @@ async function sendChat() {
 /** 首页初始化（只绑一次）：画记录、拉模型、绑输入框与按钮。 */
 function initChat() {
   void footballKbSync()
+  void manjuKbSync()
   loadChatHistory()
   renderChat()
   void loadChatModels()

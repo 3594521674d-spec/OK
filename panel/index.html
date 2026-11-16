@@ -344,22 +344,6 @@
     </section>
 
     <section class="panel kb-panel">
-      <div class="panel-head"><h3>上传文档</h3></div>
-      <p class="hint">支持 txt / md / 文本型 PDF / DOCX。扫描版 PDF 没有文本层，读不到会明确提示，不会假装入库。</p>
-      <div class="row">
-        <button id="kb-upload-btn">选择文件上传</button>
-        <input type="file" id="kb-file" accept=".txt,.md,.pdf,.docx,text/plain,text/markdown" multiple hidden>
-      </div>
-      <label class="imggen-label" for="kb-paste-title">标题</label>
-      <input id="kb-paste-title" placeholder="例如：青花瓷保养" aria-label="文档标题">
-      <label class="imggen-label" for="kb-paste-text">粘贴文本</label>
-      <textarea id="kb-paste-text" rows="4" placeholder="直接粘贴一段文字，保存为一篇文档……"></textarea>
-      <div class="row">
-        <button id="kb-paste-add">保存为文档</button>
-      </div>
-    </section>
-
-    <section class="panel kb-panel">
       <div class="panel-head"><h3>文档</h3><span class="row"><button class="ghost" id="kb-index-btn">开始建索引</button><button class="ghost" id="kb-clear-btn">清空</button></span></div>
       <p class="hint">“开始建索引”会先切块（1000 字 / 重叠 150 字），再加载向量模型（bge-small-zh-v1.5，首次约 25MB）逐块嵌向量。没嵌向量也能用 BM25 关键词检索。</p>
       <div id="kb-docs"></div>
@@ -767,6 +751,6 @@
 <script nomodule src="https://cdn.jsdelivr.net/npm/@ionic/core@8/dist/ionic/ionic.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="glass.js?v=1"></script>
-<script src="app.js?v=23"></script>
+<script src="app.js?v=24"></script>
 </body>
 </html>
