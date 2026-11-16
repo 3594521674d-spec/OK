@@ -107,7 +107,12 @@ html, body { overflow-x: clip; overflow-y: auto; }
 @supports not (overflow-x: clip) {
   html, body { overflow-x: hidden; overflow-y: auto; }
 }
-body { position: static; height: auto; max-height: none; }
+body { position: static; height: auto; max-height: none; transform: none !important; }
+/* ⚠️ body 上不能留任何 transform：哪怕是恒等矩阵 matrix(1,0,0,1,0,0)，
+   也会让 body 变成 fixed 定位的 containing block——底部导航栏
+   position:fixed;bottom:0 就会钉在“文档底”而不是“屏幕底”，
+   聊天一长页面一高，导航栏就被顶到屏幕外只剩一半
+   （2026-11-16 用户截图：导航栏只能看到一半；实测 nav bottom=898 > 视口 874）。 */
 /* ⚠️ Ionic 把 ion-app 当全屏壳（position:absolute + contain:size layout style，
    高度塌到 0，还会把 fixed 导航吸到页面顶部）。本面板只是拿它当普通容器，
    必须用 !important 把它打回正常流式块。 */
@@ -1077,7 +1082,11 @@ html[data-theme="light"] .panel { background: rgba(255, 255, 255, 0.045); }
   .pool-card { width: 128px; height: 84px; right: 10px; }
   .kpi.has-poolcard { padding-right: 148px; }
   .pool-num { font-size: 10px; }
-  #chat-messages { max-height: calc(100dvh - 280px); }
+  /* 对话区再缩短：顶栏 73 + 内容上边距 10 + 模型行 83 + 输入条 80
+     + 内容下边距（导航 56 + 安全区 34 + 24）= 360px 固定开销，
+     消息区超过 100dvh-370px 整页就会比屏幕高、能上下滚动
+     （2026-11-16 用户要求：把中间对话面板缩短，让导航栏进来）。 */
+  #chat-messages { max-height: calc(100dvh - 370px); }
 }
 
 /* ── 减动效：系统要求减少动态时，关掉弹簧/果冻/光晕过渡 ── */
