@@ -4360,6 +4360,36 @@ async function laobuKbSync() {
   finally { laobuKbSyncing = false }
 }
 
+
+/* ── 梗库 memes（搞笑抽象梗专用库，只收最近七天的新梗，老梗不要）── */
+const MEMES_KB_FILES = [
+  { url: 'data/memes/00-梗库.md', title: '梗库·总则' },
+  { url: 'data/memes/01-嘉豪.md', title: '梗库·01 嘉豪' },
+  { url: 'data/memes/02-不不不不不，我无疑是愤怒的.md', title: '梗库·02 不不不不不，我无疑是愤怒的' },
+]
+let memesKbSyncing = false
+async function memesKbSync() {
+  if (memesKbSyncing) return
+  memesKbSyncing = true
+  try {
+    for (const f of MEMES_KB_FILES) {
+      try {
+        const res = await fetch(f.url, { cache: 'no-cache' })
+        if (!res.ok) continue
+        const text = (await res.text()).replace(/\r\n/g, '\n').trim()
+        if (!text) continue
+        const docs = kbLoadDocs()
+        const old = docs.find((d) => d.title === f.title)
+        if (old && old.text === text) continue // 内容没变就不动
+        if (docs.length >= KB_MAX_DOCS && !old) continue // 库满了就静默跳过
+        if (old) await kbDeleteDoc(old.id)
+        kbAddDoc(f.title, text, 'memes')
+      } catch { /* 单篇没拿到就跳过，别弹错 */ }
+    }
+  } catch { /* 没网就静默跳过 */ }
+  finally { memesKbSyncing = false }
+}
+
 /* ── 建索引：切块 → 加载模型 → 分批嵌向量 ── */
 let kbIndexing = false
 let kbIndexProgress = ''
@@ -4605,6 +4635,7 @@ function initKB() {
   void manjuKbSync()
   void shortStoryKbSync()
   void laobuKbSync()
+  void memesKbSync()
   kbRenderDocs()
   void kbRenderStatus()
   if (kbBound) return
@@ -5837,6 +5868,7 @@ function initChat() {
   void manjuKbSync()
   void shortStoryKbSync()
   void laobuKbSync()
+  void memesKbSync()
   loadChatHistory()
   renderChat()
   void loadChatModels()
