@@ -913,6 +913,9 @@ html.lg-lens .sheet-modal {
   flex: 1 1 auto;
   min-height: 0;
   max-height: none;
+  /* 输入框改成 fixed 后脱离文档流，消息区底部要留出它的位置，
+     不然最后一条消息会滑到输入框底下去（输入框常态高 70px + 8px 空）。 */
+  padding-bottom: 90px;
 }
 /* 对话气泡（app.js 没 Ionic 时就走这套原生气泡） */
 .chat-msg { display: flex; }
@@ -938,15 +941,26 @@ html.lg-lens .sheet-modal {
   border-color: rgba(248, 113, 113, 0.5);
   color: #fca5a5;
 }
-/* 输入条：玻璃底 + ion-textarea 自动长高 + 圆形金色发送键 */
+/* 输入条：玻璃底 + ion-textarea 自动长高 + 圆形金色发送键
+   position:fixed 钉在视口底、导航栏上面 8px——对话框是固定的，
+   页面怎么拉、怎么滚它都不动（2026-11-16 用户：对话框怎么还能往下拉，
+   对话框不是固定的吗）。fixed 定位能成立的前提是 body 上没有 transform，
+   那个已经在 v11 用 transform:none !important 修掉了。
+   ⚠️ fixed 会脱离 #view-chat 的 flex 流，所以消息区要留 padding-bottom
+   （见上面 #view-chat #chat-messages 那条），不然消息滑到输入框底下。 */
 #chat-composer.composer {
-  position: relative;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px);
   z-index: 5;
   display: flex;
   align-items: flex-end;
   gap: 8px;
   padding: 8px 10px;
-  margin-top: 10px;
+  width: calc(100% - 28px);
+  max-width: 1052px;
+  margin: 0 auto;
   background: rgba(255, 255, 255, 0.045);
   backdrop-filter: blur(18px) saturate(1.6);
   -webkit-backdrop-filter: blur(18px) saturate(1.6);
@@ -1096,6 +1110,8 @@ html[data-theme="light"] .panel { background: rgba(255, 255, 255, 0.045); }
 /* ── 响应式 ── */
 @media (max-width: 700px) {
   .content { padding-left: 10px; padding-right: 10px; }
+  /* 输入框 fixed 后左右边距跟内容区对齐（手机上 10px）。 */
+  #chat-composer.composer { width: calc(100% - 20px); }
   .brand-text p { display: none; }
   .panel { padding: 14px; }
   .kpi-value { font-size: 20px; }
