@@ -108,7 +108,15 @@ html, body { overflow-x: clip; overflow-y: auto; }
   html, body { overflow-x: hidden; overflow-y: auto; }
 }
 body { position: static; height: auto; max-height: none; }
-ion-app { display: block; position: static; height: auto; }
+/* ⚠️ Ionic 把 ion-app 当全屏壳（position:absolute + contain:size layout style，
+   高度塌到 0，还会把 fixed 导航吸到页面顶部）。本面板只是拿它当普通容器，
+   必须用 !important 把它打回正常流式块。 */
+ion-app, ion-app.ion-page {
+  position: static !important;
+  contain: none !important;
+  height: auto !important;
+  display: block;
+}
 
 body {
   margin: 0;
