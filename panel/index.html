@@ -24,7 +24,7 @@
   CSS 在 style.css 之前加载，咱们的样式覆盖在上；JS 在 body 末尾、app.js 之前。
   各组件用 mode="ios" 强制 iOS 外观（桌面 Chrome 也按 iOS 渲染）。 -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ionic/core@8/css/ionic.bundle.css">
-<link rel="stylesheet" href="style.css?v=21">
+<link rel="stylesheet" href="style.css?v=22">
 </head>
 <body>
 <ion-app>
@@ -163,6 +163,10 @@
       <ion-item button detail class="settings-row" data-section="knowledge" mode="ios">
         <span class="qa-icon" slot="start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
         <ion-label><span class="set-title">知识库</span><span class="set-sub">文档、检索与向量索引（只存本机）</span></ion-label>
+      </ion-item>
+      <ion-item button detail class="settings-row" data-section="extract" mode="ios">
+        <span class="qa-icon" slot="start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span>
+        <ion-label><span class="set-title">提视频</span><span class="set-sub">粘链接解析无水印视频、图片压缩转换、提音频</span></ion-label>
       </ion-item>
     </ion-list>
   </section>
@@ -359,6 +363,81 @@
       <div class="panel-head"><h3>文档</h3><span class="row"><button class="ghost" id="kb-index-btn">开始建索引</button><button class="ghost" id="kb-clear-btn">清空</button></span></div>
       <p class="hint">“开始建索引”会先切块（1000 字 / 重叠 150 字），再加载向量模型（bge-small-zh-v1.5，首次约 25MB）逐块嵌向量。没嵌向量也能用 BM25 关键词检索。</p>
       <div id="kb-docs"></div>
+    </section>
+  </section>
+
+  <!-- ───────── 提视频（自研解析，不调第三方解析站） ───────── -->
+  <section class="view" id="view-extract" hidden>
+    <div class="page-head">
+      <h2>提视频</h2>
+      <p class="sub">粘贴社交媒体视频链接，解析出无水印原视频。直链有时效，解析完尽快下载。</p>
+    </div>
+
+    <section class="panel extract-panel">
+      <label class="imggen-label" for="extract-url">视频链接</label>
+      <input id="extract-url" type="url" inputmode="url" placeholder="粘贴抖音 / 快手视频分享链接…" aria-label="视频链接" autocomplete="off">
+      <div class="row extract-actions">
+        <button class="primary" id="extract-parse">解析</button>
+        <button class="ghost" id="extract-paste">粘贴剪贴板</button>
+      </div>
+      <p class="hint" id="extract-status">目前支持抖音、快手、B站、微博、X；YouTube、小红书、TikTok、Instagram 暂不支持。</p>
+      <div id="extract-result" hidden>
+        <img id="extract-cover" class="extract-cover" alt="视频封面" hidden>
+        <h3 id="extract-title" class="extract-title"></h3>
+        <p class="hint" id="extract-meta"></p>
+        <div class="row" id="extract-videos"></div>
+        <div class="row" id="extract-audio-row" hidden>
+          <a id="extract-audio" class="ghost extract-dl" target="_blank" rel="noopener">下载音频（原声 / BGM）</a>
+          <button class="ghost" id="extract-audio-copy">复制音频链接</button>
+        </div>
+        <p class="hint">点“下载视频”会在新页面打开原视频，在播放器里点分享 → 存储视频，就能存到相册。直链约 5 分钟过期，别隔太久再点。</p>
+      </div>
+    </section>
+
+    <section class="panel extract-panel">
+      <div class="panel-head"><h3>图片压缩 / 格式转换</h3></div>
+      <p class="hint">纯本机处理，不上传服务器。选一张图，调质量和尺寸，点压缩转换就能下载。</p>
+      <div class="row">
+        <button id="imgtool-pick">选择图片</button>
+        <input type="file" id="imgtool-file" accept="image/*" hidden>
+        <span class="hint" id="imgtool-info">还没选图</span>
+      </div>
+      <img id="imgtool-preview" class="extract-cover" alt="图片预览" hidden>
+      <div class="row imgtool-controls">
+        <label for="imgtool-format">输出格式</label>
+        <select id="imgtool-format" aria-label="输出格式">
+          <option value="keep">保持原格式</option>
+          <option value="image/jpeg">JPG</option>
+          <option value="image/png">PNG</option>
+          <option value="image/webp">WebP</option>
+        </select>
+        <label for="imgtool-quality">质量</label>
+        <input type="range" id="imgtool-quality" min="0.1" max="1" step="0.05" value="0.85" aria-label="质量">
+        <span class="hint" id="imgtool-quality-val">85%</span>
+        <label for="imgtool-maxw">最长边 ≤</label>
+        <input type="number" id="imgtool-maxw" min="0" max="8192" step="1" value="1920" aria-label="最长边像素">
+        <span class="hint">像素（0 = 不改尺寸）</span>
+      </div>
+      <div class="row">
+        <button class="primary" id="imgtool-run" disabled>压缩转换</button>
+        <a id="imgtool-download" class="ghost extract-dl" hidden>下载处理后的图片</a>
+      </div>
+      <p class="hint" id="imgtool-result"></p>
+    </section>
+
+    <section class="panel extract-panel">
+      <div class="panel-head"><h3>本地视频提音频（实验功能）</h3></div>
+      <p class="hint">只提本机视频文件里的音频，不走服务器。首次使用要加载约 31MB 的处理核心（走流量注意），只适合 60 秒以内、80MB 以内的短视频；大文件可能闪退。链接里的音频请用上面解析结果里的“下载音频”。</p>
+      <div class="row">
+        <button id="audiotool-pick">选择视频文件</button>
+        <input type="file" id="audiotool-file" accept="video/*" hidden>
+        <span class="hint" id="audiotool-info">还没选文件</span>
+      </div>
+      <div class="row">
+        <button class="primary" id="audiotool-run" disabled>提取音频（MP3）</button>
+        <a id="audiotool-download" class="ghost extract-dl" hidden>下载音频</a>
+      </div>
+      <p class="hint" id="audiotool-status"></p>
     </section>
   </section>
 
@@ -688,6 +767,6 @@
 <script nomodule src="https://cdn.jsdelivr.net/npm/@ionic/core@8/dist/ionic/ionic.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="glass.js?v=1"></script>
-<script src="app.js?v=17"></script>
+<script src="app.js?v=19"></script>
 </body>
 </html>

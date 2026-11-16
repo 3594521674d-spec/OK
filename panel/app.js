@@ -252,6 +252,7 @@ const VIEW_LOADERS = {
   models: () => loadModels(),
   imagegen: () => initImageGen(),
   knowledge: () => initKB(),
+  extract: () => initExtract(),
   config: () => loadConfig(),
   logs: () => loadLogs(),
 }
@@ -260,7 +261,7 @@ const VIEW_LOADERS = {
 // 由 openSettingsSection() 打开，不走 switchView。
 const TOP_VIEWS = ['chat', 'settings']
 // 设置里的子视图（顺序与设置菜单一致）。
-const SUB_VIEWS = ['apikeys', 'usage', 'providers', 'tasks', 'models', 'logs', 'config', 'imagegen', 'knowledge']
+const SUB_VIEWS = ['apikeys', 'usage', 'providers', 'tasks', 'models', 'logs', 'config', 'imagegen', 'knowledge', 'extract']
 // 当前打开的子视图（'' 表示没有，停在设置菜单）。
 let currentSubView = ''
 
@@ -4950,14 +4951,48 @@ let speechListening = false
 // 语音会话号：每次开始/停止/发送都 +1。Web Speech 在 stop() 之后还会
 // 补发一次最终 onresult——没有这道闸，那句旧话会在输入框清空之后又
 // 写回来（2026-11-16 11:02 用户报的 bug：第二次点麦克风，输入框里
-// 直接出现上一句语音转出来的文字）。onresult 先对号，对不上就扔掉。
+// 直接出现上一句语音转出来的文字）。onresult/onerror 先对号，对不上就扔掉。
 let speechSession = 0
+// 旧会话正在收尾：stop() 之后 iOS 不会立刻放开麦克风，旧会话的 onend
+// 还没到就建新会话，新会话常常只亮麦克风图标、收不到任何声音
+// （2026-11-16 11:54 用户在车里报的 bug：第二下麦克风显示开着，
+// 说了好几句都不转换）。收尾期间点麦克风先排队，等放开再自动起。
+let speechStopping = false
+let speechStoppingTimer = null
+let speechPendingStart = false
+// 看门狗：开始后 8 秒还没收到任何声音/结果，说明这次识别卡死了，
+// 自动停掉重置，别让麦克风一直亮着却什么都不转。
+let speechWatchdog = null
+function speechClearWatchdog() {
+  if (speechWatchdog) { clearTimeout(speechWatchdog); speechWatchdog = null }
+}
+function speechReleaseStopping() {
+  if (!speechStopping) return
+  speechStopping = false
+  if (speechStoppingTimer) { clearTimeout(speechStoppingTimer); speechStoppingTimer = null }
+  if (speechPendingStart && document.visibilityState === 'visible') {
+    speechPendingStart = false
+    toggleSpeech()
+  } else {
+    speechPendingStart = false
+  }
+}
 /** 停掉语音识别，并让它之后再到的结果全部作废。 */
 function speechStop() {
   speechSession++
-  try { speechRec && speechRec.stop() } catch { /* 忽略 */ }
+  speechClearWatchdog()
+  const old = speechRec
+  try { old && old.stop() } catch { /* 忽略 */ }
   speechRec = null
   setMicState(false)
+  speechStopping = true
+  if (speechStoppingTimer) clearTimeout(speechStoppingTimer)
+  // 旧会话收尾完成（onend）或 1.5 秒超时，都算放开。
+  if (old) {
+    const prevOnEnd = old.onend
+    old.onend = (ev) => { try { prevOnEnd && prevOnEnd(ev) } catch { /* 忽略 */ } speechReleaseStopping() }
+  }
+  speechStoppingTimer = setTimeout(speechReleaseStopping, 1500)
 }
 function speechSupported() {
   return 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window
@@ -4983,6 +5018,11 @@ function toggleSpeech() {
     speechStop()
     return
   }
+  // 旧会话还没收尾：排队，等放开再自动起，别硬建新会话抢麦克风。
+  if (speechStopping) {
+    speechPendingStart = true
+    return
+  }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition
   if (!SR) {
     // 网页语音识别不可用：不藏按钮，先提示，再聚焦输入框（alert 关掉后
@@ -5001,6 +5041,7 @@ function toggleSpeech() {
   rec.onresult = (ev) => {
     // 旧会话的迟到结果（stop() 之后补发的那一次）：直接扔掉，别写回输入框。
     if (session !== speechSession) return
+    speechClearWatchdog()
     let finalText = '', interim = ''
     for (let i = 0; i < ev.results.length; i++) {
       const r = ev.results[i]
@@ -5011,7 +5052,15 @@ function toggleSpeech() {
     const input = $('chat-input')
     if (input) input.value = val
   }
+  // 收到任何音频信号都说明这次识别活着，看门狗可以撤了。
+  rec.onaudiostart = () => { if (session === speechSession) speechClearWatchdog() }
+  rec.onsoundstart = () => { if (session === speechSession) speechClearWatchdog() }
+  rec.onspeechstart = () => { if (session === speechSession) speechClearWatchdog() }
   rec.onerror = (ev) => {
+    // 旧会话的迟到错误：别动新会话的状态（之前没这道闸，旧会话的
+    // aborted 错误会在新会话开始后把麦克风状态关掉，越用越乱）。
+    if (session !== speechSession) return
+    speechClearWatchdog()
     const err = ev && ev.error
     if (err === 'not-allowed' || err === 'service-not-allowed') { alert('麦克风权限被拒绝：请在系统设置里允许 Safari 使用麦克风，或直接用 iOS 键盘听写'); focusChatInput() }
     else if (err === 'no-speech') alert('没听到声音，再试一次')
@@ -5019,11 +5068,18 @@ function toggleSpeech() {
     else if (err !== 'aborted') { alert('语音输入失败（' + err + '），可用 iOS 键盘听写代替'); focusChatInput() }
     setMicState(false)
   }
-  rec.onend = () => { if (session === speechSession) setMicState(false) }
+  rec.onend = () => { if (session === speechSession) { setMicState(false); speechClearWatchdog() } }
   try {
     // ⚠️ 必须同步调 start()（点按手势里），iOS 上 await 之后调会被拒。
     rec.start()
     setMicState(true)
+    // 8 秒还没收到任何声音/结果：这次识别卡死了，自动重置。
+    speechClearWatchdog()
+    speechWatchdog = setTimeout(() => {
+      if (session !== speechSession) return
+      speechStop()
+      alert('语音识别没反应，已重置：点麦克风再说一次；不行就用 iOS 键盘上的话筒听写')
+    }, 8000)
   } catch {
     alert('语音识别启动失败，可用 iOS 键盘听写代替')
     setMicState(false)
@@ -5298,7 +5354,7 @@ const PANEL_ACTION_CONTRACT = [
   '可用动作（只用这四个，别编别的）：',
   '- panel_state：查当前模型、所在页面、知识库篇数、生图上游状态',
   '- model_switch：{"model":"buddy/kimi-k2.5"} 换聊天模型（只能用模型目录里的 id）',
-  '- goto：{"view":"chat"|"settings"|"kb"|"imggen"} 切页面',
+  '- goto：{"view":"chat"|"settings"|"kb"|"imggen"|"extract"} 切页面',
   '- kb_upload：{"title":"标题","content":"全文"} 存进知识库（会先问用户确认）',
   '一次只发一个动作块；动作执行完我会把结果告诉你，你再继续回话。',
   '动作块不要写在正文里冒充回答；不需要操作时就别发动作块。',
@@ -5326,7 +5382,7 @@ const PANEL_ACTIONS = {
       const v = p.view
       if (v === 'chat') { switchView('chat'); return { ok: true, view: 'chat' } }
       if (v === 'settings') { switchView('settings'); return { ok: true, view: 'settings' } }
-      if (v === 'kb' || v === 'imggen') { openSettingsSection(v); return { ok: true, view: v } }
+      if (v === 'kb' || v === 'imggen' || v === 'extract') { openSettingsSection(v); return { ok: true, view: v } }
       return { ok: false, error: '去不了 ' + String(v) }
     },
   },
@@ -6845,3 +6901,286 @@ async function bootstrap() {
 applyTheme(localStorage.getItem('wb_theme') || 'light')
 
 bootstrap()
+
+/* ─────────────────────────── 提视频（自研解析 + 图片工具 + 本地提音频） ───────────────────────────
+ *
+ * 链接解析走网关 POST /v1/extract（抖音 / 快手已通；小红书纯服务端解析走不通，
+ * 网关会如实报“暂不支持”，面板不假装能下）。
+ * 图片压缩 / 格式转换是纯前端 canvas，不上传服务器。
+ * 本地视频提音频是实验功能：ffmpeg.wasm 单线程版，首次加载约 31MB，
+ * 只适合 60 秒以内、80MB 以内的短视频；大文件可能闪退，失败如实提示。
+ * 直链有时效（抖音约 5 分钟）：解析完尽快下载，别存下来以后用。
+ */
+
+let extractBound = false
+/** 最近一次解析出的音频直链（复制按钮用）。 */
+let extractLastAudioUrl = ''
+/** 图片工具当前选中的图。 */
+let imgtoolState = null
+/** 音频工具当前选中的文件 + 已加载的 ffmpeg 实例。 */
+let audiotoolState = { file: null, ffmpeg: null }
+
+function extractFormatDuration(ms) {
+  const s = Math.round(ms / 1000)
+  const m = Math.floor(s / 60)
+  const rest = s % 60
+  return m > 0 ? m + '分' + rest + '秒' : rest + '秒'
+}
+
+function extractSetStatus(text) {
+  const el = $('extract-status')
+  if (el) el.textContent = text
+}
+
+async function extractCopyText(text, btn) {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    // 剪贴板 API 不可用时（旧系统 / 非安全上下文）退回选区复制。
+    const ta = document.createElement('textarea')
+    ta.value = text
+    document.body.appendChild(ta)
+    ta.select()
+    try { document.execCommand('copy') } catch { /* 复制失败就失败，不假装成功 */ }
+    ta.remove()
+  }
+  if (btn) {
+    const old = btn.textContent
+    btn.textContent = '已复制 ✓'
+    setTimeout(() => { btn.textContent = old }, 1200)
+  }
+}
+
+function initExtract() {
+  if (extractBound) return
+  extractBound = true
+
+  $('extract-parse').addEventListener('click', () => { void extractParse() })
+  $('extract-url').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { void extractParse() }
+  })
+  $('extract-paste').addEventListener('click', async () => {
+    try {
+      const t = await navigator.clipboard.readText()
+      if (t) $('extract-url').value = t
+      else extractSetStatus('剪贴板是空的，请手动粘贴')
+    } catch {
+      alert('剪贴板读不到，请手动粘贴链接')
+    }
+  })
+  $('extract-audio-copy').addEventListener('click', (e) => {
+    if (extractLastAudioUrl) void extractCopyText(extractLastAudioUrl, e.currentTarget)
+  })
+
+  // 图片工具
+  $('imgtool-pick').addEventListener('click', () => $('imgtool-file').click())
+  $('imgtool-file').addEventListener('change', () => { imgtoolOnFile() })
+  $('imgtool-quality').addEventListener('input', () => {
+    $('imgtool-quality-val').textContent = Math.round(Number($('imgtool-quality').value) * 100) + '%'
+  })
+  $('imgtool-run').addEventListener('click', () => { void imgtoolRun() })
+
+  // 音频工具
+  $('audiotool-pick').addEventListener('click', () => $('audiotool-file').click())
+  $('audiotool-file').addEventListener('change', () => { audiotoolOnFile() })
+  $('audiotool-run').addEventListener('click', () => { void audiotoolRun() })
+}
+
+/** 解析一条链接并渲染结果。 */
+async function extractParse() {
+  const url = $('extract-url').value.trim()
+  if (!url) { alert('先粘贴一条视频链接'); return }
+  const btn = $('extract-parse')
+  btn.disabled = true
+  extractSetStatus('正在解析…')
+  $('extract-result').hidden = true
+  extractLastAudioUrl = ''
+  try {
+    const res = await api('/v1/extract', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url }),
+    })
+    if (!res.ok) {
+      const msg = res.body && res.body.error && res.body.error.message
+        ? res.body.error.message
+        : '解析失败（HTTP ' + res.status + '）'
+      extractSetStatus('解析失败：' + msg)
+      return
+    }
+    const d = res.body || {}
+    const cover = $('extract-cover')
+    if (d.cover) { cover.src = d.cover; cover.hidden = false } else { cover.hidden = true }
+    $('extract-title').textContent = d.title || '（无标题）'
+    const parts = [d.platform_name, d.author]
+    if (d.duration_ms) parts.push(extractFormatDuration(d.duration_ms))
+    if (d.width && d.height) parts.push(d.width + '×' + d.height)
+    $('extract-meta').textContent = parts.filter(Boolean).join(' · ')
+    const box = $('extract-videos')
+    clear(box)
+    const videos = Array.isArray(d.videos) ? d.videos : []
+    if (videos.length === 0) {
+      extractSetStatus('解析到了视频信息，但没有可下载的地址')
+      return
+    }
+    videos.forEach((v) => {
+      const a = document.createElement('a')
+      a.className = 'ghost extract-dl'
+      a.target = '_blank'
+      a.rel = 'noopener'
+      a.href = v.url
+      a.textContent = '下载视频' + (v.label ? '（' + v.label + '）' : '')
+      box.appendChild(a)
+      const c = document.createElement('button')
+      c.type = 'button'
+      c.className = 'ghost'
+      c.textContent = '复制链接'
+      c.addEventListener('click', () => { void extractCopyText(v.url, c) })
+      box.appendChild(c)
+    })
+    const audioRow = $('extract-audio-row')
+    if (d.audio_url) {
+      extractLastAudioUrl = d.audio_url
+      $('extract-audio').href = d.audio_url
+      audioRow.hidden = false
+    } else {
+      audioRow.hidden = true
+    }
+    $('extract-result').hidden = false
+    extractSetStatus('解析成功，直链约 5 分钟过期，尽快下载。')
+  } catch (e) {
+    extractSetStatus('解析失败：' + (e && e.message ? e.message : '网络错误'))
+  } finally {
+    btn.disabled = false
+  }
+}
+
+/* ── 图片工具：canvas 压缩 / 格式转换（纯本机） ── */
+
+function imgtoolOnFile() {
+  const f = $('imgtool-file').files && $('imgtool-file').files[0]
+  if (!f) return
+  if (!f.type || !f.type.startsWith('image/')) {
+    $('imgtool-info').textContent = '这不是图片文件'
+    return
+  }
+  const url = URL.createObjectURL(f)
+  const img = new Image()
+  img.onload = () => {
+    imgtoolState = { file: f, name: f.name, type: f.type, width: img.naturalWidth, height: img.naturalHeight, img }
+    const prev = $('imgtool-preview')
+    prev.src = url
+    prev.hidden = false
+    $('imgtool-info').textContent = f.name + ' · ' + img.naturalWidth + '×' + img.naturalHeight
+      + ' · ' + (f.size / 1024).toFixed(0) + ' KB'
+    $('imgtool-run').disabled = false
+    $('imgtool-result').textContent = ''
+    $('imgtool-download').hidden = true
+  }
+  img.onerror = () => {
+    URL.revokeObjectURL(url)
+    $('imgtool-info').textContent = '这张图读不出来，换一张试试'
+  }
+  img.src = url
+}
+
+async function imgtoolRun() {
+  const s = imgtoolState
+  if (!s || !s.img) return
+  const btn = $('imgtool-run')
+  btn.disabled = true
+  try {
+    const q = Number($('imgtool-quality').value) || 0.85
+    const maxw = parseInt($('imgtool-maxw').value, 10) || 0
+    const fmtSel = $('imgtool-format').value
+    let mime = fmtSel === 'keep' ? (s.type || 'image/jpeg') : fmtSel
+    // canvas 只认 jpeg/png/webp；原格式是别的（如 gif/bmp）回落 jpeg。
+    if (mime !== 'image/jpeg' && mime !== 'image/png' && mime !== 'image/webp') mime = 'image/jpeg'
+    let w = s.width
+    let h = s.height
+    if (maxw > 0 && Math.max(w, h) > maxw) {
+      const k = maxw / Math.max(w, h)
+      w = Math.max(1, Math.round(w * k))
+      h = Math.max(1, Math.round(h * k))
+    }
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    // JPEG/WebP 没有透明通道，先铺白底，免得透明变黑。
+    if (mime !== 'image/png') { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h) }
+    ctx.drawImage(s.img, 0, 0, w, h)
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, mime, q))
+    if (!blob) {
+      $('imgtool-result').textContent = '转换失败，换个格式再试'
+      return
+    }
+    const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg'
+    const base = (s.name || 'image').replace(/\.[^.]+$/, '') || 'image'
+    const a = $('imgtool-download')
+    if (a.href && a.href.startsWith('blob:')) URL.revokeObjectURL(a.href)
+    a.href = URL.createObjectURL(blob)
+    a.download = base + '-compressed.' + ext
+    a.hidden = false
+    $('imgtool-result').textContent = '处理后：' + w + '×' + h + ' · ' + (blob.size / 1024).toFixed(0)
+      + ' KB（原来 ' + (s.file.size / 1024).toFixed(0) + ' KB）'
+  } finally {
+    btn.disabled = false
+  }
+}
+
+/* ── 音频工具：本地视频提音频（ffmpeg.wasm 单线程，实验功能） ── */
+
+function audiotoolOnFile() {
+  const f = $('audiotool-file').files && $('audiotool-file').files[0]
+  if (!f) return
+  audiotoolState.file = f
+  $('audiotool-info').textContent = f.name + ' · ' + (f.size / 1024 / 1024).toFixed(1) + ' MB'
+  $('audiotool-run').disabled = false
+  $('audiotool-status').textContent = ''
+  $('audiotool-download').hidden = true
+}
+
+async function audiotoolRun() {
+  const f = audiotoolState.file
+  if (!f) return
+  if (f.size > 80 * 1024 * 1024) {
+    $('audiotool-status').textContent = '文件超过 80MB，浏览器可能闪退，先剪短或压缩再试'
+    return
+  }
+  const btn = $('audiotool-run')
+  btn.disabled = true
+  try {
+    if (!audiotoolState.ffmpeg) {
+      $('audiotool-status').textContent = '正在加载处理核心（首次约 31MB，走流量注意）…'
+      // 动态加载：只有点“提取音频”时才拉 31MB，平时不占流量。
+      const mod = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js')
+      const ffmpeg = new mod.FFmpeg()
+      await ffmpeg.load({
+        coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm/ffmpeg-core.js',
+        wasmURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm/ffmpeg-core.wasm',
+      })
+      audiotoolState.ffmpeg = ffmpeg
+    }
+    const ffmpeg = audiotoolState.ffmpeg
+    $('audiotool-status').textContent = '正在提取音频…'
+    const ext = (f.name.includes('.') ? f.name.slice(f.name.lastIndexOf('.')) : '.mp4').toLowerCase()
+    const inName = 'input' + (ext === '.mov' || ext === '.mp4' || ext === '.m4v' || ext === '.webm' ? ext : '.mp4')
+    await ffmpeg.writeFile(inName, new Uint8Array(await f.arrayBuffer()))
+    const ok = await ffmpeg.exec(['-i', inName, '-vn', '-acodec', 'libmp3lame', '-q:a', '2', 'out.mp3'])
+    if (ok !== 0) throw new Error('提取失败（ffmpeg 返回 ' + ok + '）')
+    const data = await ffmpeg.readFile('out.mp3')
+    const blob = new Blob([data.buffer], { type: 'audio/mpeg' })
+    const a = $('audiotool-download')
+    if (a.href && a.href.startsWith('blob:')) URL.revokeObjectURL(a.href)
+    a.href = URL.createObjectURL(blob)
+    a.download = (f.name.replace(/\.[^.]+$/, '') || 'audio') + '.mp3'
+    a.hidden = false
+    $('audiotool-status').textContent = '提取完成：' + (blob.size / 1024).toFixed(0) + ' KB MP3，点上面下载。'
+    try { await ffmpeg.deleteFile(inName); await ffmpeg.deleteFile('out.mp3') } catch { /* 清理失败不影响结果 */ }
+  } catch (e) {
+    $('audiotool-status').textContent = '提取失败：' + (e && e.message ? e.message : '处理核心加载失败，请检查网络后重试')
+  } finally {
+    btn.disabled = false
+  }
+}
