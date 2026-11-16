@@ -5076,11 +5076,19 @@ function toggleSpeech() {
     if (err === 'not-allowed' || err === 'service-not-allowed') { alert('麦克风权限被拒绝：请在系统设置里允许 Safari 使用麦克风，或直接用 iOS 键盘听写'); focusChatInput() }
     else if (err === 'no-speech') alert('没听到声音，再试一次')
     else if (err === 'network') { alert('语音识别需要联网，请检查网络；也可以直接用 iOS 键盘听写'); focusChatInput() }
+    else if (err === 'audio-capture') { alert('麦克风没拿到（audio-capture）：主屏幕图标里不稳，点聊天里的链接用 Safari 打开再试；或直接用 iOS 键盘听写'); focusChatInput() }
     else if (err !== 'aborted') { alert('语音输入失败（' + err + '），可用 iOS 键盘听写代替'); focusChatInput() }
     setMicState(false)
   }
   rec.onend = () => { if (session === speechSession) { setMicState(false); speechClearWatchdog() } }
   try {
+    // iOS：上一次播过声音（朗读/媒体）会把音频会话留在 playback 类型，
+    // 再开麦克风会被系统直接掐掉报 audio-capture。先把会话切回
+    // play-and-record（Safari 16.4+ 的 navigator.audioSession，MDN
+    // 例子就是这么用的），再起识别。主屏幕 PWA 里识别本身就不稳
+    // （Apple 论坛 748048：权限批不进 standalone，得用 Safari），
+    // 这行只能修会话被占住的那种 audio-capture，修不了 PWA 权限问题。
+    try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record' } catch { /* 忽略 */ }
     // ⚠️ 必须同步调 start()（点按手势里），iOS 上 await 之后调会被拒。
     rec.start()
     setMicState(true)

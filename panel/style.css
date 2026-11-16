@@ -72,6 +72,12 @@
   --text: var(--foreground);
   --text-dim: var(--muted-foreground);
   --appbar-h: 60px;
+  /* 顶栏安全区（2026-11-16 18:14 用户报：主屏幕图标里顶栏被状态栏盖住一半，
+     软件名和设置齿轮看不见——viewport-fit=cover 下 fixed 顶栏从 y=0 起，
+     刘海/灵动岛那 ~59px 直接盖在它上面。顶栏自身 padding-top 顶开，
+     下面所有钉死的东西（内容区、状态条、消息区高度、下拉指示器）都跟
+     着加这一截；Safari 里 safe-area 是 0，什么都不变）。 */
+  --safe-top: env(safe-area-inset-top, 0px);
   --nav-h: 56px;
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -283,7 +289,7 @@ html.lg-lens .login-card, html.lg-lens .sheet-modal {
      要求顶栏钉住不动：sticky 在这台机器的 overflow 组合下根本粘不住，
      实测滚 600px 顶栏就跟着跑 -600px，只能改 fixed）。
      底部导航已撤（设置移到顶栏），底边只留 12px + 安全区。 */
-  padding: calc(var(--appbar-h) + 14px) 14px calc(env(safe-area-inset-bottom) + 12px);
+  padding: calc(var(--appbar-h) + var(--safe-top) + 14px) 14px calc(env(safe-area-inset-bottom) + 12px);
 }
 
 main { display: block; }
@@ -305,7 +311,10 @@ ion-header.appbar {
   right: 0;
   z-index: 60;
   display: block;
-  padding: 0;
+  /* 顶上留出刘海/灵动岛安全区（--safe-top），不然品牌名和设置齿轮
+     被 iOS 状态栏盖住一半（2026-11-16 用户截图）。玻璃底 .navbar-bg
+     是 absolute inset:0，照样铺满到屏幕顶边。 */
+  padding: var(--safe-top) 0 0;
   overflow: hidden;
 }
 ion-header.appbar .navbar-bg {
@@ -955,7 +964,7 @@ html.lg-lens .sheet-modal {
  * 玻璃底 + 悬浮影是 .panel 那组（它自带），这里只钉位置。 */
 .chat-bar {
   position: fixed;
-  top: calc(var(--appbar-h) + 14px);
+  top: calc(var(--appbar-h) + var(--safe-top) + 14px);
   left: 50%;
   transform: translateX(-50%);
   width: min(1052px, calc(100% - 28px));
@@ -1037,7 +1046,7 @@ html.lg-lens .sheet-modal {
 #view-chat:not([hidden]) {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - var(--appbar-h) - 26px - env(safe-area-inset-bottom));
+  height: calc(100dvh - var(--appbar-h) - var(--safe-top) - 26px - env(safe-area-inset-bottom));
   min-height: 0;
   /* 状态条钉死在上面了（fixed，不占流内位置），消息区顶部留出它的位置
      （条子高约 64px + 12px 间隙），不然第一条消息会滑到条子底下去。 */
@@ -1376,7 +1385,7 @@ ion-list.settings-list ion-label .set-sub { display: block; font-size: 11px; col
 /* ── 下拉刷新指示器 ── */
 .ptr-indicator {
   position: fixed;
-  top: calc(var(--appbar-h) + 10px);
+  top: calc(var(--appbar-h) + var(--safe-top) + 10px);
   left: 50%;
   transform: translate(-50%, -300%);
   z-index: 80;
