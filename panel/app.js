@@ -240,6 +240,7 @@ const VIEW_LOADERS = {
   // 按钮随之改名为「刷新目录」—— 它的语义现在是「重新拉一次」而非「首次加载」。
   models: () => loadModels(),
   imagegen: () => initImageGen(),
+  knowledge: () => initKB(),
   config: () => loadConfig(),
   logs: () => loadLogs(),
 }
@@ -248,7 +249,7 @@ const VIEW_LOADERS = {
 // 由 openSettingsSection() 打开，不走 switchView。
 const TOP_VIEWS = ['chat', 'settings']
 // 设置里的子视图（顺序与设置菜单一致）。
-const SUB_VIEWS = ['apikeys', 'usage', 'providers', 'tasks', 'models', 'logs', 'config', 'imagegen']
+const SUB_VIEWS = ['apikeys', 'usage', 'providers', 'tasks', 'models', 'logs', 'config', 'imagegen', 'knowledge']
 // 当前打开的子视图（'' 表示没有，停在设置菜单）。
 let currentSubView = ''
 
@@ -3867,6 +3868,652 @@ async function loadWaf() {
     (res.body.recentUids || 0) + ' 个不同账号命中 403。'
 }
 
+// ─────────────────────────── 知识库（纯前端，零新增服务器） ───────────────────────────
+//
+// 档 0：全文直塞 + BM25（不用向量、不用下载模型，零成本）。
+//   · 只有一篇小文档（≤6000 字）→ 全文贴进 system prompt（Open WebUI 的 RAG_FULL_CONTEXT 思路）。
+//   · 多篇文档 → 纯 JS BM25（中文按字/二字词切分）取最相关的块，不全文贴。
+// 档 1：纯前端向量 RAG。
+//   · 切块：递归切块 1000 字符 / 重叠 150（抄 RecursiveCharacterTextSplitter，
+//     分隔符 \n\n → \n → 句 → 字，纯函数无依赖）。
+//   · 向量化：bge-small-zh-v1.5（Transformers.js v4，CDN），必须在 Web Worker
+//     里跑（kb-worker.js），不放主线程；首次下载约 25MB（q8 量化版），
+//     之后走浏览器 Cache Storage。中文只用它，不用 all-MiniLM-L6-v2（英文模型）。
+//   · 存储：IndexedDB 存块 + 向量（Float32Array），原文和向量分开存；
+//     不要放 localStorage（~5MB 放不下向量）。单库上限 200 篇 / 3000 块。
+//   · 检索：BM25 先行，再补向量（余弦 top-4，阈值 0.3），两路合并去重，BM25 优先。
+//   · 拼进对话：和 Open WebUI 一样，只是在发给 /v1/chat/completions 的消息数组
+//     最前面加一条 system 消息，不改协议；开关关掉时一条多余消息都不加。
+//   · 不能做的：扫描版 PDF 没有文本层，抽不到就明确提示，不假装读到了；
+//     LanceDB 不能放浏览器（写不了），Chroma/Qdrant/Milvus 要单独部署，都不碰。
+const KB_DOCS_KEY = 'wb_kb_docs_v1'
+const KB_SETTINGS_KEY = 'wb_kb_settings_v1'
+const KB_MAX_DOCS = 200
+const KB_MAX_CHUNKS = 3000
+const KB_CHUNK_SIZE = 1000
+const KB_CHUNK_OVERLAP = 150
+const KB_FULL_TEXT_SINGLE_LIMIT = 6000
+const KB_CONTEXT_MAX_CHARS = 6000
+const KB_VEC_TOPK = 4
+const KB_VEC_THRESHOLD = 0.3
+const KB_PDFJS_CDN = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs'
+const KB_PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs'
+const KB_MAMMOTH_CDN = 'https://cdn.jsdelivr.net/npm/mammoth@1.11.0/mammoth.browser.min.js'
+
+/* ── 文档（localStorage，只存原文小文本）── */
+function kbLoadDocs() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(KB_DOCS_KEY) || '[]')
+    return Array.isArray(arr)
+      ? arr.filter((d) => d && typeof d.id === 'string' && typeof d.text === 'string')
+      : []
+  } catch { return [] }
+}
+function kbSaveDocs(docs) {
+  try { localStorage.setItem(KB_DOCS_KEY, JSON.stringify(docs)) } catch { /* 满了就丢，聊天不受影响 */ }
+}
+function kbLoadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KB_SETTINGS_KEY) || '{}')
+    return { enabled: s && s.enabled !== false }
+  } catch { return { enabled: true } }
+}
+function kbSaveSettings(s) {
+  try { localStorage.setItem(KB_SETTINGS_KEY, JSON.stringify(s)) } catch { /* 忽略 */ }
+}
+function kbIsEnabled() { return kbLoadSettings().enabled }
+function kbTitleOf(docId) {
+  const d = kbLoadDocs().find((x) => x.id === docId)
+  return d ? d.title : '文档'
+}
+
+/* ── IndexedDB（存块 + 向量；localStorage 只有 ~5MB，放不下向量）── */
+let kbDbPromise = null
+function kbOpenDb() {
+  if (kbDbPromise) return kbDbPromise
+  kbDbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open('wb_kb_db', 1)
+    req.onupgradeneeded = () => {
+      const db = req.result
+      if (!db.objectStoreNames.contains('chunks')) {
+        const st = db.createObjectStore('chunks', { keyPath: 'id' })
+        st.createIndex('docId', 'docId', { unique: false })
+      }
+    }
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error || new Error('IndexedDB 打开失败'))
+  })
+  return kbDbPromise
+}
+function kbChunksPutAll(rows) {
+  return kbOpenDb().then((db) => new Promise((resolve, reject) => {
+    const tx = db.transaction('chunks', 'readwrite')
+    const st = tx.objectStore('chunks')
+    for (const r of rows) st.put(r)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error || new Error('IndexedDB 写入失败'))
+  }))
+}
+function kbChunksDeleteByDoc(docId) {
+  return kbOpenDb().then((db) => new Promise((resolve, reject) => {
+    const tx = db.transaction('chunks', 'readwrite')
+    const st = tx.objectStore('chunks')
+    const req = st.index('docId').openKeyCursor(IDBKeyRange.only(docId))
+    req.onsuccess = () => {
+      const cur = req.result
+      if (cur) { st.delete(cur.primaryKey); cur.continue() }
+    }
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error || new Error('IndexedDB 删除失败'))
+  }))
+}
+function kbChunksGetAll() {
+  return kbOpenDb().then((db) => new Promise((resolve, reject) => {
+    const tx = db.transaction('chunks', 'readonly')
+    const req = tx.objectStore('chunks').getAll()
+    req.onsuccess = () => resolve(req.result || [])
+    req.onerror = () => reject(req.error || new Error('IndexedDB 读取失败'))
+  }))
+}
+
+/* ── 切块：递归分隔符 \n\n → \n → 句 → 字，再贪心合并 + 150 字重叠 ── */
+function kbRecursiveSplit(text, seps, size) {
+  if (text.length <= size) return [text]
+  const sep = seps.find((s) => s !== '' && text.indexOf(s) !== -1)
+  if (sep === undefined) {
+    const out = []
+    for (let i = 0; i < text.length; i += size) out.push(text.slice(i, i + size))
+    return out
+  }
+  const rest = seps.slice(seps.indexOf(sep) + 1)
+  const parts = text.split(sep)
+  const pieces = []
+  for (let i = 0; i < parts.length; i++) {
+    const p = i < parts.length - 1 ? parts[i] + sep : parts[i]
+    if (!p) continue
+    if (p.length > size) pieces.push(...kbRecursiveSplit(p, rest, size))
+    else pieces.push(p)
+  }
+  return pieces
+}
+function kbSplitText(text, size, overlap) {
+  const seps = ['\n\n', '\n', '。', '！', '？', '；', '，', '、', ' ', '']
+  const pieces = kbRecursiveSplit(String(text || ''), seps, size).filter((p) => p && p.trim())
+  const chunks = []
+  let cur = ''
+  for (const p of pieces) {
+    if (!cur) { cur = p; continue }
+    if (cur.length + p.length <= size) { cur += p; continue }
+    chunks.push(cur)
+    cur = (cur.length > overlap ? cur.slice(-overlap) : cur) + p
+    while (cur.length > size) {
+      chunks.push(cur.slice(0, size))
+      cur = cur.slice(size - overlap)
+    }
+  }
+  if (cur) chunks.push(cur)
+  return chunks.filter((c) => c.trim())
+}
+
+/* ── BM25：纯 JS 约 50 行，中文按字/二字词切分 ── */
+function kbTokenize(text) {
+  const toks = []
+  const s = String(text || '').toLowerCase()
+  let i = 0
+  while (i < s.length) {
+    const ch = s[i]
+    if (/[\u4e00-\u9fff]/.test(ch)) {
+      toks.push(ch)
+      if (i + 1 < s.length && /[\u4e00-\u9fff]/.test(s[i + 1])) toks.push(ch + s[i + 1])
+      i++
+    } else if (/[a-z0-9]/.test(ch)) {
+      let j = i
+      while (j < s.length && /[a-z0-9]/.test(s[j])) j++
+      toks.push(s.slice(i, j))
+      i = j
+    } else i++
+  }
+  return toks
+}
+function kbBm25(query, units) {
+  const k1 = 1.5, b = 0.75
+  const docTokens = units.map((u) => kbTokenize(u.text))
+  const df = new Map()
+  for (const ts of docTokens) {
+    for (const t of new Set(ts)) df.set(t, (df.get(t) || 0) + 1)
+  }
+  const n = units.length
+  const avgLen = docTokens.reduce((a, t) => a + t.length, 0) / Math.max(1, n)
+  const qToks = [...new Set(kbTokenize(query))]
+  return units.map((u, di) => {
+    const ts = docTokens[di]
+    const tf = new Map()
+    for (const t of ts) tf.set(t, (tf.get(t) || 0) + 1)
+    let score = 0
+    for (const qt of qToks) {
+      const f = tf.get(qt) || 0
+      if (!f) continue
+      const d = df.get(qt) || 0
+      const idf = Math.log(1 + (n - d + 0.5) / (d + 0.5))
+      score += idf * (f * (k1 + 1)) / (f + k1 * (1 - b + b * ts.length / Math.max(1, avgLen)))
+    }
+    return { unit: u, score }
+  }).sort((a, b2) => b2.score - a.score)
+}
+function kbCosine(a, b) {
+  let dot = 0, na = 0, nb = 0
+  const n = Math.min(a.length, b.length)
+  for (let i = 0; i < n; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i] }
+  const d = Math.sqrt(na) * Math.sqrt(nb)
+  return d === 0 ? 0 : dot / d
+}
+
+/* ── 向量模型：Web Worker（kb-worker.js）── */
+let kbWorker = null
+let kbWorkerSeq = 0
+const kbWorkerPending = new Map()
+let kbModelState = 'idle' // idle | loading | ready | error
+let kbModelProgress = 0
+let kbModelError = ''
+let kbModelReadyPromise = null
+function kbEnsureWorker() {
+  if (kbWorker) return kbWorker
+  kbWorker = new Worker('kb-worker.js?v=1', { type: 'module' })
+  kbWorker.onmessage = (ev) => {
+    const m = (ev && ev.data) || {}
+    if (m.type === 'progress') {
+      kbModelState = 'loading'
+      kbModelProgress = Math.round((m.progress || 0) * 100)
+      kbRenderStatus()
+      return
+    }
+    if (m.type === 'ready') {
+      kbModelState = 'ready'
+      kbModelProgress = 100
+      kbRenderStatus()
+      return
+    }
+    if (m.type === 'embedded') {
+      const p = kbWorkerPending.get(m.id)
+      if (p) { kbWorkerPending.delete(m.id); p.resolve(m.vectors) }
+      return
+    }
+    if (m.type === 'error') {
+      if (m.id !== undefined && m.id !== null) {
+        const p = kbWorkerPending.get(m.id)
+        if (p) { kbWorkerPending.delete(m.id); p.reject(new Error(m.error || '向量模型失败')); return }
+      }
+      kbModelState = 'error'
+      kbModelError = m.error || '向量模型加载失败'
+      kbRenderStatus()
+      return
+    }
+  }
+  kbWorker.onerror = (e) => {
+    kbModelState = 'error'
+    kbModelError = (e && e.message) || 'Worker 加载失败（可能是 CDN 被拦）'
+    kbRenderStatus()
+  }
+  return kbWorker
+}
+// 只在用户主动点“开始建索引”时调。聊天时绝不因此等 25MB 下载——
+// 模型没就绪，提问就只走 BM25。
+function kbEnsureModel() {
+  if (kbModelState === 'ready') return Promise.resolve(true)
+  if (kbModelReadyPromise) return kbModelReadyPromise
+  kbModelReadyPromise = new Promise((resolve) => {
+    const done = (ok) => { kbModelReadyPromise = null; resolve(ok) }
+    const check = setInterval(() => {
+      if (kbModelState === 'ready') { clearInterval(check); done(true) }
+      else if (kbModelState === 'error') { clearInterval(check); done(false) }
+    }, 400)
+    try {
+      const w = kbEnsureWorker()
+      kbModelState = 'loading'
+      kbModelProgress = 0
+      kbRenderStatus()
+      w.postMessage({ type: 'init' })
+    } catch (e) {
+      clearInterval(check)
+      kbModelState = 'error'
+      kbModelError = e && e.message ? e.message : String(e)
+      kbRenderStatus()
+      done(false)
+    }
+  })
+  return kbModelReadyPromise
+}
+function kbEmbedTexts(texts) {
+  return new Promise((resolve, reject) => {
+    if (kbModelState !== 'ready') { reject(new Error('向量模型未就绪')); return }
+    const w = kbEnsureWorker()
+    const id = ++kbWorkerSeq
+    kbWorkerPending.set(id, { resolve, reject })
+    setTimeout(() => {
+      if (kbWorkerPending.has(id)) { kbWorkerPending.delete(id); reject(new Error('向量化超时（60 秒）')) }
+    }, 60000)
+    w.postMessage({ type: 'embed', id, texts })
+  })
+}
+
+/* ── 文档操作 ── */
+function kbAddDoc(title, text, source) {
+  const docs = kbLoadDocs()
+  if (docs.length >= KB_MAX_DOCS) { alert('知识库已满（最多 ' + KB_MAX_DOCS + ' 篇），先删一些再传'); return null }
+  const clean = String(text || '').replace(/\r\n/g, '\n').trim()
+  if (!clean) { alert('内容是空的'); return null }
+  if (clean.length > 200000) { alert('单篇文档超过 20 万字，太大了，先拆小再传'); return null }
+  const doc = {
+    id: 'kb' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36),
+    title: String(title || '未命名文档').slice(0, 60) || '未命名文档',
+    text: clean, chars: clean.length, source: source || 'paste', createdAt: Date.now(),
+  }
+  docs.push(doc)
+  kbSaveDocs(docs)
+  // 入库就切块存 IndexedDB（不含向量）；向量等“开始建索引”时再嵌。
+  void kbIndexDoc(doc)
+  kbRenderDocs()
+  kbRenderStatus()
+  return doc
+}
+async function kbIndexDoc(doc) {
+  const chunks = kbSplitText(doc.text, KB_CHUNK_SIZE, KB_CHUNK_OVERLAP)
+  const all = await kbChunksGetAll().catch(() => [])
+  const others = all.filter((c) => c.docId !== doc.id).length
+  if (others + chunks.length > KB_MAX_CHUNKS) {
+    kbSetStatus('块数超过上限（最多 ' + KB_MAX_CHUNKS + ' 块），这篇只存了原文，没切块。')
+    return false
+  }
+  await kbChunksDeleteByDoc(doc.id).catch(() => {})
+  await kbChunksPutAll(chunks.map((t, i) => ({ id: doc.id + ':' + i, docId: doc.id, idx: i, text: t, vec: null })))
+  kbRenderStatus()
+  return true
+}
+async function kbDeleteDoc(id) {
+  kbSaveDocs(kbLoadDocs().filter((d) => d.id !== id))
+  await kbChunksDeleteByDoc(id).catch(() => {})
+  kbRenderDocs()
+  kbRenderStatus()
+}
+
+/* ── 建索引：切块 → 加载模型 → 分批嵌向量 ── */
+let kbIndexing = false
+let kbIndexProgress = ''
+async function kbIndexAll() {
+  if (kbIndexing) return
+  kbIndexing = true
+  kbIndexProgress = ''
+  kbRenderStatus()
+  try {
+    const docs = kbLoadDocs()
+    if (!docs.length) { kbSetStatus('库里还没有文档，先上传或粘贴一篇。'); return }
+    for (const d of docs) await kbIndexDoc(d)
+    const chunks = await kbChunksGetAll()
+    const missing = chunks.filter((c) => !c.vec)
+    if (!missing.length) { kbSetStatus('全部块都已有向量，无需重嵌。'); return }
+    kbSetStatus('正在加载向量模型（首次约 25MB，之后走缓存）…')
+    const ok = await kbEnsureModel()
+    if (!ok) {
+      kbSetStatus('向量模型加载失败：' + (kbModelError || '未知原因') + '。块已切好，检索先走 BM25，不影响聊天。')
+      return
+    }
+    const BATCH = 8
+    const total = missing.length
+    for (let i = 0; i < missing.length; i += BATCH) {
+      const batch = missing.slice(i, i + BATCH)
+      kbIndexProgress = '正在嵌向量：第 ' + (i + 1) + '–' + Math.min(i + BATCH, total) + ' / ' + total + ' 块'
+      kbRenderStatus()
+      const vecs = await kbEmbedTexts(batch.map((c) => c.text))
+      await kbChunksPutAll(batch.map((c, j) => ({ id: c.id, docId: c.docId, idx: c.idx, text: c.text, vec: new Float32Array(vecs[j]) })))
+    }
+    kbIndexProgress = ''
+    kbSetStatus('索引完成：' + total + ' 块已有向量。')
+  } catch (e) {
+    kbIndexProgress = ''
+    kbSetStatus('建索引失败：' + (e && e.message ? e.message : String(e)))
+  } finally {
+    kbIndexing = false
+    kbRenderDocs()
+    kbRenderStatus()
+  }
+}
+
+/* ── 检索：BM25 先行，再补向量，两路合并去重，BM25 优先 ── */
+async function kbRetrieve(question) {
+  const docs = kbLoadDocs()
+  const q = String(question || '').trim()
+  if (!docs.length || !q) return []
+  // 只有一篇小文档：全文直塞。
+  if (docs.length === 1 && docs[0].chars <= KB_FULL_TEXT_SINGLE_LIMIT) {
+    return [{ id: 'doc:' + docs[0].id, docId: docs[0].id, title: docs[0].title, text: docs[0].text, score: 1, source: 'full' }]
+  }
+  const chunks = await kbChunksGetAll().catch(() => [])
+  let units
+  if (chunks.length) {
+    units = chunks.map((c) => ({ id: c.id, docId: c.docId, title: kbTitleOf(c.docId), text: c.text, vec: c.vec || null }))
+  } else {
+    units = docs.map((d) => ({ id: 'doc:' + d.id, docId: d.id, title: d.title, text: d.text, vec: null }))
+  }
+  const ranked = kbBm25(q, units)
+  const top = ranked.length ? ranked[0].score : 0
+  const bm = ranked.filter((r) => r.score > 0 && r.score >= Math.max(0.01, top * 0.25)).slice(0, 3)
+  let vecHits = []
+  if (kbModelState === 'ready') {
+    const withVec = units.filter((u) => u.vec)
+    if (withVec.length) {
+      try {
+        const qv = (await kbEmbedTexts([q]))[0]
+        vecHits = withVec
+          .map((u) => ({ unit: u, score: kbCosine(qv, u.vec) }))
+          .filter((r) => r.score >= KB_VEC_THRESHOLD)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, KB_VEC_TOPK)
+          .map((r) => ({ id: r.unit.id, docId: r.unit.docId, title: r.unit.title, text: r.unit.text, score: r.score, source: 'vec' }))
+      } catch { /* 向量失败就只用 BM25，不卡聊天 */ }
+    }
+  }
+  const seen = new Set()
+  const merged = []
+  for (const r of bm) {
+    if (seen.has(r.unit.id)) continue
+    seen.add(r.unit.id)
+    merged.push({ id: r.unit.id, docId: r.unit.docId, title: r.unit.title, text: r.unit.text, score: r.score, source: 'bm25' })
+  }
+  for (const r of vecHits) {
+    if (seen.has(r.id)) continue
+    seen.add(r.id)
+    merged.push(r)
+  }
+  return merged.slice(0, 4)
+}
+
+/* ── 拼进对话的 system 消息（Open WebUI 的模板思路）──
+ * 开关关掉 / 没命中 / 库是空的 → 返回 ''，调用方一条多余消息都不加。 */
+async function kbBuildSystemMessage(question) {
+  if (!kbIsEnabled()) return ''
+  let hits
+  try { hits = await kbRetrieve(question) } catch { return '' }
+  if (!hits.length) return ''
+  let total = 0
+  const blocks = []
+  for (const h of hits) {
+    let t = h.text
+    if (total + t.length > KB_CONTEXT_MAX_CHARS) t = t.slice(0, Math.max(0, KB_CONTEXT_MAX_CHARS - total))
+    if (!t) continue
+    total += t.length
+    blocks.push('[' + (blocks.length + 1) + '] 《' + h.title + '》：\n' + t)
+  }
+  if (!blocks.length) return ''
+  return '以下是从你的知识库检索到的资料，请只根据这些资料回答，资料里没有答案就直接说不知道，不要编造；回答时在相关句子后标注来源编号，如 [1]：\n\n' + blocks.join('\n\n')
+}
+
+/* ── 文件抽文本：txt/md 直接读；文本型 PDF 用 pdf.js；DOCX 用 mammoth ── */
+let kbPdfjsPromise = null
+function kbLoadPdfjs() {
+  if (!kbPdfjsPromise) {
+    kbPdfjsPromise = import(KB_PDFJS_CDN).then((m) => {
+      m.GlobalWorkerOptions.workerSrc = KB_PDFJS_WORKER
+      return m
+    })
+  }
+  return kbPdfjsPromise
+}
+let kbMammothPromise = null
+function kbLoadMammoth() {
+  if (!kbMammothPromise) {
+    kbMammothPromise = new Promise((resolve, reject) => {
+      if (window.mammoth) { resolve(window.mammoth); return }
+      const s = document.createElement('script')
+      s.src = KB_MAMMOTH_CDN
+      s.onload = () => resolve(window.mammoth)
+      s.onerror = () => reject(new Error('mammoth.js 加载失败（CDN 被拦）'))
+      document.head.appendChild(s)
+    })
+  }
+  return kbMammothPromise
+}
+async function kbExtractFile(file) {
+  const name = file.name || '未命名'
+  const ext = (name.split('.').pop() || '').toLowerCase()
+  if (ext === 'txt' || ext === 'md' || ext === 'markdown' || (file.type && file.type.indexOf('text/') === 0)) {
+    return { title: name.replace(/\.[^.]+$/, ''), text: await file.text() }
+  }
+  if (ext === 'pdf') {
+    const buf = await file.arrayBuffer()
+    const pdfjs = await kbLoadPdfjs()
+    const pdf = await pdfjs.getDocument({ data: buf }).promise
+    let text = ''
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p)
+      const tc = await page.getTextContent()
+      text += tc.items.map((it) => it.str || '').join('') + '\n'
+    }
+    text = text.trim()
+    // ⚠️ 扫描版 / 无文本层：抽不到字就明说，不假装读到了，不入库。
+    if (text.replace(/\s/g, '').length < 20) {
+      throw new Error('这份 PDF 几乎没有可抽取的文字（共 ' + pdf.numPages + ' 页），可能是扫描版图片型 PDF，浏览器读不到文字，需要先 OCR 才能入库；没有入库。')
+    }
+    return { title: name.replace(/\.pdf$/i, ''), text }
+  }
+  if (ext === 'docx') {
+    const buf = await file.arrayBuffer()
+    const mammoth = await kbLoadMammoth()
+    const r = await mammoth.extractRawText({ arrayBuffer: buf })
+    const text = (r.value || '').trim()
+    if (!text) throw new Error('这个 DOCX 里没有抽到文字。')
+    return { title: name.replace(/\.docx$/i, ''), text }
+  }
+  throw new Error('不支持的文件格式：只支持 txt / md / 文本型 PDF / DOCX。')
+}
+
+/* ── 知识库视图 ── */
+let kbBound = false
+let kbStatusText = ''
+function kbSetStatus(t) {
+  kbStatusText = t || ''
+  const el = $('kb-status')
+  if (el) el.textContent = kbStatusText
+}
+function kbRenderDocs() {
+  const box = $('kb-docs')
+  if (!box) return
+  clear(box)
+  const docs = kbLoadDocs()
+  if (!docs.length) {
+    const p = document.createElement('p')
+    p.className = 'hint'
+    p.textContent = '还没有文档。传 txt/md/PDF/DOCX，或在上面粘贴文本建一篇。'
+    box.appendChild(p)
+    return
+  }
+  for (const d of docs) {
+    const row = document.createElement('div')
+    row.className = 'kb-doc'
+    const info = document.createElement('div')
+    info.className = 'kb-doc-info'
+    const title = document.createElement('div')
+    title.className = 'kb-doc-title'
+    title.textContent = d.title
+    const meta = document.createElement('div')
+    meta.className = 'kb-doc-meta'
+    meta.textContent = d.chars + ' 字 · ' + (d.source === 'upload' ? '上传' : d.source === 'pdf' ? 'PDF' : d.source === 'docx' ? 'DOCX' : '粘贴')
+    info.appendChild(title)
+    info.appendChild(meta)
+    const del = document.createElement('button')
+    del.type = 'button'
+    del.className = 'ghost kb-doc-del'
+    del.textContent = '删除'
+    del.onclick = () => {
+      if (!confirm('删除《' + d.title + '》？它的块和向量也会一起删掉。')) return
+      void kbDeleteDoc(d.id)
+    }
+    row.appendChild(info)
+    row.appendChild(del)
+    box.appendChild(row)
+  }
+}
+async function kbRenderStatus() {
+  const sizeEl = $('kb-size')
+  if (!sizeEl) return
+  const docs = kbLoadDocs()
+  const chunks = await kbChunksGetAll().catch(() => [])
+  const withVec = chunks.filter((c) => c.vec).length
+  sizeEl.textContent = '文档 ' + docs.length + ' 篇 / 块 ' + chunks.length + ' 个 / 已嵌向量 ' + withVec + ' 块'
+  const modelEl = $('kb-model-status')
+  if (modelEl) {
+    modelEl.textContent = kbModelState === 'ready'
+      ? '向量模型已就绪（bge-small-zh-v1.5，384 维）'
+      : kbModelState === 'loading'
+        ? '向量模型下载中 ' + kbModelProgress + '%（首次约 25MB，之后走浏览器缓存）'
+        : kbModelState === 'error'
+          ? '向量模型加载失败：' + kbModelError + '（检索先走 BM25，不影响聊天）'
+          : '向量模型未加载（点“开始建索引”加载，首次约 25MB）'
+  }
+  const progEl = $('kb-index-progress')
+  if (progEl) progEl.textContent = kbIndexProgress
+  const stEl = $('kb-status')
+  if (stEl) stEl.textContent = kbStatusText
+}
+function initKB() {
+  kbRenderDocs()
+  void kbRenderStatus()
+  if (kbBound) return
+  kbBound = true
+  const toggle = $('kb-enabled')
+  if (toggle) {
+    toggle.checked = kbIsEnabled()
+    toggle.onchange = () => {
+      kbSaveSettings({ enabled: !!toggle.checked })
+      kbSetStatus(toggle.checked ? '知识库已开启，对话时会先检索再回答。' : '知识库已关闭，对话不再拼任何资料。')
+    }
+  }
+  const uploadBtn = $('kb-upload-btn')
+  const fileInput = $('kb-file')
+  if (uploadBtn && fileInput) {
+    uploadBtn.onclick = () => fileInput.click()
+    fileInput.onchange = async () => {
+      const files = [...(fileInput.files || [])]
+      fileInput.value = ''
+      if (!files.length) return
+      for (const f of files) {
+        try {
+          kbSetStatus('正在读《' + f.name + '》…')
+          const out = await kbExtractFile(f)
+          const src = /\.pdf$/i.test(f.name) ? 'pdf' : /\.docx$/i.test(f.name) ? 'docx' : 'upload'
+          const doc = kbAddDoc(out.title, out.text, src)
+          if (doc) kbSetStatus('已入库《' + doc.title + '》（' + doc.chars + ' 字）。')
+        } catch (e) {
+          alert(e && e.message ? e.message : '读取失败')
+          kbSetStatus('')
+        }
+      }
+      kbRenderDocs()
+      void kbRenderStatus()
+    }
+  }
+  const pasteBtn = $('kb-paste-add')
+  if (pasteBtn) {
+    pasteBtn.onclick = () => {
+      const titleEl = $('kb-paste-title')
+      const textEl = $('kb-paste-text')
+      const text = textEl ? textEl.value : ''
+      const title = titleEl && titleEl.value.trim() ? titleEl.value.trim() : '粘贴文档'
+      const doc = kbAddDoc(title, text, 'paste')
+      if (doc) {
+        if (titleEl) titleEl.value = ''
+        if (textEl) textEl.value = ''
+        kbSetStatus('已入库《' + doc.title + '》（' + doc.chars + ' 字）。')
+      }
+    }
+  }
+  const indexBtn = $('kb-index-btn')
+  if (indexBtn) indexBtn.onclick = () => { void kbIndexAll() }
+  const clearBtn = $('kb-clear-btn')
+  if (clearBtn) {
+    clearBtn.onclick = async () => {
+      if (!kbLoadDocs().length) return
+      if (!confirm('清空整个知识库？所有文档、块和向量都会删掉。')) return
+      for (const d of kbLoadDocs()) await kbChunksDeleteByDoc(d.id).catch(() => {})
+      kbSaveDocs([])
+      kbSetStatus('知识库已清空。')
+      kbRenderDocs()
+      void kbRenderStatus()
+    }
+  }
+}
+
+// 测试/排障用（Playwright 验检索时直接调，不影响正常使用）。
+window.__kb = {
+  docs: kbLoadDocs,
+  chunks: kbChunksGetAll,
+  retrieve: kbRetrieve,
+  buildSystemMessage: kbBuildSystemMessage,
+  indexAll: kbIndexAll,
+  ensureModel: kbEnsureModel,
+  modelState: () => ({ state: kbModelState, progress: kbModelProgress, error: kbModelError }),
+  enabled: kbIsEnabled,
+}
+
 // ─────────────────────────── 对话（首页） ───────────────────────────
 
 /**
@@ -4441,7 +5088,12 @@ async function sendChat() {
   input.disabled = true
   try {
     const history = chatRequestMessages(chatMessages.slice(-CHAT_MAX_CONTEXT))
-    const full = await chatComplete(model, history, (t) => {
+    // 知识库（档 0/档 1）：开关开着且检索命中时，在消息数组最前面加一条
+    // system 消息（Open WebUI 的拼法）；开关关掉或没命中时一条都不加，
+    // 历史本身不动，pojia:false 与流式逻辑也不动。
+    const kbSys = await kbBuildSystemMessage(chatContentText(userContent))
+    const reqMessages = kbSys ? [{ role: 'system', content: kbSys }, ...history] : history
+    const full = await chatComplete(model, reqMessages, (t) => {
       if (bubble) bubble.textContent = t
       if (f7Messages) f7Messages.scroll()
       else box.scrollTop = box.scrollHeight

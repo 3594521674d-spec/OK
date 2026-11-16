@@ -2044,3 +2044,18 @@ td.num, th.num {
   .imggen-size-row label { min-width: 74px; }
   .imggen-size-row input[type="number"] { flex-basis: 68px; width: 68px; }
 }
+
+/* ── 知识库（批次 3）：沿用深蓝黑 + 金 + 青，不另起配色 ── */
+.kb-panel { margin-bottom: 10px; }
+.kb-panel h3 { font-size: 14px; margin: 0; }
+.kb-toggle { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: var(--foreground); cursor: pointer; }
+.kb-toggle input { width: 20px; height: 20px; margin: 0; accent-color: var(--gold); flex: 0 0 auto; }
+.kb-panel .hint { margin: 8px 0 0; }
+.kb-panel .hint:empty { display: none; }
+.kb-panel textarea, .kb-panel input[type="text"], #kb-paste-title { width: 100%; box-sizing: border-box; }
+.kb-doc { display: flex; align-items: center; gap: 8px; padding: 10px 2px; border-top: 1px solid var(--border); min-width: 0; }
+.kb-doc:first-child { border-top: none; }
+.kb-doc-info { flex: 1 1 auto; min-width: 0; }
+.kb-doc-title { font-size: 13px; font-weight: 600; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kb-doc-meta { font-size: 11px; color: var(--muted-foreground); margin-top: 2px; }
+.kb-doc-del { flex: 0 0 auto; }
