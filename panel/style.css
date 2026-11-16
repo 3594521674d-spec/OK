@@ -48,6 +48,22 @@
   --input: rgba(148, 163, 184, 0.22);
   --ring: #d9a441;
   --radius: 20px;
+  /* ── 悬浮高度刻度（2026-11-16 用户：所有面板都要浮起来的 3D 感）──
+     深色底上黑阴影看不见，浮感靠三件套：面比背景亮一档 + 顶部内嵌亮边
+     （光从正上方来）+ 底部很淡的深影（只起落地作用）。光源永远正上方，
+     全站共用这四档，别处不要自己拼阴影。 */
+  --float-1: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .45);
+  --float-2: inset 0 1px 0 rgba(255, 255, 255, .09), inset 0 -1px 0 rgba(0, 0, 0, .25),
+    0 1px 2px rgba(0, 0, 0, .5), 0 8px 24px rgba(0, 0, 0, .45),
+    0 16px 48px -12px rgba(0, 0, 0, .5);
+  --float-3: inset 0 1px 0 rgba(255, 255, 255, .12), 0 2px 4px rgba(0, 0, 0, .5),
+    0 16px 32px rgba(0, 0, 0, .5), 0 24px 48px -12px rgba(0, 0, 0, .6);
+  --float-4: inset 0 1px 0 rgba(255, 255, 255, .14), 0 4px 8px rgba(0, 0, 0, .55),
+    0 24px 48px rgba(0, 0, 0, .55), 0 32px 64px -16px rgba(0, 0, 0, .65);
+  /* 动效 token（2026-11-16 开源调研：主流是快 150ms / 常规 250ms，
+     缓动 ease-out-expo，比原来那条收得更稳；气泡 220ms 保留）。 */
+  --dur-fast: 0.15s;
+  --dur-normal: 0.25s;
   /* ── 旧 token 改指新角色的别名（下面规则不用改名，取值不变）── */
   --panel: var(--card);
   --gold: var(--primary);
@@ -58,7 +74,7 @@
   --appbar-h: 60px;
   --nav-h: 56px;
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
     "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
     "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
@@ -182,7 +198,9 @@ a { color: var(--gold-text); }
   background: rgba(255, 255, 255, 0.045);
   backdrop-filter: blur(18px) saturate(1.6) brightness(1.05);
   -webkit-backdrop-filter: blur(18px) saturate(1.6) brightness(1.05);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  /* 悬浮：分层影 + 顶部亮边 + 底部暗边（--float-2），卡片面比背景亮一档
+     就浮起来了；深色底上别指望黑影本身，要靠亮边和亮面。 */
+  box-shadow: var(--float-2);
 }
 html.lg-lens .lqg,
 html.lg-lens .panel, html.lg-lens .kpi, html.lg-lens .key-card,
@@ -297,6 +315,8 @@ ion-header.appbar .navbar-bg {
   backdrop-filter: blur(18px) saturate(1.6);
   -webkit-backdrop-filter: blur(18px) saturate(1.6);
   border-bottom: 1px solid var(--border);
+  /* 悬浮顶栏：底部一层淡影，让顶栏浮在内容上面（全宽条不用顶部亮边）。 */
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45), 0 16px 48px -12px rgba(0, 0, 0, .5);
 }
 html.lg-lens ion-header.appbar .navbar-bg {
   backdrop-filter: url(#lg-lens) blur(4px) saturate(1.55) brightness(1.06);
@@ -411,7 +431,7 @@ ion-tab-bar#nav ion-tab-button.nav-item.active {
 }
 
 /* ── 按钮 ──
-   动效只动 transform + opacity（120ms，--ease），不碰 width/height/top/left；
+   动效只动 transform + opacity（150ms 快档，--ease），不碰 width/height/top/left；
    按压 scale(.97)；touch-action: manipulation 禁双击缩放、点按更快。 */
 button {
   font: inherit;
@@ -423,7 +443,7 @@ button {
   padding: 8px 14px;
   cursor: pointer;
   touch-action: manipulation;
-  transition: transform 0.12s var(--ease), opacity 0.12s var(--ease);
+  transition: transform var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
 }
 button:hover { background: rgba(255, 255, 255, 0.1); }
 /* 果冻按压：所有按钮按下时缩 0.97 回弹（不要缩到 .95 以下，会像弹跳） */
@@ -587,7 +607,7 @@ input::placeholder, textarea::placeholder { color: rgba(139, 148, 169, 0.7); }
   min-width: 52px;
   min-height: 44px;
   padding: 6px 12px;
-  transition: transform 0.12s var(--ease), opacity 0.12s var(--ease);
+  transition: transform var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
 }
 .segmented .button:active { transform: scale(0.97); }
 .segmented .button.button-active {
@@ -714,7 +734,7 @@ input::placeholder, textarea::placeholder { color: rgba(139, 148, 169, 0.7); }
 
 /* ── 卡片按压（v18 批次 4）：可点的卡片几乎不动，只 scale(.995) + 变淡 ── */
 .prov-card, .count.clickable {
-  transition: transform 0.12s var(--ease), opacity 0.12s var(--ease);
+  transition: transform var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
 }
 .prov-card:active, .count.clickable:active { transform: scale(0.995); opacity: 0.85; }
 
@@ -930,7 +950,7 @@ html.lg-lens .sheet-modal {
 
 /* ── 对话（Ionic 输入条 + 原生气泡）── */
 .chat-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; padding: 10px 12px; }
-.chat-bar select { flex: 1; min-width: 0; }
+.chat-bar select { flex: 1; min-width: 0; box-shadow: var(--float-1); }
 /* ── AI 工作状态（2026-11-16 用户：模型选择器那个位置，AI 干活时
    变成实时状态）──
    平时是模型下拉框；一发消息就藏起下拉框、露出状态：金色圆点呼吸
@@ -1070,6 +1090,8 @@ html.lg-lens .sheet-modal {
   -webkit-backdrop-filter: blur(18px) saturate(1.6);
   border: 1px solid var(--border);
   border-radius: 20px;
+  /* 悬浮输入框：三档，浮在消息上面（顶部亮边 + 更大的落地影）。 */
+  box-shadow: var(--float-3);
   overflow: hidden;
 }
 /* 输入行：+ 按钮 / 输入框 / 麦克风 / 发送键 */
@@ -1203,6 +1225,8 @@ ion-list.settings-list {
   border: 1px solid var(--border);
   border-radius: 20px;
   overflow: hidden;
+  /* 设置菜单本身就是一张卡：悬浮二档（顶部亮边 + 底部淡影）。 */
+  box-shadow: var(--float-2);
 }
 ion-list.settings-list ion-item.settings-row {
   --background: rgba(255, 255, 255, 0.04);
