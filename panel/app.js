@@ -4295,6 +4295,71 @@ async function shortStoryKbSync() {
   finally { shortStoryKbSyncing = false }
 }
 
+/* ── 老布褶也技能 laobu-zheye（以物喻人短片写法，放进知识库供聊天引用）── */
+const LAOBU_KB_FILES = [
+  { url: 'data/laobu-zheye/00-laobu-zheye.md', title: '老布技能·以物喻人' },
+  { url: 'data/laobu-zheye/01-假花.md', title: '老布技能·01 假花' },
+  { url: 'data/laobu-zheye/02-外内.md', title: '老布技能·02 外内' },
+  { url: 'data/laobu-zheye/03-鱼刺.md', title: '老布技能·03 鱼刺' },
+  { url: 'data/laobu-zheye/04-占无.md', title: '老布技能·04 占无' },
+  { url: 'data/laobu-zheye/05-得吃.md', title: '老布技能·05 得吃' },
+  { url: 'data/laobu-zheye/06-最佳状态.md', title: '老布技能·06 最佳状态' },
+  { url: 'data/laobu-zheye/07-同款杯剧.md', title: '老布技能·07 同款杯剧' },
+  { url: 'data/laobu-zheye/08-你的背包.md', title: '老布技能·08 你的背包' },
+  { url: 'data/laobu-zheye/09-我们是谁.md', title: '老布技能·09 我们是谁' },
+  { url: 'data/laobu-zheye/10-合脚.md', title: '老布技能·10 合脚' },
+  { url: 'data/laobu-zheye/11-红线.md', title: '老布技能·11 红线' },
+  { url: 'data/laobu-zheye/12-一锅粥.md', title: '老布技能·12 一锅粥' },
+  { url: 'data/laobu-zheye/13-水.md', title: '老布技能·13 水' },
+  { url: 'data/laobu-zheye/15-心现.md', title: '老布技能·15 心现' },
+  { url: 'data/laobu-zheye/16-好鞋.md', title: '老布技能·16 好鞋' },
+  { url: 'data/laobu-zheye/17-附寸.md', title: '老布技能·17 附寸' },
+  { url: 'data/laobu-zheye/18-一半结局.md', title: '老布技能·18 一半结局' },
+  { url: 'data/laobu-zheye/19-牛奶杯.md', title: '老布技能·19 牛奶杯' },
+  { url: 'data/laobu-zheye/20-长大.md', title: '老布技能·20 长大' },
+  { url: 'data/laobu-zheye/21-习惯.md', title: '老布技能·21 习惯' },
+  { url: 'data/laobu-zheye/22-条件.md', title: '老布技能·22 条件' },
+  { url: 'data/laobu-zheye/23-租购.md', title: '老布技能·23 租购' },
+  { url: 'data/laobu-zheye/24-那根棍子.md', title: '老布技能·24 那根棍子' },
+  { url: 'data/laobu-zheye/25-回家.md', title: '老布技能·25 回家' },
+  { url: 'data/laobu-zheye/26-人情.md', title: '老布技能·26 人情' },
+  { url: 'data/laobu-zheye/27-西门少年.md', title: '老布技能·27 西门少年' },
+  { url: 'data/laobu-zheye/28-欢迎回家.md', title: '老布技能·28 欢迎回家' },
+  { url: 'data/laobu-zheye/29-迷失归途.md', title: '老布技能·29 迷失归途' },
+  { url: 'data/laobu-zheye/30-草莓罐头.md', title: '老布技能·30 草莓罐头' },
+  { url: 'data/laobu-zheye/31-喜喜车.md', title: '老布技能·31 喜喜车' },
+  { url: 'data/laobu-zheye/32-原味.md', title: '老布技能·32 原味' },
+  { url: 'data/laobu-zheye/33-先后.md', title: '老布技能·33 先后' },
+  { url: 'data/laobu-zheye/34-生日快乐.md', title: '老布技能·34 生日快乐' },
+  { url: 'data/laobu-zheye/35-sha瓜.md', title: '老布技能·35 sha瓜' },
+  { url: 'data/laobu-zheye/36-正好.md', title: '老布技能·36 正好' },
+  { url: 'data/laobu-zheye/37-衣前以后.md', title: '老布技能·37 衣前以后' },
+  { url: 'data/laobu-zheye/38-爱情的苦.md', title: '老布技能·38 爱情的苦' },
+  { url: 'data/laobu-zheye/39-鸟笼.md', title: '老布技能·39 鸟笼' },
+]
+let laobuKbSyncing = false
+async function laobuKbSync() {
+  if (laobuKbSyncing) return
+  laobuKbSyncing = true
+  try {
+    for (const f of LAOBU_KB_FILES) {
+      try {
+        const res = await fetch(f.url, { cache: 'no-cache' })
+        if (!res.ok) continue
+        const text = (await res.text()).replace(/\r\n/g, '\n').trim()
+        if (!text) continue
+        const docs = kbLoadDocs()
+        const old = docs.find((d) => d.title === f.title)
+        if (old && old.text === text) continue // 内容没变就不动
+        if (docs.length >= KB_MAX_DOCS && !old) continue // 库满了就静默跳过
+        if (old) await kbDeleteDoc(old.id)
+        kbAddDoc(f.title, text, 'laobu-skill')
+      } catch { /* 单篇没拿到就跳过，别弹错 */ }
+    }
+  } catch { /* 没网就静默跳过 */ }
+  finally { laobuKbSyncing = false }
+}
+
 /* ── 建索引：切块 → 加载模型 → 分批嵌向量 ── */
 let kbIndexing = false
 let kbIndexProgress = ''
@@ -4539,6 +4604,7 @@ function initKB() {
   void footballKbSync()
   void manjuKbSync()
   void shortStoryKbSync()
+  void laobuKbSync()
   kbRenderDocs()
   void kbRenderStatus()
   if (kbBound) return
@@ -5770,6 +5836,7 @@ function initChat() {
   void footballKbSync()
   void manjuKbSync()
   void shortStoryKbSync()
+  void laobuKbSync()
   loadChatHistory()
   renderChat()
   void loadChatModels()
