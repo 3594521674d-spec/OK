@@ -36,8 +36,6 @@ if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
 let f7 = null
 let f7SheetModal = null
 let f7SheetInfo = null
-let f7Messages = null
-let f7Messagebar = null
 if (typeof Framework7 !== 'undefined') {
   try {
     f7 = new Framework7({
@@ -56,14 +54,10 @@ if (typeof Framework7 !== 'undefined') {
     // 抽屉：供应商弹窗 + 通用信息弹窗，下滑可关
     f7SheetModal = f7.sheet.create({ el: '#modal', swipeToClose: true, backdrop: true })
     f7SheetInfo = f7.sheet.create({ el: '#info-modal', swipeToClose: true, backdrop: true })
-    // 对话：iOS 消息气泡
-    f7Messages = f7.messages.create({ el: '#chat-messages' })
-    // 输入条：自动长高的大圆角输入框
-    f7Messagebar = f7.messagebar.create({ el: '#chat-composer', maxHeight: 120 })
     // 抽屉关完（包括下滑 / 点遮罩）才真正藏起来，并恢复标签条
     f7SheetModal.on('closed', () => { $('modal').hidden = true; resetModalTabs() })
     f7SheetInfo.on('closed', () => { $('info-modal').hidden = true })
-  } catch (e) { f7 = null; f7SheetModal = null; f7SheetInfo = null; f7Messages = null; f7Messagebar = null }
+  } catch (e) { f7 = null; f7SheetModal = null; f7SheetInfo = null }
 }
 
 /** 读取已保存的密钥。 */
@@ -231,12 +225,10 @@ function wrapTable(table) {
 // ─────────────────────────── 视图切换 ───────────────────────────
 
 const VIEW_LOADERS = {
-  // ⚠️ 首页现在是对话（用户要求）：打开就是跟模型聊天的界面。
-  chat: () => initChat(),
-  // ⚠️ 设置是二级入口：只显示设置菜单，不拉数据；点菜单项再进各子视图。
+  // ⚠️ 首页是仪表盘（2026-11-18 排版按 new-api 改：先看后管，进来先看总览）。
+  // 设置是二级入口：只显示设置菜单，不拉数据；点菜单项再进各子视图。
   settings: () => {},
-  // ⚠️ 仪表盘已退役（首页改成了对话，设置里也没有它）：保留 section 与
-  // 加载器不动，免得删 id 牵连别处；导航与设置菜单都不再指向它。
+  // ⚠️ 仪表盘就是首页：KPI 卡片、按天趋势、按模型、最近使用、快捷操作。
   // 数据全部复用已有端点（用量 / 账号池 / API Key / 模型目录），不新增后端接口。
   dashboard: () => loadDashboard(),
   // ⚠️ 账号池已**并入**供应商视图（用户要求合并）：账号在各自的供应商弹窗里管理，
@@ -257,10 +249,11 @@ const VIEW_LOADERS = {
   logs: () => loadLogs(),
 }
 
-// 顶层视图只有两个：首页（对话）与设置。其余旧视图是设置里的子视图，
-// 由 openSettingsSection() 打开，不走 switchView。
-const TOP_VIEWS = ['chat', 'settings']
-// 设置里的子视图（顺序与设置菜单一致）。
+// 顶层视图有两个：仪表盘是首页，设置菜单是二级入口。
+// 其余视图是设置里的子视图，由 openSettingsSection() 打开，不走 switchView。
+// 设置菜单里的「仪表盘」那行也是顶层视图：点它回首页，不走 openSettingsSection。
+const TOP_VIEWS = ['dashboard', 'settings']
+// 设置里的子视图（顺序与设置菜单一致：总览用量 → 中转 → 工具 → 其他）。
 const SUB_VIEWS = ['apikeys', 'usage', 'providers', 'tasks', 'models', 'logs', 'config', 'imagegen', 'knowledge', 'extract']
 // 当前打开的子视图（'' 表示没有，停在设置菜单）。
 let currentSubView = ''
@@ -268,7 +261,7 @@ let currentSubView = ''
 /**
  * 切换顶层视图。
  *
- * ⚠️ 名字非法时**回退到 chat**，而不是静默不加载任何东西。
+ * ⚠️ 名字非法时**回退到 settings（首页）**，而不是静默不加载任何东西。
  * 历史上出现过「视图名不存在 → 加载器是 undefined → 页面空白」，
  * 而空白页面极难归因（用户只会说「坏了」）。宁可显示一个默认视图。
  */
@@ -285,17 +278,16 @@ function animateView(el, cls) {
 }
 function switchView(name) {
   if (!TOP_VIEWS.includes(name)) {
-    name = 'chat'
+    name = 'settings'
   }
   // 从设置子视图返回设置菜单时，用「向右滑回」的推回动效
   const fromSubView = currentSubView
   currentSubView = ''
   const back = $('settings-back')
-  // 底部导航已撤（2026-11-16 用户：设置移到顶栏）：设置菜单里也留着
-  // 左上角返回箭头，点它回首页；子视图里点它回设置菜单。
+  // 仪表盘是首页，设置菜单是二级入口：两个顶层视图上返回箭头都藏起来；
+  // 子视图里点它回设置菜单（见 openSettingsSection，那里会再显示它）。
   if (back) {
-    back.hidden = name !== 'settings'
-    if (name === 'settings') back.title = '返回首页'
+    back.hidden = true
   }
   for (const btn of document.querySelectorAll('.nav-item')) {
     btn.classList.toggle('active', btn.dataset.view === name)
@@ -317,6 +309,8 @@ function switchView(name) {
  * 并跑它原来的加载器。底部导航保持「设置」高亮，顶栏出现返回按钮。
  */
 function openSettingsSection(name) {
+  // 设置菜单里的「仪表盘」是顶层视图（首页），点它回首页，不当子视图开。
+  if (name === 'dashboard') { switchView('dashboard'); return }
   if (!SUB_VIEWS.includes(name)) return
   currentSubView = name
   const back = $('settings-back')
@@ -3899,8 +3893,10 @@ async function loadWaf() {
 //   · 存储：IndexedDB 存块 + 向量（Float32Array），原文和向量分开存；
 //     不要放 localStorage（~5MB 放不下向量）。单库上限 200 篇 / 3000 块。
 //   · 检索：BM25 先行，再补向量（余弦 top-4，阈值 0.3），两路合并去重，BM25 优先。
-//   · 拼进对话：和 Open WebUI 一样，只是在发给 /v1/chat/completions 的消息数组
-//     最前面加一条 system 消息，不改协议；开关关掉时一条多余消息都不加。
+//   · 检索结果拼 system 消息：原来是发给 /v1/chat/completions 的消息数组
+//     最前面加一条 system 消息（和 Open WebUI 一样）；2026-11-18 对话已去掉，
+//     检索函数（kbRetrieve / kbBuildSystemMessage / kbBuildSkillSystemMessage）
+//     仍保留，供 window.__kb 排障调用，平时不拼进任何请求。
 //   · 不能做的：扫描版 PDF 没有文本层，抽不到就明确提示，不假装读到了；
 //     LanceDB 不能放浏览器（写不了），Chroma/Qdrant/Milvus 要单独部署，都不碰。
 const KB_DOCS_KEY = 'wb_kb_docs_v1'
@@ -4746,17 +4742,10 @@ function initKB() {
   void kbRenderStatus()
   if (kbBound) return
   kbBound = true
-  const toggle = $('kb-enabled')
-  if (toggle) {
-    toggle.checked = kbIsEnabled()
-    toggle.onchange = () => {
-      kbSaveSettings({ enabled: !!toggle.checked })
-      kbSetStatus(toggle.checked ? '知识库已开启，对话时会先检索再回答。' : '知识库已关闭，对话不再拼任何资料。')
-    }
-  }
   // 手动“上传文档”卡片已按用户要求去掉（2026-11-16：他说小pa帮他上传，这个多余）。
-  // 入库仍走同步加载器（足球预测 / 漫剧技能）与聊天里的 AI 存库动作；kbExtractFile
-  // 留给聊天附件（onAttachFile）继续用，别删。
+  // 入库只走同步加载器（足球预测 / 漫剧技能等 panel/data）；对话已去掉，
+  // “对话时使用知识库”开关与聊天附件入口随之一并去掉。kbExtractFile 仍
+  // 留作知识库的文件抽取工具（txt/md/PDF/DOCX 转文本），以后入库要用它。
   const indexBtn = $('kb-index-btn')
   if (indexBtn) indexBtn.onclick = () => { void kbIndexAll() }
   const clearBtn = $('kb-clear-btn')
@@ -4786,1349 +4775,11 @@ window.__kb = {
   enabled: kbIsEnabled,
 }
 
-// ─────────────────────────── 对话（首页） ───────────────────────────
-
-/**
- * 首页对话：直接调网关的 /v1/chat/completions（OpenAI 兼容）。
- *
- * ## 鉴权：用 panel 已存的 key（wb_api_key，主密钥）
- *
- * 网关 `authenticate()` 的规矩（见网关源码 server.mjs）：
- * - Bearer == 环境变量 API_KEY ⇒ kind "admin"，**不限模型白名单、不计子密钥配额**；
- * - 否则按哈希查子密钥 ⇒ kind "subkey"，受**用量限额、模型白名单、IP 白名单**卡，
- *   超了就 403/429。
- * 对话是机主本人在用，不是发给外部调用方 —— 用主密钥最直接，
- * 且不会被某个子密钥的限额挡住。请求走下面 `chatComplete`，与 `api()` 同一套
- * Authorization 头，只是要读流式响应所以不用 `api()`（它会先 `res.text()` 读完）。
- *
- * ## 流式：stream: true 走 SSE
- *
- * 网关 `handleChatCompletions` 支持 `stream: true`（回 text/event-stream），
- * 也支持 `stream: false`（回 JSON）。这里先走流式逐字回显；若响应不是
- * event-stream（或流中途断了），回落到一次性的 JSON 解析。
- */
-const CHAT_HISTORY_KEY = 'wb_chat_history_v1'
-const CHAT_MODEL_KEY = 'wb_chat_model'
-const CHAT_MAX_MESSAGES = 100
-// 一次请求最多带多少条历史（绑住 token 消耗；本地仍存满 100 条）。
-const CHAT_MAX_CONTEXT = 40
-let chatMessages = []
-let chatModels = []
-let chatModelsLoaded = false
-let chatStreaming = false
-let chatAbort = null
-let chatBound = false
-
-/** 读本地对话记录（坏了就丢弃，不让坏 JSON 堵死首页）。
- *  content 可能是字符串，也可能是多模态数组（带图的消息在内存里是数组；
- *  存盘时只留文字，见 saveChatHistory）。读到数组只取文字部分。 */
-function loadChatHistory() {
-  try {
-    const raw = localStorage.getItem(CHAT_HISTORY_KEY)
-    const arr = raw ? JSON.parse(raw) : []
-    chatMessages = Array.isArray(arr)
-      ? arr.filter((m) => m && (m.role === 'user' || m.role === 'assistant') && (typeof m.content === 'string' || Array.isArray(m.content)))
-        .map((m) => (typeof m.content === 'string' ? m : { role: m.role, content: chatContentText(m.content) }))
-      : []
-  } catch {
-    chatMessages = []
-  }
-}
-
-/** 存本地对话记录（只留最近 100 条）。
- *  ⚠️ 图片 base64 不进 localStorage（5MB 放不下）：数组 content 存盘时
- *  只留文字部分，原图数据发完就丢（内存里的那份也只活到本次会话）。 */
-function saveChatHistory() {
-  try {
-    // 动作卡片是面板 UI，不进对话记录（重开面板后卡片消失，确认态也不留）。
-    const clean = chatMessages.filter((m) => m.role !== 'action').slice(-CHAT_MAX_MESSAGES).map((m) => (
-      typeof m.content === 'string' ? m : { role: m.role, content: chatContentText(m.content) }
-    ))
-    localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(clean))
-  } catch {
-    // localStorage 满了也不影响聊天本身。
-  }
-}
-
-/** 通用复制：先走 navigator.clipboard，不可用时降级 textarea+execCommand。 */
-async function copyTextToClipboard(text) {
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text)
-      return true
-    }
-    const ta = document.createElement('textarea')
-    ta.value = text
-    ta.style.position = 'fixed'
-    ta.style.opacity = '0'
-    document.body.appendChild(ta)
-    ta.focus()
-    ta.select()
-    const ok = document.execCommand('copy')
-    document.body.removeChild(ta)
-    return ok
-  } catch {
-    return false
-  }
-}
-
-const COPY_ICON_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
-const CHECK_ICON_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>'
-const SPEAKER_ICON_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg>'
-const STOP_SMALL_SVG = '<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>'
-
-/** 多模态 content 里的文字部分（字符串直接返回，数组只拼 text 块）。 */
-function chatContentText(content) {
-  if (typeof content === 'string') return content
-  if (Array.isArray(content)) {
-    return content.filter((p) => p && p.type === 'text').map((p) => p.text || '').join('')
-  }
-  return ''
-}
-
-/** 多模态 content 里的图片 data URL（没有就返回空串）。 */
-function chatContentImage(content) {
-  if (!Array.isArray(content)) return ''
-  const p = content.find((x) => x && x.type === 'image_url' && x.image_url && typeof x.image_url.url === 'string')
-  return p ? p.image_url.url : ''
-}
-/** 多模态 content 里的全部图片 data URL（附件最多 3 张）。 */
-function chatContentImages(content) {
-  if (!Array.isArray(content)) return []
-  return content.filter((x) => x && x.type === 'image_url' && x.image_url && typeof x.image_url.url === 'string').map((x) => x.image_url.url)
-}
-
-/** 兜底气泡里的动作卡片（F7 模式走 actionCardHtml 那条 HTML）。 */
-function actionCardEl(c) {
-  const row = document.createElement('div')
-  row.className = 'chat-msg assistant'
-  const card = document.createElement('div')
-  card.className = 'action-card'
-  const title = document.createElement('div')
-  title.className = 'action-card-title'
-  const statusText = { pending: '等你确认', running: '执行中…', done: '已执行', cancelled: '已取消', failed: '失败' }[c.status] || c.status
-  title.textContent = '⚙️ ' + actionCardTitle(c) + ' · ' + statusText
-  card.appendChild(title)
-  if ((c.status === 'done' || c.status === 'failed') && c.result) {
-    const body = document.createElement('div')
-    body.className = 'action-card-body'
-    body.textContent = c.status === 'done'
-      ? '结果：' + (c.result.title ? c.result.title + '（' + (c.result.chars || 0) + ' 字）' : c.result.model || c.result.view || '完成')
-      : '原因：' + (c.result.error || '未知错误')
-    card.appendChild(body)
-  }
-  if (c.status === 'pending') {
-    const actions = document.createElement('div')
-    actions.className = 'action-card-actions'
-    const okBtn = document.createElement('button')
-    okBtn.type = 'button'
-    okBtn.className = 'action-confirm'
-    okBtn.textContent = '确认执行'
-    okBtn.onclick = () => panelActionConfirm(c.id, true)
-    const noBtn = document.createElement('button')
-    noBtn.type = 'button'
-    noBtn.className = 'action-cancel'
-    noBtn.textContent = '取消'
-    noBtn.onclick = () => panelActionConfirm(c.id, false)
-    actions.appendChild(okBtn)
-    actions.appendChild(noBtn)
-    card.appendChild(actions)
-  }
-  row.appendChild(card)
-  return row
-}
-
-/** 发给模型的历史：只保留最新一条用户消息里的图片，旧图只留文字
- *  （省 token，也避免同一张 base64 每次请求都重发）。动作卡片是面板 UI，
- *  不发给模型。 */
-function chatRequestMessages(list) {
-  const filtered = list.filter((m) => m.role !== 'action')
-  let lastUserIdx = -1
-  for (let i = filtered.length - 1; i >= 0; i--) {
-    if (filtered[i].role === 'user') { lastUserIdx = i; break }
-  }
-  return filtered.map((m, i) => {
-    if (typeof m.content === 'string' || i === lastUserIdx) return m
-    return { role: m.role, content: chatContentText(m.content) }
-  })
-}
-
-/* ── 朗读：speechSynthesis 手动点按朗读 ──────────────────────────
- * 只做手动点按，不做回答完自动朗读：iOS 上流式回答结束后再调 speak()，
- * 手势已过期会报 not-allowed。第一次 speak 必须同步发生在点按处理
- * 函数里，下面 ttsSpeak() 里没有任何 await 就调 speak()，满足这点。
- * 长回答按句切段、每段不超过约 200 字，逐段念。 */
-let ttsState = null // { btn }：正在朗读的按钮
-function ttsPickVoice() {
-  try {
-    const vs = window.speechSynthesis.getVoices() || []
-    return vs.find((v) => v.lang && v.lang.toLowerCase().indexOf('zh') === 0) || null
-  } catch { return null }
-}
-function ttsSplit(text) {
-  const clean = String(text || '').replace(/[*`#_~>|]/g, '').replace(/\s+/g, ' ').trim()
-  if (!clean) return []
-  const parts = clean.match(/[^。！？!?\n]+[。！？!?\n]?/g) || [clean]
-  const chunks = []
-  for (const p of parts) {
-    const t = p.trim()
-    if (!t) continue
-    if (t.length <= 200) chunks.push(t)
-    else for (let i = 0; i < t.length; i += 200) chunks.push(t.slice(i, i + 200))
-  }
-  return chunks
-}
-function ttsStop() {
-  try { if ('speechSynthesis' in window) window.speechSynthesis.cancel() } catch { /* 忽略 */ }
-  if (ttsState && ttsState.btn) {
-    ttsState.btn.classList.remove('speaking')
-    ttsState.btn.innerHTML = SPEAKER_ICON_SVG
-    ttsState.btn.title = '朗读'
-  }
-  ttsState = null
-}
-function ttsSpeak(text, btn) {
-  if (!('speechSynthesis' in window)) { alert('当前浏览器不支持朗读'); return }
-  // 再点一次同一按钮 = 停止。
-  if (ttsState && ttsState.btn === btn) { ttsStop(); return }
-  ttsStop()
-  const chunks = ttsSplit(text)
-  if (chunks.length === 0) return
-  const voice = ttsPickVoice()
-  let idx = 0
-  ttsState = { btn }
-  btn.classList.add('speaking')
-  btn.innerHTML = STOP_SMALL_SVG
-  btn.title = '停止朗读'
-  const speakNext = () => {
-    if (!ttsState || ttsState.btn !== btn) return
-    if (idx >= chunks.length) { ttsStop(); return }
-    const u = new SpeechSynthesisUtterance(chunks[idx++])
-    u.lang = 'zh-CN'
-    if (voice) u.voice = voice
-    u.onend = () => { if (ttsState && ttsState.btn === btn) speakNext() }
-    u.onerror = () => { ttsStop() }
-    try { window.speechSynthesis.speak(u) } catch { ttsStop() }
-  }
-  // ⚠️ 同步调 speak()：第一次 speak 发生在点按处理函数里，手势不过期。
-  speakNext()
-}
-
-/* ── 附件：图片 + 文件（2026-11-16 用户：输入框少了上传功能）──
- * 开源做法（ChatGPT / Open WebUI / LibreChat）：`+` 常驻，点开底部菜单
- * （拍照 / 相册选图 / 选文件），附件以 chips 排在输入框上方，每个带 ×，
- * 最多 3 个。图片走 NextChat 的 base64 路线（canvas 压到约 256KB JPEG，
- * HEIC 也靠 canvas 转出来），发消息时拼成 OpenAI 多模态 content 数组。
- * 注：/v1/models 里确实有 supportsImage 字段，但 10 个 buddy 模型全是
- * true（连 deepseek-v4.1-flash 也是），拿它当视觉开关会把上传按钮挂到
- * 所有 buddy 模型上——所以只按名字匹配 kimi（唯一实测过的视觉模型）；
- * 非视觉模型下按钮也不藏了（以前藏起来等于功能消失），选图后在预览条
- * 上给“当前模型看不懂图”+“切到 kimi 看图”，用户自己决定。
- * 文件走知识库现成的 kbExtractFile（txt/md 直接读，文本型 PDF 用 pdf.js，
- * DOCX 用 mammoth）：≤6000 字默认本次对话直接读，可切到存知识库；
- * 超过 6000 字或 PDF/DOCX 默认存知识库（长文档塞对话烧积分又容易超上下文）。 */
-const ATTACH_MAX = 3
-const ATTACH_CHAT_TEXT_LIMIT = 6000
-let pendingAttachments = [] // [{kind:'image', name, size, dataUrl, blobUrl} | {kind:'file', name, size, title, text, dest:'chat'|'kb'}]
-const VISION_MODEL_RE = /kimi/i
-function isVisionModel(id) { return !!id && VISION_MODEL_RE.test(id) }
-function updateAttachVisibility() {
-  // + 按钮永远显示（2026-11-16 用户：藏起来等于没有）；模型切换只改
-  // 预览条上的视觉提示，不改按钮显隐。
-  const btn = $('chat-attach')
-  if (btn) btn.hidden = false
-  updateAttachHint()
-}
-function updateAttachHint() {
-  const hint = $('attach-hint')
-  if (!hint) return
-  const hasImage = pendingAttachments.some((a) => a.kind === 'image')
-  hint.hidden = !(hasImage && !isVisionModel(chatModel()))
-}
-function attachCountLabel(a) {
-  return a.name + '（约 ' + Math.round(a.size / 1024) + 'KB）'
-}
-function renderAttachPreview() {
-  const wrap = $('chat-image-preview')
-  const chips = $('attach-chips')
-  if (!wrap || !chips) return
-  clear(chips)
-  for (let i = 0; i < pendingAttachments.length; i++) {
-    const a = pendingAttachments[i]
-    const chip = document.createElement('div')
-    chip.className = 'attach-chip'
-    if (a.kind === 'image') {
-      const img = document.createElement('img')
-      img.src = a.blobUrl
-      img.alt = a.name
-      chip.appendChild(img)
-    }
-    const name = document.createElement('span')
-    name.className = 'attach-chip-name'
-    name.textContent = attachCountLabel(a)
-    chip.appendChild(name)
-    if (a.kind === 'file') {
-      const dest = document.createElement('button')
-      dest.type = 'button'
-      dest.className = 'attach-chip-dest'
-      dest.textContent = a.dest === 'kb' ? '存知识库' : '本次直接读'
-      dest.title = '点一下切换去向'
-      dest.onclick = () => {
-        a.dest = a.dest === 'kb' ? 'chat' : 'kb'
-        renderAttachPreview()
-      }
-      chip.appendChild(dest)
-    }
-    const rm = document.createElement('button')
-    rm.type = 'button'
-    rm.className = 'attach-chip-remove'
-    rm.textContent = '×'
-    rm.title = '删除这个附件'
-    rm.setAttribute('aria-label', '删除附件 ' + a.name)
-    rm.onclick = () => removeAttachment(i)
-    chip.appendChild(rm)
-    chips.appendChild(chip)
-  }
-  wrap.hidden = pendingAttachments.length === 0
-  updateAttachHint()
-  // 预览占了高度，消息区底部多留空，免得最后一条消息滑到预览底下。
-  const box = $('chat-messages')
-  if (box) box.style.paddingBottom = pendingAttachments.length ? '170px' : ''
-}
-function removeAttachment(i) {
-  const a = pendingAttachments[i]
-  if (a && a.kind === 'image' && a.blobUrl) URL.revokeObjectURL(a.blobUrl)
-  pendingAttachments.splice(i, 1)
-  renderAttachPreview()
-}
-function clearPendingAttachments() {
-  for (const a of pendingAttachments) {
-    if (a.kind === 'image' && a.blobUrl) URL.revokeObjectURL(a.blobUrl)
-  }
-  pendingAttachments = []
-  renderAttachPreview()
-  for (const id of ['chat-image-input', 'chat-camera-input', 'chat-file-input']) {
-    const fi = $(id)
-    if (fi) fi.value = ''
-  }
-}
-function compressImage(file) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file)
-    const img = new Image()
-    img.onload = () => {
-      try {
-        const maxSide = 1024
-        let w = img.naturalWidth, h = img.naturalHeight
-        const s = Math.min(1, maxSide / Math.max(w, h))
-        w = Math.max(1, Math.round(w * s))
-        h = Math.max(1, Math.round(h * s))
-        const canvas = document.createElement('canvas')
-        canvas.width = w
-        canvas.height = h
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-        URL.revokeObjectURL(url)
-        // 质量逐档降，直到 ≤256KB 或到底线 0.4。
-        const tryQ = (q) => {
-          canvas.toBlob((blob) => {
-            if (!blob) { reject(new Error('图片压缩失败')); return }
-            if (blob.size > 256 * 1024 && q > 0.4) { tryQ(Math.round((q - 0.15) * 100) / 100); return }
-            const reader = new FileReader()
-            reader.onload = () => resolve({ dataUrl: reader.result, blob, name: file.name, size: blob.size })
-            reader.onerror = () => reject(new Error('图片读取失败'))
-            reader.readAsDataURL(blob)
-          }, 'image/jpeg', q)
-        }
-        tryQ(0.85)
-      } catch (e) { URL.revokeObjectURL(url); reject(e) }
-    }
-    img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('这张图打不开（可能是 HEIC 格式，当前浏览器不支持），换一张试试'))
-    }
-    img.src = url
-  })
-}
-async function onImageFile(file) {
-  if (!file) return
-  if (!file.type || file.type.indexOf('image/') !== 0) { alert('请选择图片文件'); return }
-  if (pendingAttachments.length >= ATTACH_MAX) { alert('一次最多挂 ' + ATTACH_MAX + ' 个附件，先发掉或删一个再加'); return }
-  try {
-    const out = await compressImage(file)
-    pendingAttachments.push({ kind: 'image', dataUrl: out.dataUrl, blobUrl: URL.createObjectURL(out.blob), name: out.name, size: out.size })
-    renderAttachPreview()
-    focusChatInput()
-  } catch (e) {
-    alert(e && e.message ? e.message : '图片处理失败，换一张试试')
-  }
-}
-async function onAttachFile(file) {
-  if (!file) return
-  if (pendingAttachments.length >= ATTACH_MAX) { alert('一次最多挂 ' + ATTACH_MAX + ' 个附件，先发掉或删一个再加'); return }
-  try {
-    const ext = (file.name.split('.').pop() || '').toLowerCase()
-    const { title, text } = await kbExtractFile(file)
-    // txt/md 且 ≤6000 字默认本次直接读；长的或 PDF/DOCX 默认存知识库。
-    const dest = (ext === 'txt' || ext === 'md' || ext === 'markdown') && text.length <= ATTACH_CHAT_TEXT_LIMIT ? 'chat' : 'kb'
-    pendingAttachments.push({ kind: 'file', name: file.name, size: file.size, title, text, dest })
-    renderAttachPreview()
-    focusChatInput()
-  } catch (e) {
-    alert(e && e.message ? e.message : '文件读取失败，换一个试试')
-  }
-}
-/** 上传动作菜单：点 + 弹出，点遮罩或取消收起。 */
-function openAttachSheet() {
-  const sheet = $('attach-sheet')
-  if (sheet) sheet.hidden = false
-}
-function closeAttachSheet() {
-  const sheet = $('attach-sheet')
-  if (sheet) sheet.hidden = true
-}
-/** 切到能看图的模型：模型列表里找 kimi，换完马上生效。 */
-function switchToKimi() {
-  const kimi = chatModels.find((m) => VISION_MODEL_RE.test(m.id))
-  if (!kimi) { alert('模型列表里没有能看图的模型'); return false }
-  setChatModel(kimi.id)
-  return true
-}
-
-/* ── 语音输入：MediaRecorder 录音 → 网关 /v1/stt 转文字 ──────────
- * 旧的网页语音识别（Web Speech API）在 iOS 27 上已坏（第二下常变聋；
- * v21 加的音频会话切换（切到 play-and-record）在 iOS 27.2 上也被证实
- * 会让每次听写都哑——两样都已删掉，不要再加回来）。
- * 新流程：点麦克风开始录音 → 再点一次停止（或 60 秒自动停）→
- * 本地解码重采样成 16kHz 单声道 WAV → POST 网关 /v1/stt → 文字
- * 追加进输入框，绝不自动发送，等用户确认后再发。
- * 麦克风按钮永远显示（用户要求：标识不变、一直在那儿）。
- * v23 诊断版：失败时在聊天里写明卡在哪一步（speechDiag），不要再改回笼统的 alert。 */
-const SPEECH_VERSION = 'v23' // 语音诊断版
-/** 语音诊断：把失败的步骤和原因写进聊天里（不存进历史），用户能直接看到/截图。 */
-function speechDiag(text) {
-  try { f7AddMessage('assistant', '🎙️ 语音诊断 ' + SPEECH_VERSION + '：' + text, 'speech-diag', { readAloud: false }) } catch { /* 忽略 */ }
-  try { console.log('[speech-diag]', text) } catch { /* 忽略 */ }
-}
-let speechRecorder = null // MediaRecorder
-let speechStream = null // getUserMedia 得到的 MediaStream
-let speechChunks = [] // 录到的音频块
-let speechRecording = false // 正在录音
-let speechTranscribing = false // 正在等网关转文字
-let speechStopTimer = null // 60 秒自动停
-const SPEECH_MAX_SECONDS = 60
-
-function speechClearStopTimer() {
-  if (speechStopTimer) { clearTimeout(speechStopTimer); speechStopTimer = null }
-}
-/** 录完就关麦克风轨道：不关的话 iOS 上麦克风指示一直亮着。 */
-function speechReleaseStream() {
-  if (speechStream) {
-    try { speechStream.getTracks().forEach((t) => t.stop()) } catch { /* 忽略 */ }
-    speechStream = null
-  }
-}
-function setMicState(recording) {
-  speechRecording = recording
-  const btn = $('chat-mic')
-  if (btn) {
-    btn.classList.toggle('listening', recording)
-    btn.classList.toggle('busy', !recording && speechTranscribing)
-    btn.title = recording ? '正在录音…再点一次停止'
-      : (speechTranscribing ? '正在转文字…' : '语音输入：点一下说话，文字进输入框（说完再点一下停止）')
-  }
-}
-function focusChatInput() {
-  // #chat-input 是 <ion-textarea>（影子 DOM）：普通 .focus() 聚不到里面的
-  // 原生输入框，必须调它自己的 setFocus()，键盘才能弹出来。
-  const input = $('chat-input')
-  if (!input) return
-  if (typeof input.setFocus === 'function') input.setFocus()
-  else input.focus()
-}
-/** 把输入框内容设成新值（F7 Messagebar 接管时走它自己的 setValue）。 */
-function chatInputSetValue(val) {
-  if (f7Messagebar && typeof f7Messagebar.setValue === 'function') { f7Messagebar.setValue(val); return }
-  const input = $('chat-input')
-  if (input) {
-    input.value = val
-    try { input.dispatchEvent(new Event('input', { bubbles: true })) } catch { /* 忽略 */ }
-  }
-}
-/** AudioBuffer → 16kHz 单声道 → WAV（44 字节头 + PCM16）原始字节。 */
-function speechEncodeWav16k(buffer) {
-  const inRate = buffer.sampleRate
-  const outRate = 16000
-  const ch0 = buffer.getChannelData(0)
-  const ch1 = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : null
-  const outLen = Math.max(1, Math.floor(buffer.length * outRate / inRate))
-  const pcm = new Int16Array(outLen)
-  for (let i = 0; i < outLen; i++) {
-    const pos = i * inRate / outRate
-    const idx = Math.floor(pos)
-    const frac = pos - idx
-    const a0 = ch0[Math.min(idx, ch0.length - 1)]
-    const a1 = ch0[Math.min(idx + 1, ch0.length - 1)]
-    let sample = a0 + (a1 - a0) * frac
-    if (ch1) {
-      const b0 = ch1[Math.min(idx, ch1.length - 1)]
-      const b1 = ch1[Math.min(idx + 1, ch1.length - 1)]
-      sample = (sample + (b0 + (b1 - b0) * frac)) / 2
-    }
-    const s = Math.max(-1, Math.min(1, sample))
-    pcm[i] = s < 0 ? s * 0x8000 : s * 0x7FFF
-  }
-  const dataBytes = pcm.length * 2
-  const out = new ArrayBuffer(44 + dataBytes)
-  const view = new DataView(out)
-  const writeStr = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)) }
-  writeStr(0, 'RIFF')
-  view.setUint32(4, 36 + dataBytes, true)
-  writeStr(8, 'WAVE')
-  writeStr(12, 'fmt ')
-  view.setUint32(16, 16, true)
-  view.setUint16(20, 1, true) // PCM
-  view.setUint16(22, 1, true) // 单声道
-  view.setUint32(24, outRate, true)
-  view.setUint32(28, outRate * 2, true)
-  view.setUint16(32, 2, true)
-  view.setUint16(34, 16, true)
-  writeStr(36, 'data')
-  view.setUint32(40, dataBytes, true)
-  const bytes = new Uint8Array(out, 44)
-  for (let i = 0; i < pcm.length; i++) {
-    bytes[i * 2] = pcm[i] & 0xff
-    bytes[i * 2 + 1] = (pcm[i] >> 8) & 0xff
-  }
-  return new Blob([out], { type: 'audio/wav' })
-}
-/** 录到的 blob → 解码 → 16kHz 单声道 WAV。解不开就当录音失败。 */
-async function speechToWav16k(blob) {
-  const AC = window.AudioContext || window.webkitAudioContext
-  if (!AC) throw new Error('no-audiocontext')
-  const ctx = new AC()
-  try {
-    if (typeof ctx.resume === 'function') { try { await ctx.resume() } catch { /* 忽略 */ } }
-    const buf = await ctx.decodeAudioData(await blob.arrayBuffer())
-    return speechEncodeWav16k(buf)
-  } finally {
-    try { await ctx.close() } catch { /* 忽略 */ }
-  }
-}
-/** WAV 原始字节 → 网关 /v1/stt，200 回 {"text": "..."}。30 秒没回就超时，不让按钮一直卡在“转文字”。 */
-async function speechStt(wavBlob) {
-  // api() 只拼 Authorization，不强制 JSON Content-Type（见 api 定义），
-  // 所以直接用它发音频字节，和 /v1/extract 同款鉴权。
-  const ctrl = new AbortController()
-  const timer = setTimeout(() => { try { ctrl.abort() } catch { /* 忽略 */ } }, 30000)
-  try {
-    const res = await api('/v1/stt', {
-      method: 'POST',
-      headers: { 'content-type': 'audio/wav' },
-      body: wavBlob,
-      signal: ctrl.signal,
-    })
-    if (!res.ok) {
-      const extra = (res && typeof res.body === 'string') ? res.body : ''
-      throw new Error('stt-http-' + res.status + (extra ? ':' + extra : ''))
-    }
-    const body = res.body
-    if (body && typeof body === 'object') return body.text || ''
-    if (typeof body === 'string') return body
-    return ''
-  } finally {
-    clearTimeout(timer)
-  }
-}
-/** 停掉录音，随后转文字、填进输入框（不自动发送）。失败时在聊天里写明卡在哪一步。 */
-async function speechStopAndTranscribe() {
-  if (!speechRecorder) return
-  const rec = speechRecorder
-  speechRecorder = null
-  speechClearStopTimer()
-  setMicState(false)
-  speechTranscribing = true
-  setMicState(false) // 刷新 busy 态（按钮变暗，显示“正在转文字…”）
-  const chunks = speechChunks
-  speechChunks = []
-  const totalBytes = chunks.reduce((n, c) => n + (c && c.size ? c.size : 0), 0)
-  try {
-    const blob = await new Promise((resolve, reject) => {
-      rec.onstop = () => resolve(new Blob(chunks, { type: rec.mimeType || '' }))
-      rec.onerror = () => reject(new Error('recorder-error'))
-      try { rec.stop() } catch (e) { reject(e) }
-    })
-    speechReleaseStream()
-    if (!blob || blob.size === 0 || totalBytes === 0) {
-      speechTranscribing = false
-      setMicState(false)
-      speechDiag('第2步录音：录到了 0 字节。麦克风可能被别的 App 占着，或者点停太快了。请先关掉其他用麦克风的 App，再点一次麦克风说句话。')
-      focusChatInput()
-      return
-    }
-    const wav = await speechToWav16k(blob)
-    const text = await speechStt(wav)
-    speechTranscribing = false
-    setMicState(false)
-    const clean = (text || '').trim()
-    if (!clean) {
-      speechDiag('第4步网关回了空文字：录音 ' + Math.round(blob.size / 1024) + 'KB 已发出，网关没听出字。可能是声音太小或太短，再说大声一点、说长一点。')
-      focusChatInput()
-      return
-    }
-    const base = chatInputValue()
-    chatInputSetValue(base ? base + ' ' + clean : clean)
-    focusChatInput()
-  } catch (e) {
-    speechTranscribing = false
-    setMicState(false)
-    speechReleaseStream()
-    const msg = e && e.message ? e.message : ''
-    const detail = (e && (e.name ? e.name + ' ' : '') + (e.message || '')) || '未知错误'
-    if (msg.indexOf('stt-http-401') === 0) speechDiag('第3步发给网关：网关说密钥不对（401）。面板可能没登录，请在设置里重新填一下密钥。')
-    else if (msg.indexOf('stt-http-0') === 0) speechDiag('第3步发给网关：没连上网关' + (/abort/i.test(msg) ? '（30秒没回，超时了）' : '，请检查网络') + '。也可以直接用 iOS 键盘听写。')
-    else if (msg.indexOf('stt-http-') === 0) speechDiag('第3步发给网关：网关返回 ' + msg.slice(9) + '。')
-    else if (msg === 'no-audiocontext') speechDiag('第2步解码：这台设备没有音频解码器，请用 iOS 键盘听写。')
-    else speechDiag('第2步解码/录音失败：' + detail + '。再点一次试试，不行就用 iOS 键盘听写。')
-    focusChatInput()
-  }
-}
-async function toggleSpeech() {
-  if (speechTranscribing) return // 转文字期间点的那下丢掉，别重复发
-  if (speechRecording) { void speechStopAndTranscribe(); return }
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
-    speechDiag('第0步：这个浏览器不支持录音转文字。点一下输入框，弹出键盘后点键盘上的话筒，说话就能转成文字，不用打字。')
-    focusChatInput()
-    return
-  }
-  let stream
-  try {
-    // ⚠️ 必须同步在点按手势里调；iOS 上 await 之后调会被拒。
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-  } catch (e) {
-    const name = e && e.name
-    if (name === 'NotAllowedError' || name === 'SecurityError') speechDiag('第1步麦克风：权限被拒绝。请在系统设置里允许 Safari 使用麦克风，或直接用 iOS 键盘听写。')
-    else speechDiag('第1步麦克风：没拿到麦克风，错误是 ' + (name || '未知') + '。请重试，也可以直接用 iOS 键盘听写。')
-    focusChatInput()
-    return
-  }
-  let mimeType = ''
-  try {
-    if (typeof MediaRecorder.isTypeSupported === 'function' && MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4'
-  } catch { /* 忽略，用默认 */ }
-  speechStream = stream
-  speechChunks = []
-  let rec
-  try {
-    rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
-  } catch (e) {
-    speechReleaseStream()
-    speechDiag('第1步录音启动失败：' + ((e && e.name) || '未知错误') + '。请重试，也可以直接用 iOS 键盘听写。')
-    focusChatInput()
-    return
-  }
-  speechRecorder = rec
-  rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) speechChunks.push(ev.data) }
-  try {
-    rec.start(250)
-  } catch (e) {
-    speechRecorder = null
-    speechReleaseStream()
-    speechDiag('第1步录音启动失败：' + ((e && e.name) || '未知错误') + '。请重试，也可以直接用 iOS 键盘听写。')
-    focusChatInput()
-    return
-  }
-  setMicState(true)
-  speechClearStopTimer()
-  speechStopTimer = setTimeout(() => { if (speechRecording) void speechStopAndTranscribe() }, SPEECH_MAX_SECONDS * 1000)
-}
-
-/** 建一条消息气泡（⚠️ 只用 textContent，不用 innerHTML）。
- *  气泡下面跟一排小图标：复制（AI 和用户都有）+ 朗读（只有 AI 回答有），
- *  点复制读的是气泡当下的 textContent，流式还没吐完时点的也是当前已吐出的那部分。
- *  content 可能是字符串，也可能是多模态数组：文字显示在气泡里，
- *  图片部分在气泡里显示缩略图。 */
-function chatBubble(role, content, opts) {
-  const row = document.createElement('div')
-  row.className = 'chat-msg ' + (role === 'user' ? 'user' : 'assistant')
-  const bubble = document.createElement('div')
-  bubble.className = 'chat-bubble'
-  if (role === 'user') bubble.textContent = chatContentText(content)
-  else bubble.innerHTML = mdToHtml(chatContentText(content))
-  for (const imgUrl of chatContentImages(content)) {
-    const img = document.createElement('img')
-    img.className = 'chat-img'
-    img.src = imgUrl
-    img.alt = '图片'
-    bubble.appendChild(img)
-  }
-  row.appendChild(bubble)
-  const actions = document.createElement('div')
-  actions.className = 'msg-actions'
-  const copyBtn = document.createElement('button')
-  copyBtn.type = 'button'
-  copyBtn.className = 'msg-copy'
-  copyBtn.title = '复制'
-  copyBtn.setAttribute('aria-label', '复制这条消息')
-  copyBtn.innerHTML = COPY_ICON_SVG
-  copyBtn.addEventListener('click', async () => {
-    const ok = await copyTextToClipboard(bubble.textContent || '')
-    if (!ok) return
-    copyBtn.innerHTML = CHECK_ICON_SVG
-    copyBtn.classList.add('copied')
-    setTimeout(() => {
-      copyBtn.innerHTML = COPY_ICON_SVG
-      copyBtn.classList.remove('copied')
-    }, 1200)
-  })
-  actions.appendChild(copyBtn)
-  if (role === 'assistant' && (!opts || opts.readAloud !== false)) {
-    const readBtn = document.createElement('button')
-    readBtn.type = 'button'
-    readBtn.className = 'msg-read'
-    readBtn.title = '朗读'
-    readBtn.setAttribute('aria-label', '朗读这条回答')
-    readBtn.innerHTML = SPEAKER_ICON_SVG
-    readBtn.addEventListener('click', () => { ttsSpeak(bubble.textContent || '', readBtn) })
-    actions.appendChild(readBtn)
-  }
-  row.appendChild(actions)
-  return row
-}
-
-
-/** 聊天里的 Markdown 渲染（2026-11-17 用户：AI 回复里的 **、##、>、--- 原样露出来了，
- * 还整坨发过来。原因：模型回的是 Markdown，面板原来是当纯文本贴出来的，符号没人翻译。
- * 只做模型常写的几种：标题/引用/列表/分隔线/代码块/粗体/斜体/行内代码；先转义 HTML
- * 再解析，模型夹带的 HTML 标签不会真的生效。只给 AI 消息用，用户自己发的还是纯文本。 */
-function mdInline(s) {
-  const codes = []
-  s = s.replace(/`([^`\n]+)`/g, (_, c) => { codes.push(c); return '\u0000' + (codes.length - 1) + '\u0000' })
-  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-  s = s.replace(/(^|[^*])\*([^ *\n][^*\n]*?)\*/g, '$1<em>$2</em>')
-  s = s.replace(/\u0000(\d+)\u0000/g, (_, i) => '<code>' + codes[+i] + '</code>')
-  return s
-}
-function mdToHtml(text) {
-  const src = String(text == null ? '' : text).replace(/\r\n/g, '\n')
-  const lines = src.split('\n')
-  let html = ''
-  let para = []
-  const flushPara = () => {
-    if (!para.length) return
-    html += '<p>' + mdInline(escapeHtml(para.join('\n')).replace(/\n/g, '<br>')) + '</p>'
-    para = []
-  }
-  for (let i = 0; i < lines.length; i++) {
-    const t = lines[i].trim()
-    if (t === '') { flushPara(); continue }
-    const h = t.match(/^(#{1,3})\s+(.*)$/)
-    if (h) { flushPara(); html += '<h' + h[1].length + '>' + mdInline(escapeHtml(h[2])) + '</h' + h[1].length + '>'; continue }
-    if (/^(-{3,}|\*{3,}|_{3,})$/.test(t)) { flushPara(); html += '<hr>'; continue }
-    if (t.indexOf('```') === 0) {
-      flushPara()
-      const buf = []
-      i++
-      while (i < lines.length && lines[i].trim().indexOf('```') !== 0) { buf.push(lines[i]); i++ }
-      html += '<pre><code>' + escapeHtml(buf.join('\n')) + '</code></pre>'
-      continue
-    }
-    if (t.indexOf('> ') === 0 || t === '>') {
-      flushPara()
-      const buf = []
-      while (i < lines.length && (lines[i].trim().indexOf('> ') === 0 || lines[i].trim() === '>')) {
-        buf.push(lines[i].trim().replace(/^>\s?/, '')); i++
-      }
-      i--
-      html += '<blockquote>' + mdInline(escapeHtml(buf.join('\n')).replace(/\n/g, '<br>')) + '</blockquote>'
-      continue
-    }
-    const ol = t.match(/^(\d+)[.)]\s+(.*)$/)
-    const ul = t.match(/^[-*]\s+(.*)$/)
-    if (ul || ol) {
-      flushPara()
-      const tag = ol ? 'ol' : 'ul'
-      const items = []
-      while (i < lines.length) {
-        const lt = lines[i].trim()
-        const m = ol ? lt.match(/^(\d+)[.)]\s+(.*)$/) : lt.match(/^[-*]\s+(.*)$/)
-        if (!m) break
-        items.push(ol ? m[2] : m[1]); i++
-      }
-      i--
-      html += '<' + tag + '>' + items.map((it) => '<li>' + mdInline(escapeHtml(it)) + '</li>').join('') + '</' + tag + '>'
-      continue
-    }
-    para.push(lines[i])
-  }
-  flushPara()
-  return html || '<p></p>'
-}
-
-/** F7 消息气泡（有 F7 时用它；没 F7 时退回 chatBubble）。返回气泡元素。 */
-function f7AddMessage(role, text, cssClass, opts) {
-  const box = $('chat-messages')
-  if (!box) return null
-  if (f7Messages) {
-    f7Messages.addMessage({ text: role === 'user' ? escapeHtml(text) : mdToHtml(text), type: role === 'user' ? 'sent' : 'received', cssClass: cssClass || '' }, 'append', true)
-    const els = box.querySelectorAll('.message')
-    return els.length ? els[els.length - 1] : null
-  }
-  const row = chatBubble(role, text, opts)
-  if (cssClass) row.classList.add(cssClass)
-  box.appendChild(row)
-  box.scrollTop = box.scrollHeight
-  return row
-}
-
-/** 读输入框内容（F7 Messagebar 接管时走它的 getValue）。 */
-function chatInputValue() {
-  if (f7Messagebar) return f7Messagebar.getValue() || ''
-  const input = $('chat-input')
-  return input ? input.value : ''
-}
-
-/** 清空输入框（F7 Messagebar 接管时走它的 clear，会顺便把框缩回去）。 */
-function chatClearInput() {
-  if (f7Messagebar) { f7Messagebar.clear(); return }
-  const input = $('chat-input')
-  if (input) input.value = ''
-}
-
-/** 按本地记录重画消息列表；空记录时显示空态提示。 */
-function renderChat() {
-  const box = $('chat-messages')
-  if (!box) return
-  if (f7Messages) f7Messages.clear()
-  clear(box)
-  for (const m of chatMessages) {
-    if (m.role === 'action') {
-      if (f7Messages) f7Messages.addMessage({ text: actionCardHtml(m.content), type: 'received' }, 'append', false)
-      else box.appendChild(actionCardEl(m.content))
-      continue
-    }
-    if (f7Messages) f7Messages.addMessage({ text: m.role === 'user' ? escapeHtml(chatContentText(m.content)) : mdToHtml(chatContentText(m.content)), image: chatContentImage(m.content) || undefined, type: m.role === 'user' ? 'sent' : 'received' }, 'append', false)
-    else box.appendChild(chatBubble(m.role, m.content))
-  }
-  const empty = $('chat-empty')
-  if (empty) empty.hidden = chatMessages.length !== 0
-  if (f7Messages) f7Messages.scroll()
-  else box.scrollTop = box.scrollHeight
-}
-
-/** 拉 /v1/models（只要对话类，过滤掉生图/生视频）：填“设置 → 模型”里的
- * 聊天模型下拉，顺带把待命状态里的模型名刷新出来。聊天用的模型 id 只存在
- * localStorage（CHAT_MODEL_KEY），不依赖页面上的任何下拉框。 */
-async function loadChatModels() {
-  if (chatModelsLoaded) return
-  const res = await api('/v1/models')
-  const data = (res.ok && res.body && res.body.data) || []
-  chatModels = data.filter((m) => m && typeof m.id === 'string' && m.kind !== 'image' && m.kind !== 'video')
-  // 默认模型：有 deepseek-v4.1-flash 就用它（buddy 主力），否则用列表第一个。
-  const stored = localStorage.getItem(CHAT_MODEL_KEY) || ''
-  const flash = chatModels.find((m) => m.id.indexOf('deepseek-v4.1-flash') !== -1)
-  const def = chatModels.some((m) => m.id === stored)
-    ? stored
-    : (flash ? flash.id : (chatModels[0] ? chatModels[0].id : ''))
-  if (def) {
-    try { localStorage.setItem(CHAT_MODEL_KEY, def) } catch { /* 忽略 */ }
-  }
-  chatModelsLoaded = true
-  fillSettingsChatModel()
-  setChatStatus('idle')
-  updateAttachVisibility()
-}
-/** “设置 → 模型”里的聊天模型下拉：值变了就换模型，马上生效。 */
-function fillSettingsChatModel() {
-  const sel = $('settings-chat-model')
-  if (!sel) return
-  clear(sel)
-  if (!chatModels.length) {
-    const o = document.createElement('option')
-    o.value = ''
-    o.textContent = '模型加载失败（密钥或网络问题）'
-    sel.appendChild(o)
-    return
-  }
-  for (const m of chatModels) {
-    const o = document.createElement('option')
-    o.value = m.id
-    o.textContent = m.name && m.name !== m.id ? m.name + '(' + m.id + ')' : m.id
-    sel.appendChild(o)
-  }
-  sel.value = chatModel()
-  sel.onchange = () => { setChatModel(sel.value) }
-}
-
-/** 当前聊天模型 id（只读 localStorage，没拉到列表时返回空串，发送时再提示）。 */
-function chatModel() {
-  try { return localStorage.getItem(CHAT_MODEL_KEY) || '' } catch { return '' }
-}
-/** 换聊天模型：存本机 + 刷新待命状态 + 同步设置里的下拉。 */
-function setChatModel(id) {
-  if (!id) return
-  try { localStorage.setItem(CHAT_MODEL_KEY, id) } catch { /* 忽略 */ }
-  const sel = $('settings-chat-model')
-  if (sel) sel.value = id
-  setChatStatus('idle')
-  updateAttachVisibility()
-}
-function isBuddyModel(id) { return typeof id === 'string' && id.indexOf('buddy/') === 0 }
-
-/**
- * 发一次对话：先走 SSE 流式，逐字更新气泡；不是 event-stream 时回落 JSON。
- * 失败时抛错（调用方把原因写进气泡里，不吞掉）。
- */
-async function chatComplete(model, messages, onToken, signal) {
-  const res = await fetch(API_BASE + '/v1/chat/completions', {
-    method: 'POST',
-    headers: { authorization: 'Bearer ' + apiKey(), 'content-type': 'application/json' },
-    // ⚠️ 面板对话不走破甲：破甲是给外部调用的“成品交付”预设，面板里它会把
-    // 预设格式指令漏进可见回复（用户截图：模型回了 "## … Bench Status … payload"）。
-    // 网关收到 pojia:false 就跳过预设注入（字段在转发上游前会被剥掉）。
-    body: JSON.stringify({ model, messages, stream: true, pojia: false }),
-    signal,
-  })
-  if (!res.ok) {
-    let msg = 'HTTP ' + res.status
-    try {
-      const j = JSON.parse(await res.text())
-      if (j && j.error && typeof j.error.message === 'string' && j.error.message) msg = j.error.message
-    } catch { /* 非 JSON 错误体就用 HTTP 状态 */ }
-    throw new Error(msg)
-  }
-  const ctype = res.headers.get('content-type') || ''
-  if (ctype.indexOf('text/event-stream') === -1) {
-    // 非流式回落：一次读完 JSON。
-    const data = await res.json()
-    const c = data && data.choices && data.choices[0]
-    const text = c && c.message && typeof c.message.content === 'string' ? c.message.content : ''
-    if (text) onToken(text)
-    return text
-  }
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
-  let buf = ''
-  let full = ''
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += decoder.decode(value, { stream: true })
-    let idx
-    while ((idx = buf.indexOf('\n')) >= 0) {
-      const line = buf.slice(0, idx).trim()
-      buf = buf.slice(idx + 1)
-      if (line.indexOf('data:') !== 0) continue
-      const payload = line.slice(5).trim()
-      if (payload === '[DONE]') return full
-      try {
-        const j = JSON.parse(payload)
-        const c = j && j.choices && j.choices[0]
-        const delta = c && c.delta && typeof c.delta.content === 'string' ? c.delta.content : ''
-        if (delta) { full += delta; onToken(full) }
-        // 个别上游在末 chunk 直接给完整 message。
-        const msg = c && c.message && typeof c.message.content === 'string' ? c.message.content : ''
-        if (msg && !full) { full = msg; onToken(full) }
-      } catch { /* 坏帧跳过，不中断整条流 */ }
-    }
-  }
-  return full
-}
-
-/** AI 工作状态（2026-11-16 用户：模型下拉框那个位置，换成 AI 正在干什么的状态）。
- * 状态条一直显示，不再是下拉框：
- * · 平时：“AI 待命 · 当前模型名”（模型去设置 → 模型里换）。
- * · 干活时：正在思考… → 正在查知识库…（走了知识库检索）→ 正在回复…
- *   → 正在存知识库… / 正在生图…（执行面板动作时）。
- * 圆点只在忙的时候呼吸，待命时是稳的。 */
-function chatStatusIdleText() {
-  const id = chatModel()
-  if (!id) return 'AI 待命'
-  const m = chatModels.find((x) => x.id === id)
-  let name = (m && m.name) || id
-  const paren = name.indexOf('(')
-  if (paren > 0) name = name.slice(0, paren).trim()
-  if (!name) name = id.replace(/^(buddy|today)\//, '')
-  return 'AI 待命 · ' + name
-}
-function setChatStatus(state, label) {
-  const st = $('chat-status'), txt = $('chat-status-text')
-  if (!st || !txt) return
-  if (state === 'idle') {
-    st.classList.remove('busy')
-    txt.textContent = label || chatStatusIdleText()
-    return
-  }
-  st.classList.add('busy')
-  const map = { thinking: '正在思考…', kb: '正在查知识库…', replying: '正在回复…' }
-  txt.textContent = label || map[state] || '正在思考…'
-}
-
-/* ── AI 操控面板：文本 JSON 动作块（第一阶段，2026-11-16 用户要的）──
- * 做法（开源调研的共识：CopilotKit / Vercel AI SDK / Open WebUI 都是
- * “先给模型一张动作表 + 一个执行器”）：面板只改前端，不动网关；buddy
- * 模型都能用（Today 模型已证实不能调工具，不给它动作表）。模型在回复
- * 末尾夹一个 ```action JSON 块，面板解析、校验白名单、执行、把结果喂回
- * 去让它继续说，最多 3 轮。读/导航/换模型直接执行；写库/生图/删东西
- * 要用户在卡片上点一下确认才执行。
- * 永远不做的事：读/改/发 API Key、退出登录、清空知识库、碰 /admin/*、
- * 任何花钱的动作；参数里出现 key/password/token 字样的直接拒绝。 */
-const PANEL_ACTION_CONTRACT = [
-  '【面板操作】你可以直接操作这个面板。需要操作时，在回复末尾另起一个代码块写：',
-  '```action',
-  '{"action":"kb_upload","title":"标题","content":"全文"}',
-  '```',
-  '可用动作（只用这四个，别编别的）：',
-  '- panel_state：查当前模型、所在页面、知识库篇数、生图上游状态',
-  '- model_switch：{"model":"buddy/kimi-k2.5"} 换聊天模型（只能用模型目录里的 id）',
-  '- goto：{"view":"chat"|"settings"|"kb"|"imggen"|"extract"} 切页面',
-  '- kb_upload：{"title":"标题","content":"全文"} 存进知识库（会先问用户确认）',
-  '一次只发一个动作块；动作执行完我会把结果告诉你，你再继续回话。',
-  '动作块不要写在正文里冒充回答；不需要操作时就别发动作块。',
-].join('\n')
-const PANEL_ACTION_MAX_ROUNDS = 3
-const PANEL_ACTIONS = {
-  panel_state: {
-    label: '查面板状态', confirm: false,
-    run() {
-      return { ok: true, model: chatModel(), view: currentSubView || 'chat', kbDocs: kbLoadDocs().length, kbOn: kbIsEnabled(), imggen: '上游未接' }
-    },
-  },
-  model_switch: {
-    label: '切换模型', confirm: false,
-    run(p) {
-      if (typeof p.model !== 'string' || !p.model) return { ok: false, error: '没给 model' }
-      if (chatModels.length && !chatModels.some((m) => m.id === p.model)) return { ok: false, error: '模型目录里没有 ' + p.model }
-      setChatModel(p.model)
-      return { ok: true, model: p.model }
-    },
-  },
-  goto: {
-    label: '切换页面', confirm: false,
-    run(p) {
-      const v = p.view
-      if (v === 'chat') { switchView('chat'); return { ok: true, view: 'chat' } }
-      if (v === 'settings') { switchView('settings'); return { ok: true, view: 'settings' } }
-      if (v === 'kb' || v === 'imggen' || v === 'extract') { openSettingsSection(v); return { ok: true, view: v } }
-      return { ok: false, error: '去不了 ' + String(v) }
-    },
-  },
-  kb_upload: {
-    label: '存入知识库', confirm: true,
-    run(p) {
-      if (typeof p.content !== 'string' || !p.content.trim()) return { ok: false, error: '内容是空的' }
-      if (p.content.length > 200000) return { ok: false, error: '内容超过 20 万字，太大了' }
-      const doc = kbAddDoc(p.title || '未命名文档', p.content, 'chat-ai')
-      return doc ? { ok: true, title: doc.title, chars: doc.chars } : { ok: false, error: '入库失败（库可能满了）' }
-    },
-  },
-}
-/** 从回复里抠最后一个 ```action JSON 块；没有、解析失败或不在白名单里都返回 null。 */
-function parsePanelAction(text) {
-  if (typeof text !== 'string') return null
-  const re = /```action\s*([\s\S]*?)```/g
-  let m = null, last = null
-  while ((m = re.exec(text)) !== null) last = m[1]
-  if (!last) return null
-  try {
-    const j = JSON.parse(last.trim())
-    if (!j || typeof j.action !== 'string' || !PANEL_ACTIONS[j.action]) return null
-    const params = j.action === 'panel_state' ? {} : j
-    if (/key|password|token|secret/i.test(JSON.stringify(params))) return null
-    return { action: j.action, params: j }
-  } catch { return null }
-}
-/** 把回复里的 ```action 块去掉，只留给人看的正文。 */
-function stripPanelAction(text) {
-  if (typeof text !== 'string') return text
-  return text.replace(/```action\s*[\s\S]*?```/g, '').trim()
-}
-/** 转义 HTML（动作卡片的标题/结果里可能带用户或模型给的文字）。 */
-function escapeHtml(s) {
-  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
-let actionConfirmResolvers = {}
-/** 动作卡片上的确认/取消按钮调这个（F7 气泡里的行内 onclick 也走这里）。 */
-function panelActionConfirm(id, ok) {
-  const r = actionConfirmResolvers[id]
-  if (r) { delete actionConfirmResolvers[id]; r(ok) }
-}
-/** 等用户在动作卡片上点确认/取消；卡片不存在时直接当取消。 */
-function waitActionConfirm(id) {
-  return new Promise((resolve) => { actionConfirmResolvers[id] = resolve })
-}
-function actionCardTitle(c) {
-  const def = PANEL_ACTIONS[c.action]
-  const label = def ? def.label : c.action
-  if (c.action === 'kb_upload') return label + '：' + (c.params.title || '未命名文档')
-  if (c.action === 'model_switch') return label + '：' + (c.params.model || '')
-  if (c.action === 'goto') return label + '：' + (c.params.view || '')
-  return label
-}
-function actionCardHtml(c) {
-  const statusText = { pending: '等你确认', running: '执行中…', done: '已执行', cancelled: '已取消', failed: '失败' }[c.status] || c.status
-  const body = c.status === 'done' && c.result
-    ? '结果：' + (c.result.title ? c.result.title + '（' + (c.result.chars || 0) + ' 字）' : c.result.model || c.result.view || '完成')
-    : c.status === 'failed' && c.result
-      ? '原因：' + (c.result.error || '未知错误')
-      : ''
-  const btns = c.status === 'pending'
-    ? '<button type="button" class="action-confirm" onclick="panelActionConfirm(\'' + c.id + '\', true)">确认执行</button>'
-      + '<button type="button" class="action-cancel" onclick="panelActionConfirm(\'' + c.id + '\', false)">取消</button>'
-    : ''
-  return '<div class="action-card"><div class="action-card-title">⚙️ ' + escapeHtml(actionCardTitle(c)) + ' · ' + statusText + '</div>'
-    + (body ? '<div class="action-card-body">' + escapeHtml(body) + '</div>' : '')
-    + (btns ? '<div class="action-card-actions">' + btns + '</div>' : '') + '</div>'
-}
-/** 执行一个动作：要确认的先在卡片上等用户点，执行完更新卡片状态并返回结果。 */
-async function executePanelAction(card) {
-  const def = PANEL_ACTIONS[card.action]
-  if (!def) return { ok: false, error: '未知动作' }
-  if (def.confirm && card.status === 'pending') {
-    const ok = await waitActionConfirm(card.id)
-    if (!ok) {
-      card.status = 'cancelled'
-      saveChatHistory()
-      renderChat()
-      return { ok: false, error: '用户取消了这个动作' }
-    }
-  }
-  card.status = 'running'
-  setChatStatus('action', '正在' + def.label + '…')
-  renderChat()
-  let result
-  try { result = def.run(card.params) || { ok: false, error: '没有返回结果' } }
-  catch (e) { result = { ok: false, error: (e && e.message) || '执行出错' } }
-  card.status = result.ok ? 'done' : 'failed'
-  card.result = result
-  saveChatHistory()
-  renderChat()
-  return result
-}
-
-/** 发送按钮 / 回车：把输入框内容发出去，流式回显回答。 */
-/** 一轮流式对话：占一个助手气泡往里填字，返回完整回复；用户点了停止就抛 AbortError。 */
-async function streamAssistantRound(reqMessages, model) {
-  const box = $('chat-messages')
-  const msgEl = f7AddMessage('assistant', '思考中…', null, { readAloud: false })
-  // F7 气泡里装文字的是 .message-text，兜底气泡里是 .chat-bubble
-  const bubble = msgEl ? (msgEl.querySelector('.message-text') || msgEl.querySelector('.chat-bubble') || msgEl) : null
-  if (f7Messages) f7Messages.scroll()
-  else if (box) box.scrollTop = box.scrollHeight
-  const full = await chatComplete(model, reqMessages, (t) => {
-    setChatStatus('replying')
-    if (bubble) bubble.innerHTML = mdToHtml(t)
-    if (f7Messages) f7Messages.scroll()
-    else if (box) box.scrollTop = box.scrollHeight
-  }, chatAbort.signal)
-  if (full === '') throw new Error('模型返回了空内容')
-  return { full, msgEl, bubble }
-}
-
-async function sendChat() {
-  if (chatStreaming) return
-  const input = $('chat-input')
-  const sendBtn = $('chat-send')
-  const model = chatModel()
-  if (!input || !sendBtn) return
-  const text = chatInputValue().trim()
-  if (text === '' && pendingAttachments.length === 0) return
-  if (model === '') {
-    alert('模型还没加载出来，稍等一下再发')
-    return
-  }
-  ttsStop()
-  // 发之前先停录音：转出来的文字之后再填进输入框，不会跟着这条发出去。
-  if (speechRecording) void speechStopAndTranscribe()
-  // 附件拼成 OpenAI 多模态数组；纯文字保持字符串。
-  // 存知识库的附件：发之前先入库，气泡里留一句“已存入知识库：xxx”。
-  const parts = []
-  const kbNotes = []
-  for (const a of pendingAttachments) {
-    if (a.kind === 'image') {
-      parts.push({ type: 'image_url', image_url: { url: a.dataUrl } })
-    } else if (a.kind === 'file') {
-      if (a.dest === 'kb') {
-        const doc = kbAddDoc(a.title, a.text, 'chat')
-        kbNotes.push(doc ? '已存入知识库：' + a.name : '存入知识库失败：' + a.name)
-      } else {
-        parts.push({ type: 'text', text: '【文件：' + a.name + '】\n' + a.text })
-      }
-    }
-  }
-  const headText = text || (parts.some((p) => p.type === 'image_url') ? '这张图里有什么？' : '')
-  const textParts = []
-  if (headText) textParts.push(headText)
-  if (kbNotes.length) textParts.push(kbNotes.join('\n'))
-  const userContent = parts.length === 0
-    ? textParts.join('\n')
-    : [{ type: 'text', text: textParts.join('\n') || '（附件）' }, ...parts]
-  chatMessages.push({ role: 'user', content: userContent })
-  saveChatHistory()
-  chatClearInput()
-  clearPendingAttachments()
-  renderChat()
-
-  const box = $('chat-messages')
-  const empty = $('chat-empty')
-  if (empty) empty.hidden = true
-  chatStreaming = true
-  chatAbort = new AbortController()
-  sendBtn.classList.add('streaming')
-  setChatStatus('thinking')
-  input.disabled = true
-  let lastBubble = null, lastMsgEl = null
-  try {
-    // 第一轮的请求：知识库命中时在最前面加 system 消息；buddy 模型再加
-    // 一张面板动作表（Today 模型不能调工具，不给它）。
-    const history = chatRequestMessages(chatMessages.slice(-CHAT_MAX_CONTEXT))
-    setChatStatus('kb')
-    const kbSys = await kbBuildSystemMessage(chatContentText(userContent))
-    // 问技能出内容时先把技能全文拼进去（检索只捞 6000 字碎片，规则会漏）。
-    const skillSys = kbBuildSkillSystemMessage(chatContentText(userContent))
-    let reqMessages = [...(skillSys ? [{ role: 'system', content: skillSys }] : []), ...(kbSys ? [{ role: 'system', content: kbSys }] : []), ...history]
-    if (isBuddyModel(model)) reqMessages = [{ role: 'system', content: PANEL_ACTION_CONTRACT }, ...reqMessages]
-    // 动作循环：模型可能在回复里夹一个 ```action 动作块；执行完把结果
-    // 喂回去让它继续说，最多 3 轮，免得来回打转。
-    for (let round = 0; ; round++) {
-      setChatStatus('thinking')
-      const r = await streamAssistantRound(reqMessages, model)
-      lastBubble = r.bubble
-      lastMsgEl = r.msgEl
-      const full = r.full
-      const action = isBuddyModel(model) ? parsePanelAction(full) : null
-      const cleanText = action ? stripPanelAction(full) : full
-      chatMessages.push({ role: 'assistant', content: cleanText })
-      if (!action || round >= PANEL_ACTION_MAX_ROUNDS) {
-        saveChatHistory()
-        renderChat()
-        break
-      }
-      const card = {
-        id: 'act' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36),
-        action: action.action, params: action.params, status: PANEL_ACTIONS[action.action].confirm ? 'pending' : 'running', result: null,
-      }
-      chatMessages.push({ role: 'action', content: card })
-      saveChatHistory()
-      renderChat()
-      const result = await executePanelAction(card)
-      // 动作结果喂回去（只进本次请求，不进保存的对话记录）。
-      reqMessages = [...reqMessages, { role: 'assistant', content: cleanText }, { role: 'user', content: '【动作执行结果】' + JSON.stringify(result) }]
-      setChatStatus('thinking')
-    }
-  } catch (e) {
-    // ⚠️ 用户点了停止是 AbortError：不算失败，不写红字、不留残句。
-    if (e && e.name === 'AbortError') {
-      renderChat()
-    } else if (lastBubble) {
-      // 流式进行中失败：复用占位气泡写红字（和原来一样）。
-      lastBubble.textContent = '发送失败：' + (e && e.message ? e.message : '未知错误')
-      if (lastMsgEl) lastMsgEl.classList.add('chat-err')
-      if (f7Messages) f7Messages.scroll()
-      else if (box) box.scrollTop = box.scrollHeight
-    } else {
-      const msgEl = f7AddMessage('assistant', '发送失败：' + (e && e.message ? e.message : '未知错误'), 'chat-err', { readAloud: false })
-      if (msgEl) msgEl.classList.add('chat-err')
-      if (f7Messages) f7Messages.scroll()
-      else if (box) box.scrollTop = box.scrollHeight
-    }
-  } finally {
-    chatStreaming = false
-    chatAbort = null
-    sendBtn.classList.remove('streaming')
-    setChatStatus('idle')
-    input.disabled = false
-    input.focus()
-  }
-}
-
-/** 首页初始化（只绑一次）：画记录、拉模型、绑输入框与按钮。 */
-function initChat() {
-  void footballKbSync()
-  void manjuKbSync()
-  void shortStoryKbSync()
-  void laobuKbSync()
-  void memesKbSync()
-  void biandaoKbSync()
-  loadChatHistory()
-  renderChat()
-  void loadChatModels()
-  if (chatBound) return
-  chatBound = true
-  const input = $('chat-input')
-  const sendBtn = $('chat-send')
-  const newBtn = $('chat-new')
-  if (sendBtn) {
-    sendBtn.onclick = () => {
-      // 流式进行中点按钮 = 停止。
-      if (chatStreaming && chatAbort) { chatAbort.abort(); return }
-      void sendChat()
-    }
-  }
-  if (input) {
-    input.addEventListener('keydown', (ev) => {
-      // 回车发送，Shift+回车换行。
-      if (ev.key === 'Enter' && !ev.shiftKey) {
-        ev.preventDefault()
-        void sendChat()
-      }
-    })
-  }
-  if (newBtn) {
-    newBtn.onclick = () => {
-      if (chatMessages.length === 0) return
-      if (!confirm('清空当前对话记录？')) return
-      chatMessages = []
-      saveChatHistory()
-      renderChat()
-    }
-  }
-  // 附件：+ 按钮 → 底部动作菜单（拍照 / 相册选图 / 选文件）。
-  const attachBtn = $('chat-attach')
-  if (attachBtn) attachBtn.onclick = () => openAttachSheet()
-  const optCamera = $('attach-opt-camera')
-  if (optCamera) optCamera.onclick = () => { closeAttachSheet(); const i = $('chat-camera-input'); if (i) i.click() }
-  const optPhoto = $('attach-opt-photo')
-  if (optPhoto) optPhoto.onclick = () => { closeAttachSheet(); const i = $('chat-image-input'); if (i) i.click() }
-  const optFile = $('attach-opt-file')
-  if (optFile) optFile.onclick = () => { closeAttachSheet(); const i = $('chat-file-input'); if (i) i.click() }
-  const optCancel = $('attach-opt-cancel')
-  if (optCancel) optCancel.onclick = () => closeAttachSheet()
-  const sheetBackdrop = $('attach-sheet-backdrop')
-  if (sheetBackdrop) sheetBackdrop.onclick = () => closeAttachSheet()
-  const imageInput = $('chat-image-input')
-  if (imageInput) imageInput.onchange = () => { const f = imageInput.files && imageInput.files[0]; void onImageFile(f) }
-  const cameraInput = $('chat-camera-input')
-  if (cameraInput) cameraInput.onchange = () => { const f = cameraInput.files && cameraInput.files[0]; void onImageFile(f) }
-  const fileInput = $('chat-file-input')
-  if (fileInput) fileInput.onchange = () => { const f = fileInput.files && fileInput.files[0]; void onAttachFile(f) }
-  const switchKimiBtn = $('attach-switch-kimi')
-  if (switchKimiBtn) switchKimiBtn.onclick = () => { if (switchToKimi()) updateAttachHint() }
-  // 粘贴图片：剪贴板里的图直接贴进附件（聊天页打开时才接，最多 3 个）。
-  document.addEventListener('paste', (e) => {
-    const files = e.clipboardData && e.clipboardData.files
-    if (!files || !files.length) return
-    const view = $('view-chat')
-    if (!view || view.hidden) return
-    for (const f of files) {
-      if (f.type && f.type.indexOf('image/') === 0) { void onImageFile(f); return }
-    }
-  })
-  // 语音输入：麦克风按钮永远显示（用户要求：标识不变、一直在那儿）。
-  // 网页语音识别不可用时，点按钮会聚焦输入框并提示用 iOS 键盘话筒听写。
-  const micBtn = $('chat-mic')
-  if (micBtn) {
-    micBtn.hidden = false
-    micBtn.onclick = () => toggleSpeech()
-  }
-  setChatStatus('idle')
-  updateAttachVisibility()
-}
-
 /**
  * iOS 手势（不依赖 Framework7，纯手写）：
  * · 左滑返回：从左边缘（≤28px）向右拖，子视图跟着手指走，松手过阈值回设置菜单。
  * · 下拉刷新：页面在最顶上时往下拉，露出 F7 风格的加载圈，松手刷新当前视图。
- * 抽屉打开、输入框、聊天消息区里不触发（免得跟 F7 的下滑关抽屉 / 滚动打架）。
+ * 抽屉打开、输入框里不触发（免得跟 F7 的下滑关抽屉 / 滚动打架）。
  */
 let ptrBound = false
 function initGestures() {
@@ -6138,10 +4789,9 @@ function initGestures() {
   const ptrLabel = $('ptr-label')
   let startX = 0, startY = 0, active = null, moved = 0
 
-  function inSheet(t) { return !!(t && t.closest && t.closest('.sheet-modal, textarea, input, select, #chat-messages')) }
+  function inSheet(t) { return !!(t && t.closest && t.closest('.sheet-modal, textarea, input, select')) }
   function currentViewEl() {
     if (currentSubView) return $('view-' + currentSubView)
-    if ($('view-chat') && !$('view-chat').hidden) return $('view-chat')
     if ($('view-settings') && !$('view-settings').hidden) return $('view-settings')
     return null
   }
@@ -6192,19 +4842,17 @@ function initGestures() {
   }, { passive: true })
 }
 
-/** 刷新当前视图（下拉刷新用）：跑当前视图的加载器；首页对话则重拉模型。 */
+/** 刷新当前视图（下拉刷新用）：跑当前视图的加载器；首页是仪表盘，
+ * 它有加载器（loadDashboard），所以直接走当前顶层视图的加载器；
+ * 设置菜单没有加载器（VIEW_LOADERS.settings 是空函数），走默认分支。 */
 function refreshCurrentView() {
   if (currentSubView) {
     const loader = VIEW_LOADERS[currentSubView]
     if (loader && apiKey() !== '') loader()
     return
   }
-  if ($('view-chat') && !$('view-chat').hidden) {
-    chatModelsLoaded = false
-    void loadChatModels()
-    return
-  }
-  const loader = VIEW_LOADERS['settings']
+  const top = localStorage.getItem('wb_view') || 'dashboard'
+  const loader = VIEW_LOADERS[top]
   if (loader && apiKey() !== '') loader()
 }
 
@@ -7220,13 +5868,12 @@ $('clear-waf').onclick = async () => {
   alert(r.ok ? '已解除' : '解除失败：' + JSON.stringify(r.body))
   loadWaf()
 }
-// 顶栏返回按钮：子视图里点回设置菜单，设置菜单里点回首页
-// （底部导航已撤，这是回首页的路）。子视图里标题是“返回设置”，
-// 设置菜单里是“返回首页”，由 switchView / openSettingsSection 改。
+// 顶栏返回按钮：子视图里点回设置菜单（仪表盘是首页，设置菜单没有更上一级）。
+// 子视图里标题是“返回设置”，由 openSettingsSection 改；首页上按钮是藏着的。
 const settingsBack = $('settings-back')
 if (settingsBack) settingsBack.onclick = () => {
   if (currentSubView) switchView('settings')
-  else switchView('chat')
+  else switchView('settings')
 }
 // 顶栏齿轮：设置移到顶栏（2026-11-16 用户），点进设置菜单。
 const topSettings = $('top-settings')
@@ -7319,11 +5966,16 @@ async function bootstrap() {
   //
   // 修法：把存下来的值与**真实导航项**比对，不合法就丢弃并回到 `providers`。
   // 顺带清掉这个陈旧键，避免它一直阴魂不散。
-  // ⚠️ 旧版存的 'dashboard' 已不再是首页：首页现在是对话。
-  // 子视图也不直接做初始视图（刷新后回到设置菜单即可）。
+  // ⚠️ 旧版存的 'chat' 已不再是视图（对话已去掉）：首页现在是仪表盘。
+  // 子视图也不直接做初始视图（刷新后回到仪表盘即可）。
+  // 顺带清掉对话时代留下的本地记录与模型选择（对话已去掉，留着也没用）。
+  try {
+    localStorage.removeItem('wb_chat_history_v1')
+    localStorage.removeItem('wb_chat_model')
+  } catch { /* 忽略 */ }
   const stored = localStorage.getItem('wb_view')
-  const mapped = stored === 'dashboard' ? 'chat' : stored
-  const initialView = mapped !== null && TOP_VIEWS.includes(mapped) ? mapped : 'chat'
+  const mapped = (stored === 'chat') ? 'dashboard' : stored
+  const initialView = mapped !== null && TOP_VIEWS.includes(mapped) ? mapped : 'dashboard'
   initGestures()
   switchView(initialView)
   loadWaf()

@@ -1379,6 +1379,8 @@ ion-list.settings-list ion-item.settings-row {
   touch-action: manipulation;
 }
 ion-list.settings-list .qa-icon { width: 34px; height: 34px; margin: 0; }
+/* ── 设置菜单分组标题（2026-11-18 排版：只加分组，不改样式）── */
+.settings-group-label { font-size: 12px; font-weight: 600; color: var(--muted-foreground); margin: 14px 4px 6px; }
 ion-list.settings-list ion-label .set-title { display: block; font-size: 14px; font-weight: 600; color: var(--foreground); }
 ion-list.settings-list ion-label .set-sub { display: block; font-size: 11px; color: var(--muted-foreground); margin-top: 1px; }
 
