@@ -339,6 +339,16 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px;
     word-break: break-all; margin: 10px 0;
   }
+  /* 添加账号登录用：二维码居中、用户码大字展示（照旧版 page工作台） */
+  .modal-box .qr-box { display: flex; justify-content: center; padding: 12px 0; }
+  .modal-box .qr-box img, .modal-box .qr-box svg { width: 180px; height: 180px; }
+  .modal-box .user-code {
+    background: #111827; color: #e8c268; border-radius: 8px; padding: 10px 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px;
+    font-weight: 700; text-align: center; letter-spacing: 2px; margin: 10px 0;
+    word-break: break-all;
+  }
+  html.dark .modal-box .qr-box svg { background: #fff; border-radius: 8px; }
   html.dark .modal-box { background: rgba(13, 20, 36, 0.97); color: rgba(233, 237, 245, 0.92); border-color: rgba(255, 255, 255, 0.08); }
   html.dark .modal-box .field label { color: rgba(139, 148, 169, 0.9); }
   .bar-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 5px 0; }
@@ -706,6 +716,7 @@
           <button class="btn" id="chan-bulk">批量操作</button>
           <button class="btn" id="chan-tags">标签模式</button>
           <button class="btn" id="chan-sort">排序</button>
+          <button class="btn btn-primary" id="chan-add-account">+ 添加账号</button>
           <button class="btn btn-primary" id="chan-create">+ 创建渠道</button>
           <button class="btn" id="chan-more">⋯</button>
         </div>
@@ -930,7 +941,7 @@ function openModal(title, bodyHtml) {
   $('modal-body').innerHTML = bodyHtml;
   $('modal').hidden = false;
 }
-function closeModal() { $('modal').hidden = true; }
+function closeModal() { stopLoginPoll(); $('modal').hidden = true; }
 $('modal-close').addEventListener('click', closeModal);
 $('modal').addEventListener('click', function (e) { if (e.target === $('modal')) closeModal(); });
 function copyText(text, btn) {
@@ -1610,6 +1621,325 @@ function openCreateChannel() {
   });
 }
 
+/* ===== 添加账号（登录上游账号进账号池） ===== */
+/* 只列 capabilities.login 为 true 的供应商（/admin/providers 返回的 capabilities）。
+   KEY 直连的家（OpenAI / DeepSeek / Gemini / Claude / MJ / Suno / 兼容上游等）
+   没有登录流程，走「创建渠道」导入 KEY；codearts / trae 虽有登录分支，但上游
+   回调只认本机 127.0.0.1 端口、架构上走不通，网关也声明了 login: false，同样不列。
+   各家登录方式照旧版 page工作台的 LOGIN_KIND_LABEL，qoder / zcode 返回授权链接
+   故标「浏览器登录」，minimax 与 cline 同型（返回 userCode）故标「用户码登录」。 */
+var LOGIN_KIND_LABEL = {
+  buddy: '设备码登录', workbuddy: '设备码登录',
+  qoder: '浏览器登录', zcode: '浏览器登录',
+  raccoon: '微信扫码', cline: '用户码登录', minimax: '用户码登录',
+  loomy: '短信验证码登录', doubao: '豆包扫码 / 短信验证码登录'
+};
+var loginPollTimer = null;
+function stopLoginPoll() { if (loginPollTimer) { clearInterval(loginPollTimer); loginPollTimer = null; } }
+function loginErrMsg(r) {
+  if (r && r.body && r.body.error && r.body.error.message) return r.body.error.message;
+  if (r && r.body && typeof r.body === 'string') return r.body;
+  return '网关返回 HTTP ' + (r ? r.status : '?');
+}
+function loginProviders() {
+  return chanProviders.filter(function (p) { return p.capabilities && p.capabilities.login; });
+}
+function openAddAccount(retry) {
+  stopLoginPoll();
+  if (!masterKey()) { alert('请先在「概览」页设置主密钥。'); return; }
+  var list = loginProviders();
+  if (list.length === 0) {
+    if (!retry) {
+      openModal('添加账号', '<p class="muted">正在加载供应商列表…</p>');
+      loadChannels().then(function () { openAddAccount(true); });
+    } else {
+      openModal('添加账号', '<p class="muted">供应商列表为空，请刷新页面重试。</p>');
+    }
+    return;
+  }
+  var opts = list.map(function (p) {
+    return '<option value="' + esc(p.id) + '">' + esc(p.name || p.id) + '（' + esc(LOGIN_KIND_LABEL[p.id] || '设备码登录') + '）</option>';
+  }).join('');
+  openModal('添加账号',
+    '<div class="field"><label>供应商（只列支持登录的）</label><select class="select" id="aa-prov">' + opts + '</select></div>' +
+    '<p class="muted">KEY 直连的供应商（OpenAI、DeepSeek、Gemini、Claude、MJ、Suno、兼容上游等）没有登录流程，请用「创建渠道」导入 KEY。</p>' +
+    '<div class="row" style="margin-top:10px"><button class="btn btn-primary" id="aa-next">下一步</button><button class="btn" id="aa-cancel">取消</button></div>' +
+    '<div id="aa-body" style="margin-top:10px"></div>');
+  $('aa-cancel').addEventListener('click', closeModal);
+  $('aa-next').addEventListener('click', function () { renderLoginFor($('aa-prov').value); });
+}
+/* 登录流程画在哪：有方式选择器时画进 aa-flow（选择器留着可切换），否则画进 aa-body */
+function loginBox() { return $('aa-flow') || $('aa-body'); }
+function renderLoginFor(pid) {
+  stopLoginPoll();
+  var body = $('aa-body');
+  if (!body) return;
+  if (pid === 'doubao') {
+    body.innerHTML = '<p class="muted">选择登录方式：</p>' +
+      '<div class="row"><button class="btn btn-primary" id="aa-sms">短信验证码</button><button class="btn" id="aa-qr">豆包扫码</button></div>' +
+      '<div id="aa-flow" style="margin-top:10px"></div>';
+    $('aa-sms').addEventListener('click', function () { renderDoubaoSmsForm(); });
+    $('aa-qr').addEventListener('click', function () { startPollLogin('doubao'); });
+    renderDoubaoSmsForm();
+    return;
+  }
+  if (pid === 'loomy') {
+    body.innerHTML = '<p class="muted">选择登录方式：</p>' +
+      '<div class="row"><button class="btn btn-primary" id="aa-sms">短信验证码</button><button class="btn" id="aa-qr">微信扫码</button></div>' +
+      '<div id="aa-flow" style="margin-top:10px"></div>';
+    $('aa-sms').addEventListener('click', function () { renderLoomySmsForm(); });
+    $('aa-qr').addEventListener('click', function () { renderLoomyWechatLogin(); });
+    renderLoomySmsForm();
+    return;
+  }
+  startPollLogin(pid);
+}
+/* 登录成功：提示 + 刷新渠道列表与账号数（模型目录也可能变，一起清缓存） */
+function loginSuccess(box, body) {
+  box.innerHTML = '<p class="muted">已添加账号：' + esc((body && (body.nickname || body.uid)) || '') + '</p>' +
+    '<div class="row" style="margin-top:10px"><button class="btn btn-primary" id="lg-done">完成</button></div>';
+  $('lg-done').addEventListener('click', closeModal);
+  dropCache('models');
+  loadChannels();
+}
+/* 渲染登录提示：用户码 / 二维码图（qrImageUrl）/ 二维码 SVG（qrSvg）/ 授权链接 —— 照旧版 renderLoginPrompt */
+function loginPromptHtml(body, pid) {
+  var status = '<p class="muted" id="lg-status">等待授权中…</p>';
+  if (typeof body.userCode === 'string' && body.userCode !== '') {
+    var url = (typeof body.verificationUriComplete === 'string' && body.verificationUriComplete !== '')
+      ? body.verificationUriComplete : (typeof body.verificationUri === 'string' ? body.verificationUri : '');
+    var h = '<p class="muted">请在浏览器打开下面的链接，并输入以下代码完成授权：</p>' +
+      '<div class="user-code">' + esc(body.userCode) + '</div>';
+    if (url !== '') {
+      h += '<p><a href="' + esc(url) + '" target="_blank" rel="noreferrer noopener">打开授权页面</a></p>' +
+        '<p class="muted">代码已填进链接时可直接确认，否则请手工输入上面的代码。</p>';
+    }
+    return h + status;
+  }
+  if (typeof body.qrImageUrl === 'string' && body.qrImageUrl !== '') {
+    var tip = pid === 'doubao' ? '请用豆包 App 扫描下方二维码完成授权：' : '请用微信扫描下方二维码完成授权：';
+    return '<p class="muted">' + tip + '</p>' +
+      '<div class="qr-box"><img src="' + esc(body.qrImageUrl) + '" width="180" height="180" alt="' + (pid === 'doubao' ? '豆包登录二维码' : '微信登录二维码') + '" referrerpolicy="no-referrer"></div>' +
+      (pid === 'doubao' ? '<p class="muted">二维码 120 秒内有效，过期请重新发起。</p>' : '') + status;
+  }
+  if (typeof body.qrSvg === 'string' && body.qrSvg !== '') {
+    var h3 = '<p class="muted">请用微信扫描下方二维码完成授权：</p><div class="qr-box" id="lg-qr"></div>';
+    if (typeof body.qrUrl === 'string' && body.qrUrl !== '') {
+      h3 += '<p><a href="' + esc(body.qrUrl) + '" target="_blank" rel="noreferrer noopener">（打不开二维码时点此）</a></p>';
+    }
+    return h3 + status;
+  }
+  if (typeof body.authUrl === 'string' && body.authUrl !== '') {
+    return '<p class="muted">请在浏览器打开以下链接完成授权：</p>' +
+      '<p style="word-break:break-all;font-size:13px">' + esc(body.authUrl) + '</p>' +
+      '<p><a href="' + esc(body.authUrl) + '" target="_blank" rel="noreferrer noopener">打开授权页面</a></p>' + status;
+  }
+  return '<p class="muted">服务端未返回可用的登录方式（请刷新页面重试）。</p>';
+}
+/* qrSvg 是服务端渲染好的 SVG 字符串：用 DOMParser 解析插进 DOM（不用 innerHTML），缺 xmlns 时兜底注入 */
+function wireQrSvg(body) {
+  if (typeof body.qrSvg !== 'string' || body.qrSvg === '') return;
+  var box = $('lg-qr');
+  if (!box) return;
+  var svgText = body.qrSvg;
+  if (svgText.indexOf('xmlns=') === -1) svgText = svgText.replace(/<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+  var doc = null;
+  try { doc = new DOMParser().parseFromString(svgText, 'image/svg+xml'); } catch (e) { doc = null; }
+  var svg = doc && doc.documentElement && doc.documentElement.tagName.toLowerCase() === 'svg' ? doc.documentElement : null;
+  if (svg) box.appendChild(document.importNode(svg, true));
+  else box.textContent = '二维码显示失败，请刷新重试。';
+}
+/* 3 秒轮询：成功 / 失败 / 取消 / 过期 / loomy 补绑手机号都按网关原话显示，100 次（5 分钟）后超时 */
+function startPollLoop(pid, state, box) {
+  stopLoginPoll();
+  var tries = 0;
+  loginPollTimer = setInterval(async function () {
+    tries += 1;
+    var statusEl = $('lg-status');
+    if (tries > 100) { stopLoginPoll(); if (statusEl) statusEl.textContent = '授权超时，请重新发起登录。'; return; }
+    var pollPath = pid === 'buddy' ? '/admin/login/poll' : '/admin/providers/login/poll';
+    var r = await api(pollPath + '?state=' + encodeURIComponent(state));
+    if (!r.ok) return; /* 网络抖动：继续等，上限 100 次后超时 */
+    if (r.body && r.body.done) { stopLoginPoll(); loginSuccess(box, r.body); return; }
+    if (r.body && (r.body.status === 'failed' || r.body.status === 'canceled' || r.body.status === 'expired')) {
+      stopLoginPoll();
+      var m = (r.body.message || '登录失败') + '请重新发起登录。';
+      if (statusEl) statusEl.textContent = m;
+      else box.innerHTML = '<p class="muted">' + esc(m) + '</p>';
+      return;
+    }
+    if (r.body && r.body.status === 'need_phone') {
+      stopLoginPoll();
+      renderLoomyBindForm(state, r.body.nickname);
+      return;
+    }
+    if (r.body && r.body.message && statusEl) statusEl.textContent = r.body.message;
+  }, 3000);
+}
+/* 设备码 / 扫码 / 浏览器链接登录的通用流程：发起 → 渲染提示 → 3 秒轮询（照旧版 startModalLoginPolling） */
+async function startPollLogin(pid) {
+  stopLoginPoll();
+  var box = loginBox();
+  if (!box) return;
+  box.innerHTML = '<p class="muted">正在发起登录…</p>';
+  var endpoint = pid === 'buddy' ? '/admin/login/start' : '/admin/providers/login/start';
+  var res = await api(endpoint, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ realm: pid === 'workbuddy' ? 'global' : 'cn', provider: pid })
+  });
+  if (!res.ok) { box.innerHTML = '<p class="muted">' + esc(loginErrMsg(res)) + '</p>'; return; }
+  box.innerHTML = loginPromptHtml(res.body, pid);
+  wireQrSvg(res.body);
+  startPollLoop(pid, res.body.state, box);
+}
+/* loomy 微信扫码：取二维码 → 渲染 → 轮询（扫完未绑手机号时走 need_phone 补绑） */
+async function renderLoomyWechatLogin() {
+  stopLoginPoll();
+  var box = loginBox();
+  if (!box) return;
+  box.innerHTML = '<p class="muted">正在获取微信二维码…</p>';
+  var res = await api('/admin/providers/login/start', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ provider: 'loomy', realm: 'cn', mode: 'wechat' })
+  });
+  if (!res.ok) { box.innerHTML = '<p class="muted">' + esc(loginErrMsg(res)) + '</p>'; return; }
+  box.innerHTML = loginPromptHtml(res.body, 'loomy');
+  wireQrSvg(res.body);
+  startPollLoop('loomy', res.body.state, box);
+}
+/* loomy 微信已授权但未绑手机号 ⇒ 补绑（send 发码 / check 校验，共用 /loomy/bind） */
+function renderLoomyBindForm(state, nickname) {
+  var box = loginBox();
+  if (!box) return;
+  box.innerHTML =
+    '<p class="muted">' + esc(nickname ? '微信「' + nickname + '」还没绑定手机号，请填写手机号完成绑定。' : '该微信号还没绑定手机号，请填写手机号完成绑定。') + '</p>' +
+    '<div class="row"><input class="input" id="lf-phone" type="tel" placeholder="11 位手机号" maxlength="11"><button class="btn btn-primary" id="lf-send">发送验证码</button></div>' +
+    '<div class="row" style="margin-top:8px"><input class="input" id="lf-code" type="text" placeholder="短信验证码" maxlength="8"><button class="btn btn-primary" id="lf-bind">完成绑定</button></div>' +
+    '<p class="muted" id="lf-msg"></p>';
+  $('lf-send').addEventListener('click', async function () {
+    var msg = $('lf-msg');
+    var r = await api('/admin/providers/login/loomy/bind', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ state: state, action: 'send', phone: ($('lf-phone').value || '').trim(), realm: 'cn' })
+    });
+    if (msg) msg.textContent = r.ok ? '验证码已发送' : '发送失败：' + loginErrMsg(r);
+  });
+  $('lf-bind').addEventListener('click', async function () {
+    var msg = $('lf-msg');
+    var r = await api('/admin/providers/login/loomy/bind', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ state: state, action: 'check', code: ($('lf-code').value || '').trim(), realm: 'cn' })
+    });
+    if (r.ok) { loginSuccess(box, r.body); return; }
+    if (msg) msg.textContent = '绑定失败：' + loginErrMsg(r);
+  });
+}
+/* 豆包短信验证码登录：发码 → 填码 → 验码 →（多账号时）选号。
+   发码与验码/选号共用同一个 state 会话（票据绑会话，中途不刷新页面）。
+   验码失败服务端保留会话（10 分钟内可重试）；选号用 account.secUid。 */
+function renderDoubaoSmsForm() {
+  var box = loginBox();
+  if (!box) return;
+  box.innerHTML =
+    '<p class="muted">豆包用短信验证码登录。请填写手机号后点「发送验证码」。 <button class="mini-btn" id="aa-back">← 换登录方式</button></p>' +
+    '<div class="row"><input class="input" id="lf-phone" type="tel" placeholder="11 位手机号" maxlength="11"><button class="btn btn-primary" id="lf-send">发送验证码</button></div>' +
+    '<p class="muted" id="lf-status"></p><div id="lf-code-row"></div><p class="muted" id="lf-msg"></p>';
+  $('aa-back').addEventListener('click', function () { renderLoginFor('doubao'); });
+  var state = '';
+  $('lf-send').addEventListener('click', async function () {
+    var st = $('lf-status');
+    if (st) st.textContent = '发送中…';
+    var r = await api('/admin/providers/login/start', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ provider: 'doubao', mode: 'sms', phone: ($('lf-phone').value || '').trim(), realm: 'cn' })
+    });
+    if (!r.ok) { if (st) st.textContent = loginErrMsg(r); return; }
+    state = r.body.state;
+    if (st) st.textContent = '验证码已发送。';
+    $('lf-phone').disabled = true; $('lf-send').disabled = true; $('lf-send').textContent = '发送验证码';
+    showDoubaoCodeRow();
+  });
+  function showDoubaoCodeRow() {
+    var row = $('lf-code-row');
+    row.innerHTML = '<div class="row"><input class="input" id="lf-code" type="text" placeholder="收到的 6 位验证码" maxlength="6"><button class="btn btn-primary" id="lf-submit">登录</button></div>';
+    $('lf-submit').addEventListener('click', async function () {
+      var msg = $('lf-msg');
+      if (msg) msg.textContent = '校验中…';
+      var r2 = await api('/admin/providers/login/doubao/sms', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'verify', state: state, code: ($('lf-code').value || '').trim(), realm: 'cn' })
+      });
+      if (r2.ok && r2.body && r2.body.done) { loginSuccess(box, r2.body); return; }
+      if (r2.ok && r2.body && r2.body.needsSelect) {
+        if (msg) msg.textContent = '该手机号绑定了多个豆包账号，请选择要登录的一个：';
+        var list = document.createElement('div');
+        (r2.body.accounts || []).forEach(function (account) {
+          var secUid = account.secUid || account.sec_uid;
+          var b = document.createElement('button');
+          b.className = 'btn'; b.style.margin = '4px 4px 0 0';
+          b.textContent = account.name || secUid;
+          b.addEventListener('click', async function () {
+            if (msg) msg.textContent = '登录中…';
+            var r3 = await api('/admin/providers/login/doubao/sms', {
+              method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ action: 'select', state: state, sec_uid: secUid, realm: 'cn' })
+            });
+            if (r3.ok && r3.body && r3.body.done) { loginSuccess(box, r3.body); return; }
+            if (msg) msg.textContent = '选号失败：' + loginErrMsg(r3) + '请重新获取验证码。';
+            list.remove();
+            $('lf-phone').disabled = false; $('lf-send').disabled = false; $('lf-send').textContent = '重新获取验证码';
+          });
+          list.appendChild(b);
+        });
+        row.appendChild(list);
+        return;
+      }
+      if (msg) msg.textContent = '验码失败：' + loginErrMsg(r2) + '请检查验证码后重试，或重新获取验证码。';
+      $('lf-send').disabled = false; $('lf-send').textContent = '重新获取验证码';
+    });
+  }
+}
+/* loomy 短信验证码登录：发码 → 填码 → 提交（两步，不是轮询）。
+   注意：loomy 的验证码是一次性的，验码无论成败服务端都会清掉会话，
+   失败后必须重新发码，不能拿同一个码重试。 */
+function renderLoomySmsForm() {
+  var box = loginBox();
+  if (!box) return;
+  box.innerHTML =
+    '<p class="muted">讯飞（loomy）用短信验证码登录。请填写手机号后点「发送验证码」。 <button class="mini-btn" id="aa-back">← 换登录方式</button></p>' +
+    '<div class="row"><input class="input" id="lf-phone" type="tel" placeholder="11 位手机号" maxlength="11"><button class="btn btn-primary" id="lf-send">发送验证码</button></div>' +
+    '<p class="muted" id="lf-status"></p><div id="lf-code-row"></div><p class="muted" id="lf-msg"></p>';
+  $('aa-back').addEventListener('click', function () { renderLoginFor('loomy'); });
+  var state = '';
+  $('lf-send').addEventListener('click', async function () {
+    var st = $('lf-status');
+    if (st) st.textContent = '发送中…';
+    var r = await api('/admin/providers/login/start', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ provider: 'loomy', phone: ($('lf-phone').value || '').trim(), realm: 'cn' })
+    });
+    if (!r.ok) { if (st) st.textContent = loginErrMsg(r); return; }
+    state = r.body.state;
+    if (st) st.textContent = '验证码已发送。';
+    $('lf-phone').disabled = true; $('lf-send').disabled = true;
+    var row = $('lf-code-row');
+    row.innerHTML = '<div class="row"><input class="input" id="lf-code" type="text" placeholder="收到的验证码" maxlength="8"><button class="btn btn-primary" id="lf-submit">登录</button></div>';
+    $('lf-submit').addEventListener('click', async function () {
+      var msg = $('lf-msg');
+      if (msg) msg.textContent = '校验中…';
+      var r2 = await api('/admin/providers/login/loomy/sms', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ state: state, code: ($('lf-code').value || '').trim(), realm: 'cn' })
+      });
+      if (r2.ok) { loginSuccess(box, r2.body); return; }
+      if (msg) msg.textContent = loginErrMsg(r2);
+      row.innerHTML = '';
+      $('lf-phone').disabled = false; $('lf-send').disabled = false;
+      if (st) st.textContent = '请重新点「发送验证码」获取新验证码。';
+    });
+  });
+}
+
 /* ===== 模型 ===== */
 var modelsCache = [], modelsProviders = [];
 function priceText(f) {
@@ -1829,6 +2159,7 @@ $('task-scope').querySelectorAll('span').forEach(function (s) {
 
 /* 渠道 */
 $('chan-create').addEventListener('click', openCreateChannel);
+$('chan-add-account').addEventListener('click', function () { openAddAccount(false); });
 $('chan-refresh').addEventListener('click', runHealth);
 $('chan-sort').addEventListener('click', function () {
   chanSort = chanSort === 'default' ? 'name' : (chanSort === 'name' ? 'accounts' : 'default');
