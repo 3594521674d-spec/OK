@@ -318,6 +318,54 @@
   html.dark #page-chat [style*="border-top"] { border-top-color: rgba(255, 255, 255, 0.08) !important; }
   html.dark #page-chat p[style] { color: rgba(139, 148, 169, 0.9) !important; }
   .icon-sun { display: none; }
+
+  /* ===== 接线新增：弹窗 / 条形图 / 小按钮 / 提示行 ===== */
+  .modal {
+    position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.45);
+    display: flex; align-items: flex-start; justify-content: center; padding: 60px 14px 20px;
+  }
+  .modal[hidden] { display: none; }
+  .modal-box {
+    width: 100%; max-width: 460px; background: #fff; color: #1f2937;
+    border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.45);
+  }
+  .modal-box h3 { font-size: 15px; font-weight: 650; }
+  .modal-box .field { margin: 10px 0; }
+  .modal-box .field label { display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+  .modal-box .input, .modal-box .select { width: 100%; }
+  .modal-box .key-out {
+    background: #111827; color: #e8c268; border-radius: 8px; padding: 10px 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px;
+    word-break: break-all; margin: 10px 0;
+  }
+  html.dark .modal-box { background: rgba(13, 20, 36, 0.97); color: rgba(233, 237, 245, 0.92); border-color: rgba(255, 255, 255, 0.08); }
+  html.dark .modal-box .field label { color: rgba(139, 148, 169, 0.9); }
+  .bar-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 5px 0; }
+  .bar-row .bar-label { width: 170px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #4b5563; }
+  .bar-track { flex: 1; height: 8px; border-radius: 4px; background: #f3f4f6; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #2563eb, #7c3aed); }
+  .bar-val { width: 90px; flex: none; text-align: right; color: #374151; font-variant-numeric: tabular-nums; }
+  html.dark .bar-row .bar-label { color: rgba(139, 148, 169, 0.9); }
+  html.dark .bar-track { background: rgba(255, 255, 255, 0.08); }
+  html.dark .bar-fill { background: linear-gradient(90deg, #d9a441, #f0c96e); }
+  html.dark .bar-val { color: rgba(233, 237, 245, 0.92); }
+  .mini-btn {
+    border: 0; background: none; cursor: pointer; font-size: 12.5px; padding: 2px 6px;
+    color: #1d4ed8; border-radius: 6px; white-space: nowrap;
+  }
+  .mini-btn:hover { background: #eff6ff; }
+  .mini-btn.danger { color: #dc2626; }
+  .mini-btn.danger:hover { background: #fef2f2; }
+  html.dark .mini-btn { color: #e8c268; }
+  html.dark .mini-btn:hover { background: rgba(217, 164, 65, 0.14); }
+  html.dark .mini-btn.danger { color: #f87171; }
+  html.dark .mini-btn.danger:hover { background: rgba(248, 113, 113, 0.12); }
+  .page-note { font-size: 12.5px; color: #92400e; background: #fef3c7; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; line-height: 1.7; }
+  html.dark .page-note { background: rgba(217, 164, 65, 0.14); color: #e8c268; }
+  .acct-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; padding: 7px 0; border-top: 1px solid #f3f4f6; }
+  html.dark .acct-row { border-top-color: rgba(255, 255, 255, 0.08); }
+  .acct-row .uid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 </style>
 </head>
 <body>
@@ -374,7 +422,7 @@
         <div class="nav-item" data-page="models" data-title="模型" data-desc="对外提供的模型列表和倍率"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/></svg>模型</div>
       </div>
     </nav>
-    <div class="sidebar-foot">内外壳都拿过来了。<br>数据和功能都还没接。</div>
+    <div class="sidebar-foot">已接 FC 网关。<br><span id="side-key-status">主密钥：未设置</span></div>
   </aside>
 
   <main>
@@ -383,13 +431,28 @@
 
     <!-- ===== 概览 ===== -->
     <section class="page active" id="page-overview">
+      <div class="panel" id="gw-panel">
+        <div class="row space">
+          <h3>网关连接</h3>
+          <span class="chip" id="gw-status">主密钥：未设置</span>
+        </div>
+        <p class="muted">网关地址：https://free-ll-gateway-ilghvenboz.cn-hangzhou.fcapp.run（阿里云 FC）<br>主密钥只存在你自己手机的浏览器里（localStorage），不会发给别人；不填只能看空壳。</p>
+        <div class="row" style="margin-top:10px">
+          <input class="input wide" type="password" id="gw-key" placeholder="粘贴主密钥（API_KEY）" autocomplete="off">
+          <button class="btn btn-primary" id="gw-save">保存密钥</button>
+          <button class="btn" id="gw-clear">清除</button>
+          <button class="btn" id="gw-test">测试连接</button>
+        </div>
+        <p class="muted" id="gw-msg" style="margin-top:8px"></p>
+      </div>
+
       <div class="cards">
-        <div class="mini-card"><div class="k">余额</div><div class="v">—</div></div>
-        <div class="mini-card"><div class="k">API 密钥</div><div class="v">—</div></div>
-        <div class="mini-card"><div class="k">今日请求</div><div class="v">—</div></div>
-        <div class="mini-card"><div class="k">今日消费</div><div class="v">—</div></div>
-        <div class="mini-card"><div class="k">累计 Token</div><div class="v">—</div></div>
-        <div class="mini-card"><div class="k">平均响应</div><div class="v">—</div></div>
+        <div class="mini-card"><div class="k">余额（上游积分）</div><div class="v" id="ov-balance">—</div></div>
+        <div class="mini-card"><div class="k">API 密钥</div><div class="v" id="ov-keys">—</div></div>
+        <div class="mini-card"><div class="k">今日请求</div><div class="v" id="ov-req">—</div></div>
+        <div class="mini-card"><div class="k">今日消费</div><div class="v" id="ov-cost">—</div></div>
+        <div class="mini-card"><div class="k">累计 Token</div><div class="v" id="ov-tokens">—</div></div>
+        <div class="mini-card"><div class="k">平均响应</div><div class="v" id="ov-avg">—</div></div>
       </div>
 
       <div class="panel">
@@ -403,85 +466,86 @@
           <span class="step">3 · 发一次请求</span>
         </div>
         <div class="row mb">
-          <button class="btn btn-primary">创建 API Key</button>
-          <button class="btn">隐藏引导</button>
+          <button class="btn btn-primary" id="ov-create-key">创建 API Key</button>
+          <button class="btn" id="ov-hide-guide">隐藏引导</button>
         </div>
-        <div class="code">curl $API_BASE/v1/chat/completions -H "Authorization: Bearer $YOUR_KEY" -d '{"model": "—"}'</div>
+        <div class="code" id="ov-curl">curl $API_BASE/v1/chat/completions -H "Authorization: Bearer $YOUR_KEY" -d '{"model": "—"}'</div>
       </div>
 
       <div class="grid2">
         <div class="panel">
           <h3>性能健康</h3>
           <div class="kv">
-            <div><div class="k">成功率</div><div class="v">—</div></div>
-            <div><div class="k">平均延迟</div><div class="v">—</div></div>
-            <div><div class="k">吞吐</div><div class="v">—</div></div>
+            <div><div class="k">成功率</div><div class="v" id="ov-rate">—</div></div>
+            <div><div class="k">平均延迟</div><div class="v" id="ov-lat">—</div></div>
+            <div><div class="k">吞吐</div><div class="v" id="ov-tps">—</div></div>
           </div>
-          <p class="muted" style="margin-top:10px">调用最多的模型：—</p>
+          <p class="muted" style="margin-top:10px" id="ov-top-model">调用最多的模型：—</p>
         </div>
         <div class="panel">
           <h3>API 信息</h3>
-          <p class="muted">网关地址：—<br>支持的协议：—</p>
+          <p class="muted" id="ov-apiinfo">网关地址：—<br>支持的协议：—</p>
         </div>
         <div class="panel">
           <h3>公告</h3>
-          <p class="muted">—</p>
+          <p class="muted">网关不提供公告。</p>
         </div>
         <div class="panel">
           <h3>运行状态</h3>
-          <p class="muted">—</p>
+          <p class="muted" id="ov-run">—</p>
         </div>
       </div>
     </section>
 
     <!-- ===== 仪表盘 ===== -->
     <section class="page" id="page-dashboard">
-      <div class="tabs">
-        <span class="tab active">概览</span>
-        <span class="tab">模型调用</span>
-        <span class="tab">流量</span>
-        <span class="tab">用户</span>
+      <p class="page-note" id="note-dashboard" hidden></p>
+      <div class="tabs" id="dash-tabs">
+        <span class="tab active" data-tab="overview">概览</span>
+        <span class="tab" data-tab="models">模型调用</span>
+        <span class="tab" data-tab="traffic">流量</span>
+        <span class="tab" data-tab="users">用户</span>
       </div>
       <div class="row space mb">
         <div class="row">
-          <span class="chip">最近 7 天</span>
+          <select class="select" id="dash-days" title="时间窗口"><option value="7" selected>最近 7 天</option><option value="1">今日</option><option value="30">最近 30 天</option><option value="0">全部</option></select>
           <span class="chip">粒度：天</span>
         </div>
         <div class="row">
-          <button class="btn">偏好设置</button>
-          <button class="btn">筛选</button>
+          <button class="btn" id="dash-prefs">偏好设置</button>
+          <button class="btn" id="dash-filter">筛选</button>
         </div>
       </div>
       <div class="cards">
-        <div class="mini-card"><div class="k">总数</div><div class="v">—</div></div>
-        <div class="mini-card"><div class="k">总额度</div><div class="v">—</div></div>
-        <div class="mini-card"><div class="k">总 Token</div><div class="v">—</div></div>
-        <div class="mini-card"><div class="k">缓存读</div><div class="v">—</div></div>
-        <div class="mini-card"><div class="k">缓存写</div><div class="v">—</div></div>
-        <div class="mini-card"><div class="k">平均 RPM</div><div class="v">—</div></div>
-        <div class="mini-card"><div class="k">平均 TPM</div><div class="v">—</div></div>
+        <div class="mini-card"><div class="k">总数</div><div class="v" id="db-total">—</div></div>
+        <div class="mini-card"><div class="k">总额度</div><div class="v" id="db-quota">—</div></div>
+        <div class="mini-card"><div class="k">总 Token</div><div class="v" id="db-tokens">—</div></div>
+        <div class="mini-card"><div class="k">缓存读</div><div class="v" id="db-cache-r">—</div></div>
+        <div class="mini-card"><div class="k">缓存写</div><div class="v" id="db-cache-w">—</div></div>
+        <div class="mini-card"><div class="k">平均 RPM</div><div class="v" id="db-rpm">—</div></div>
+        <div class="mini-card"><div class="k">平均 TPM</div><div class="v" id="db-tpm">—</div></div>
       </div>
       <div class="panel">
         <h3>性能健康</h3>
         <div class="kv">
-          <div><div class="k">成功率</div><div class="v">—</div></div>
-          <div><div class="k">平均延迟</div><div class="v">—</div></div>
-          <div><div class="k">吞吐</div><div class="v">—</div></div>
+          <div><div class="k">成功率</div><div class="v" id="db-rate">—</div></div>
+          <div><div class="k">平均延迟</div><div class="v" id="db-lat">—</div></div>
+          <div><div class="k">吞吐</div><div class="v" id="db-tps">—</div></div>
         </div>
       </div>
       <div class="panel">
         <div class="row space">
           <h3>额度分布</h3>
-          <div class="seg"><span class="on">柱状图</span><span>面积图</span></div>
+          <div class="seg" id="db-quota-seg"><span class="on" data-mode="bar">柱状图</span><span data-mode="area">面积图</span></div>
         </div>
-        <div class="chart">图表区 · 未接数据</div>
+        <div class="chart" id="db-quota-chart">图表区 · 未接数据</div>
       </div>
       <div class="panel">
         <div class="row space">
-          <h3>模型调用分析</h3>
-          <div class="seg"><span class="on">调用趋势</span><span>调用分布</span><span>调用排行</span></div>
+          <h3 id="db-model-title">模型调用分析</h3>
+          <div class="seg" id="db-model-seg"><span class="on" data-mode="trend">调用趋势</span><span data-mode="share">调用分布</span><span data-mode="rank">调用排行</span></div>
         </div>
-        <div class="chart">图表区 · 未接数据</div>
+        <div class="chart" id="db-model-chart">图表区 · 未接数据</div>
       </div>
     </section>
 
@@ -504,234 +568,204 @@
 
     <!-- ===== API 密钥 ===== -->
     <section class="page" id="page-keys">
+      <p class="page-note" id="note-keys" hidden></p>
       <div class="row space mb">
         <div></div>
         <div class="row">
-          <button class="btn">API 地址</button>
-          <button class="btn btn-primary">+ 创建 API Key</button>
+          <button class="btn" id="keys-apiaddr">API 地址</button>
+          <button class="btn btn-primary" id="keys-create">+ 创建 API Key</button>
         </div>
       </div>
       <div class="row mb">
-        <input class="input" placeholder="Filter by name…">
-        <input class="input" placeholder="Filter by API key…">
-        <select class="select"><option>状态：全部</option><option>启用</option><option>禁用</option></select>
+        <input class="input" id="keys-filter-name" placeholder="Filter by name…">
+        <input class="input" id="keys-filter-key" placeholder="Filter by API key…">
+        <select class="select" id="keys-filter-status"><option value="">状态：全部</option><option value="1">启用</option><option value="0">禁用</option></select>
       </div>
       <div class="tbl-wrap" style="border-radius:12px 12px 0 0">
         <table class="tbl">
           <thead><tr><th><input type="checkbox"></th><th>Name</th><th>Status</th><th>API Key</th><th>Quota</th><th>Group</th><th>Models</th><th>IP Restriction</th><th>Time</th><th>Expires</th><th>Actions</th></tr></thead>
-          <tbody>
-            <tr><td><input type="checkbox"></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>⋯</td></tr>
-            <tr><td><input type="checkbox"></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>⋯</td></tr>
-            <tr><td><input type="checkbox"></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>⋯</td></tr>
+          <tbody id="keys-tbody">
           </tbody>
         </table>
       </div>
-      <div class="pager"><span>Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager"><span id="keys-total">Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
     </section>
 
     <!-- ===== 使用日志 ===== -->
     <section class="page" id="page-usage">
+      <p class="page-note" id="note-usage" hidden></p>
       <div class="row space mb">
         <div></div>
-        <div class="seg"><span class="on">全部</span><span>仅我的</span></div>
+        <div class="seg" id="usage-scope"><span class="on" data-scope="all">全部</span><span data-scope="mine">仅我的</span></div>
       </div>
       <div class="panel">
         <div class="row mb">
-          <input class="input" type="datetime-local">
+          <input class="input" type="datetime-local" id="usage-from">
           <span style="color:#9ca3af">至</span>
-          <input class="input" type="datetime-local">
-          <input class="input" placeholder="Model Name">
+          <input class="input" type="datetime-local" id="usage-to">
+          <input class="input" placeholder="Model Name" id="usage-model">
           <select class="select"><option>分组：全部</option></select>
           <select class="select"><option>类型：全部</option></select>
-          <button class="btn">展开</button>
-          <button class="btn">👁</button>
-          <button class="btn">导出</button>
+          <button class="btn" id="usage-expand">展开</button>
+          <button class="btn" id="usage-eye">👁</button>
+          <button class="btn" id="usage-export">导出</button>
         </div>
         <div class="row space">
           <div class="row">
-            <span class="chip">用量 —</span>
-            <span class="chip">RPM —</span>
-            <span class="chip">TPM —</span>
+            <span class="chip" id="usage-tokens">用量 —</span>
+            <span class="chip" id="usage-rpm">RPM —</span>
+            <span class="chip" id="usage-tpm">TPM —</span>
           </div>
           <div class="row">
-            <button class="btn">重置</button>
-            <button class="btn btn-primary">搜索</button>
-            <button class="btn">列显示</button>
+            <button class="btn" id="usage-reset">重置</button>
+            <button class="btn btn-primary" id="usage-search">搜索</button>
+            <button class="btn" id="usage-cols">列显示</button>
           </div>
         </div>
       </div>
       <div class="tbl-wrap" style="border-radius:12px 12px 0 0">
         <table class="tbl">
           <thead><tr><th>Time</th><th>Channel</th><th>User</th><th>Token</th><th>Model</th><th>Stream</th><th>Tokens</th><th>Cost</th><th>Timing</th><th>Details</th></tr></thead>
-          <tbody>
-            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>详情</td></tr>
-            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>详情</td></tr>
-            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>详情</td></tr>
+          <tbody id="usage-tbody">
           </tbody>
         </table>
       </div>
-      <div class="pager"><span>Total 0</span><span>Rows per page</span><select class="select"><option>100</option><option>20</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager"><span id="usage-total">Total 0</span><span>Rows per page</span><select class="select"><option>100</option><option>20</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
     </section>
 
     <!-- ===== 审计日志 ===== -->
     <section class="page" id="page-audit">
+      <p class="page-note" id="note-audit" hidden></p>
       <div class="row space mb">
         <div></div>
-        <div class="seg"><span class="on">全部</span><span>仅我的</span></div>
+        <div class="seg" id="audit-scope"><span class="on" data-scope="all">全部</span><span data-scope="mine">仅我的</span></div>
       </div>
       <div class="panel">
         <div class="row mb">
-          <input class="input" type="datetime-local">
+          <input class="input" type="datetime-local" id="audit-from">
           <span style="color:#9ca3af">至</span>
-          <input class="input" type="datetime-local">
-          <select class="select"><option>结果：全部</option><option>成功</option><option>失败</option></select>
-          <select class="select"><option>分类：全部</option><option>登录</option><option>账号安全</option><option>操作审计</option><option>访问令牌</option></select>
-          <button class="btn">展开</button>
+          <input class="input" type="datetime-local" id="audit-to">
+          <select class="select" id="audit-result"><option value="">结果：全部</option><option value="ok">成功</option><option value="fail">失败</option></select>
+          <select class="select" id="audit-cat"><option value="">分类：全部</option><option value="login">登录</option><option value="security">账号安全</option><option value="ops">操作审计</option><option value="token">访问令牌</option></select>
+          <button class="btn" id="audit-expand">展开</button>
         </div>
         <div class="row" style="justify-content:flex-end">
-          <button class="btn">重置</button>
-          <button class="btn btn-primary">搜索</button>
-          <button class="btn">列显示</button>
+          <button class="btn" id="audit-reset">重置</button>
+          <button class="btn btn-primary" id="audit-search">搜索</button>
+          <button class="btn" id="audit-cols">列显示</button>
         </div>
       </div>
       <div class="tbl-wrap" style="border-radius:12px 12px 0 0">
         <table class="tbl">
           <thead><tr><th>Time</th><th>Username</th><th>Event</th><th>IP</th><th>Client</th><th>Method</th><th>Route</th><th>HTTP</th><th>Result</th><th>Details</th></tr></thead>
-          <tbody>
-            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>详情</td></tr>
-            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>详情</td></tr>
-            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>详情</td></tr>
+          <tbody id="audit-tbody">
           </tbody>
         </table>
       </div>
-      <div class="pager"><span>Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager"><span id="audit-total">Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
     </section>
 
     <!-- ===== 任务日志 ===== -->
     <section class="page" id="page-task">
+      <p class="page-note" id="note-task" hidden></p>
       <div class="row space mb">
         <div></div>
-        <div class="seg"><span class="on">全部</span><span>仅我的</span></div>
+        <div class="seg" id="task-scope"><span class="on" data-scope="all">全部</span><span data-scope="mine">仅我的</span></div>
       </div>
       <div class="tabs">
-        <span class="tab">Drawing Logs</span>
-        <span class="tab active">Task Logs</span>
+        <span class="tab" data-ttab="drawing">Drawing Logs</span>
+        <span class="tab active" data-ttab="task">Task Logs</span>
       </div>
       <div class="panel">
         <div class="row">
-          <input class="input" type="datetime-local">
+          <input class="input" type="datetime-local" id="task-from">
           <span style="color:#9ca3af">至</span>
-          <input class="input" type="datetime-local">
-          <input class="input" placeholder="Filter by task ID">
-          <input class="input" placeholder="Channel ID">
-          <button class="btn btn-primary">搜索</button>
-          <button class="btn">重置</button>
+          <input class="input" type="datetime-local" id="task-to">
+          <input class="input" placeholder="Filter by task ID" id="task-id">
+          <input class="input" placeholder="Channel ID" id="task-channel">
+          <button class="btn btn-primary" id="task-search">搜索</button>
+          <button class="btn" id="task-reset">重置</button>
         </div>
       </div>
       <div class="tbl-wrap" style="border-radius:12px 12px 0 0">
         <table class="tbl">
           <thead><tr><th>Submit Time</th><th>Channel</th><th>User</th><th>Plugin</th><th>Task ID</th><th>Duration</th><th>Status</th><th>Progress</th><th>Artifacts</th><th>Details</th></tr></thead>
-          <tbody>
-            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>查看详情</td></tr>
-            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>查看详情</td></tr>
-            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>查看详情</td></tr>
+          <tbody id="task-tbody">
           </tbody>
         </table>
       </div>
-      <div class="pager"><span>Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager"><span id="task-total">Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
     </section>
 
     <!-- ===== 渠道 ===== -->
     <section class="page" id="page-channels">
+      <p class="page-note" id="note-channels" hidden></p>
       <div class="row space mb">
-        <span class="chip">Max Retries: —</span>
+        <span class="chip" id="chan-retries">Max Retries: —</span>
         <div class="row">
-          <button class="btn">批量操作</button>
-          <button class="btn">标签模式</button>
-          <button class="btn">排序</button>
-          <button class="btn btn-primary">+ 创建渠道</button>
-          <button class="btn">⋯</button>
+          <button class="btn" id="chan-bulk">批量操作</button>
+          <button class="btn" id="chan-tags">标签模式</button>
+          <button class="btn" id="chan-sort">排序</button>
+          <button class="btn btn-primary" id="chan-create">+ 创建渠道</button>
+          <button class="btn" id="chan-more">⋯</button>
         </div>
       </div>
       <div class="row mb">
-        <input class="input wide" placeholder="Filter by name, ID, or key...">
-        <input class="input" placeholder="Filter by model...">
-        <select class="select"><option>状态：全部</option></select>
-        <select class="select"><option>类型：全部</option></select>
-        <select class="select"><option>分组：全部</option></select>
-        <button class="btn">👁</button>
-        <button class="btn">刷新</button>
-        <div class="seg"><span class="on">卡片</span><span>表格</span></div>
+        <input class="input wide" id="chan-filter-name" placeholder="Filter by name, ID, or key...">
+        <input class="input" id="chan-filter-model" placeholder="Filter by model...">
+        <select class="select" id="chan-filter-status"><option value="">状态：全部</option><option value="ok">正常</option><option value="off">已关闭</option></select>
+        <select class="select" id="chan-filter-type"><option value="">类型：全部</option></select>
+        <select class="select" id="chan-filter-group"><option value="">分组：全部</option></select>
+        <button class="btn" id="chan-eye">👁</button>
+        <button class="btn" id="chan-refresh">刷新</button>
+        <div class="seg" id="chan-view"><span class="on" data-view="card">卡片</span><span data-view="table">表格</span></div>
       </div>
-      <div class="chan-card">
-        <div class="row space">
-          <div class="row"><span class="chip blue">类型 · —</span><span class="chip green">状态 · —</span></div>
-          <button class="btn">⋯</button>
-        </div>
-        <div style="margin:10px 0 6px;font-weight:650">#— · 渠道名 —</div>
-        <div class="kv" style="gap:20px">
-          <div><div class="k">Priority</div><div class="v">—</div></div>
-          <div><div class="k">Weight</div><div class="v">—</div></div>
-          <div><div class="k">已用 / 剩余</div><div class="v">—</div></div>
-          <div><div class="k">响应</div><div class="v">—</div></div>
-          <div><div class="k">上次测试</div><div class="v">—</div></div>
-        </div>
-        <div class="row" style="margin-top:10px"><span class="chip">分组 · —</span></div>
-      </div>
-      <div class="chan-card">
-        <div class="row space">
-          <div class="row"><span class="chip blue">类型 · —</span><span class="chip green">状态 · —</span></div>
-          <button class="btn">⋯</button>
-        </div>
-        <div style="margin:10px 0 6px;font-weight:650">#— · 渠道名 —</div>
-        <div class="kv" style="gap:20px">
-          <div><div class="k">Priority</div><div class="v">—</div></div>
-          <div><div class="k">Weight</div><div class="v">—</div></div>
-          <div><div class="k">已用 / 剩余</div><div class="v">—</div></div>
-          <div><div class="k">响应</div><div class="v">—</div></div>
-          <div><div class="k">上次测试</div><div class="v">—</div></div>
-        </div>
-        <div class="row" style="margin-top:10px"><span class="chip">分组 · —</span></div>
-      </div>
-      <div class="pager" style="border:1px solid #e5e7eb;border-radius:12px"><span>Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div id="channels-list"></div>
+      <div class="pager" style="border:1px solid #e5e7eb;border-radius:12px"><span id="chan-total">Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
     </section>
 
     <!-- ===== 模型 ===== -->
     <section class="page" id="page-models">
-      <div class="tabs">
-        <span class="tab active">Models</span>
-        <span class="tab">Vendors</span>
-        <span class="tab">Deployments</span>
+      <p class="page-note" id="note-models" hidden></p>
+      <div class="tabs" id="models-tabs">
+        <span class="tab active" data-mtab="models">Models</span>
+        <span class="tab" data-mtab="vendors">Vendors</span>
+        <span class="tab" data-mtab="deploy">Deployments</span>
       </div>
       <div class="row space mb">
         <div></div>
         <div class="row">
-          <button class="btn">同步元数据</button>
-          <button class="btn">同步价格</button>
-          <button class="btn btn-primary">+ 添加模型</button>
-          <button class="btn">⋯</button>
+          <button class="btn" id="models-sync-meta">同步元数据</button>
+          <button class="btn" id="models-sync-price">同步价格</button>
+          <button class="btn btn-primary" id="models-add">+ 添加模型</button>
+          <button class="btn" id="models-more">⋯</button>
         </div>
       </div>
       <div class="row mb">
-        <input class="input wide" placeholder="Filter by model name...">
+        <input class="input wide" id="models-filter-name" placeholder="Filter by model name...">
         <select class="select"><option>展示策略：全部</option></select>
         <select class="select"><option>模型广场：全部</option></select>
-        <select class="select"><option>厂商：全部</option></select>
+        <select class="select" id="models-filter-vendor"><option value="">厂商：全部</option></select>
         <select class="select"><option>同步策略：全部</option></select>
       </div>
       <div class="tbl-wrap" style="border-radius:12px 12px 0 0">
         <table class="tbl">
           <thead><tr><th><input type="checkbox"></th><th>Model</th><th>Pricing</th><th>模型广场</th><th>渠道与分组</th><th>Tags</th><th>同步策略</th><th>Actions</th></tr></thead>
-          <tbody>
-            <tr><td><input type="checkbox"></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>⋯</td></tr>
-            <tr><td><input type="checkbox"></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>⋯</td></tr>
-            <tr><td><input type="checkbox"></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>⋯</td></tr>
+          <tbody id="models-tbody">
           </tbody>
         </table>
       </div>
-      <div class="pager"><span>Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager"><span id="models-total">Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
     </section>
   </main>
+</div>
+
+<!-- 通用弹窗（创建密钥 / 创建渠道 / 显示新建密钥） -->
+<div class="modal" id="modal" hidden>
+  <div class="modal-box">
+    <div class="row space"><h3 id="modal-title"></h3><button class="btn" id="modal-close">✕</button></div>
+    <div id="modal-body"></div>
+  </div>
 </div>
 
 <script>
@@ -757,6 +791,8 @@
     window.scrollTo(0, 0);
     var main = document.querySelector('main');
     if (main) { main.scrollTop = 0; }
+    // 切页时加载该页的数据（loadPage 在后面的脚本里定义；没定义好之前不报错）
+    if (typeof loadPage === 'function') { loadPage(item.dataset.page); }
   }
 
   items.forEach(function (item) {
@@ -793,6 +829,1061 @@
       setTheme(!document.documentElement.classList.contains('dark'));
     });
   }
+</script>
+<script>
+/* ===== 接 FC 网关：只调网关现成的接口，不新写接口、不改网关 ===== */
+var API_BASE = 'https://free-ll-gateway-ilghvenboz.cn-hangzhou.fcapp.run';
+/* 主密钥只存在本机 localStorage；与旧版 page工作台用同一个 key（同源共享），
+   用户在旧面板填过就不用再填。页面是公开的，密钥绝不能写进代码里。 */
+var KEY_STORE = 'wb_api_key';
+
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s === undefined || s === null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function fmtNum(n) { n = Number(n) || 0; return n.toLocaleString('en-US'); }
+function fmtTokens(n) {
+  n = Number(n) || 0;
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return String(n);
+}
+function fmtMs(n) { n = Number(n) || 0; return n >= 1000 ? (n / 1000).toFixed(2) + 's' : Math.round(n) + 'ms'; }
+function fmtDate(ts) {
+  if (!ts) return '—';
+  var d = new Date(Number(ts));
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+function fmtDateFull(ts) {
+  if (!ts) return '—';
+  var d = new Date(Number(ts));
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleString('zh-CN');
+}
+function setText(id, text) { var el = $(id); if (el) el.textContent = text; }
+function showNote(id, text) { var el = $(id); if (!el) return; el.textContent = text; el.hidden = false; }
+function hideNote(id) { var el = $(id); if (el) el.hidden = true; }
+
+/* 主密钥 */
+function masterKey() { try { return localStorage.getItem(KEY_STORE) || ''; } catch (e) { return ''; } }
+
+/* 统一请求封装：鉴权只认 Authorization 头；401 不抛错，返回 status 让调用方提示 */
+async function api(path, options, timeoutMs) {
+  var opts = Object.assign({}, options || {});
+  opts.headers = Object.assign({}, opts.headers || {}, { authorization: 'Bearer ' + masterKey() });
+  if (timeoutMs) {
+    try { opts.signal = AbortSignal.timeout(timeoutMs); } catch (e) {}
+  }
+  var res;
+  try { res = await fetch(API_BASE + path, opts); }
+  catch (e) { return { status: 0, ok: false, body: '网络错误：' + e.message }; }
+  var text = await res.text();
+  var body;
+  try { body = JSON.parse(text); } catch (e) { body = text; }
+  return { status: res.status, ok: res.ok, body: body };
+}
+
+/* 简单缓存：/v1/models 这类打上游的接口 5 分钟内不重复拉 */
+var __cache = {};
+function cachedApi(key, ttlMs, path) {
+  var now = Date.now();
+  var hit = __cache[key];
+  if (hit && now - hit.at < ttlMs) return Promise.resolve(hit.res);
+  return api(path).then(function (r) { if (r.ok) __cache[key] = { at: now, res: r }; return r; });
+}
+function dropCache(key) { delete __cache[key]; }
+
+/* 密钥状态 */
+function refreshKeyStatus() {
+  var has = masterKey() !== '';
+  setText('gw-status', has ? '主密钥：已设置' : '主密钥：未设置');
+  setText('side-key-status', has ? '主密钥：已设置' : '主密钥：未设置');
+  var input = $('gw-key');
+  if (input && !input.value) input.value = masterKey();
+}
+async function testConnection(msgEl) {
+  var r = await api('/admin/pool?realm=cn');
+  if (r.ok) {
+    setText('gw-status', '已连接 ✓');
+    if (msgEl) msgEl.textContent = '连接成功：密钥有效，网关能通。';
+    return true;
+  }
+  if (r.status === 401) {
+    setText('gw-status', '密钥无效');
+    if (msgEl) msgEl.textContent = '密钥无效：请检查主密钥是否填对（网关返回 401）。';
+  } else if (r.status === 0) {
+    setText('gw-status', '网络错误');
+    if (msgEl) msgEl.textContent = '网络错误：没连上网关（' + r.body + '），请检查网络后重试。';
+  } else {
+    setText('gw-status', '服务异常（HTTP ' + r.status + '）');
+    if (msgEl) msgEl.textContent = '网关返回 HTTP ' + r.status + '，请稍后重试。';
+  }
+  return false;
+}
+
+/* 通用弹窗 */
+function openModal(title, bodyHtml) {
+  $('modal-title').textContent = title;
+  $('modal-body').innerHTML = bodyHtml;
+  $('modal').hidden = false;
+}
+function closeModal() { $('modal').hidden = true; }
+$('modal-close').addEventListener('click', closeModal);
+$('modal').addEventListener('click', function (e) { if (e.target === $('modal')) closeModal(); });
+function copyText(text, btn) {
+  function done() { if (btn) { var t = btn.textContent; btn.textContent = '已复制'; setTimeout(function () { btn.textContent = t; }, 1500); } }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, function () { window.prompt('复制：', text); });
+  } else { window.prompt('复制：', text); }
+}
+
+/* 条形图：把 [{label, value}] 画成横条；value 为空时显示“暂无数据” */
+function renderBars(el, items, valueFmt) {
+  if (!el) return;
+  var rows = (items || []).filter(function (x) { return (Number(x.value) || 0) > 0; }).slice(0, 8);
+  if (rows.length === 0) { el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af">暂无数据</div>'; return; }
+  var max = Math.max.apply(null, rows.map(function (x) { return Number(x.value) || 0; }));
+  el.style.height = 'auto';
+  el.style.display = 'block';
+  el.style.textAlign = 'left';
+  el.innerHTML = rows.map(function (x) {
+    var v = Number(x.value) || 0;
+    var pct = max > 0 ? Math.max(2, Math.round(v / max * 100)) : 0;
+    return '<div class="bar-row"><span class="bar-label" title="' + esc(x.label) + '">' + esc(x.label) + '</span>' +
+      '<span class="bar-track"><span class="bar-fill" style="display:block;width:' + pct + '%"></span></span>' +
+      '<span class="bar-val">' + esc(valueFmt ? valueFmt(v) : fmtNum(v)) + '</span></div>';
+  }).join('');
+}
+/* ===== 概览 ===== */
+var dashTab = 'overview';
+var dashMode = 'trend';
+var dashQuotaMode = 'bar';
+
+async function loadOverview() {
+  if (!masterKey()) {
+    setText('gw-msg', '请先在上面粘贴主密钥并点「保存密钥」，数据才能从网关取回来。');
+    return;
+  }
+  var u1 = api('/admin/usage?days=1');
+  var u0 = api('/admin/usage?days=0');
+  var cr = api('/v1/credits?realm=cn');
+  var kr = api('/admin/apikeys');
+  var mr = cachedApi('models', 300000, '/v1/models');
+  var hz = fetch(API_BASE + '/healthz').then(function (r) { return r.ok; }).catch(function () { return false; });
+  var gq = api('/admin/doubao/gen-quota');
+  var r1 = await u1, r0 = await u0, rc = await cr, rk = await kr, rm = await mr, ok = await hz, rg = await gq;
+  /* 余额：上游积分合计（/v1/credits 的 total_available） */
+  if (rc.ok && rc.body) setText('ov-balance', fmtNum(rc.body.total_available));
+  /* API 密钥数 */
+  if (rk.ok && rk.body) setText('ov-keys', fmtNum((rk.body.keys || []).length));
+  /* 今日请求 / 平均响应 */
+  if (r1.ok && r1.body) {
+    setText('ov-req', fmtNum(r1.body.total));
+    setText('ov-avg', fmtMs(r1.body.avgMs));
+    setText('ov-rate', r1.body.total > 0 ? (r1.body.ok / r1.body.total * 100).toFixed(1) + '%' : '—');
+    setText('ov-lat', fmtMs(r1.body.avgMs));
+    setText('ov-tps', fmtNum(r1.body.total) + ' 次/今日');
+    var top = (r1.body.byModel || [])[0];
+    setText('ov-top-model', top ? '调用最多的模型：' + top.model + '（' + fmtNum(top.count) + ' 次）' : '调用最多的模型：—');
+  }
+  /* 今日消费：网关不记金额（用量里只有请求数和 token），如实留空 */
+  /* 累计 Token */
+  if (r0.ok && r0.body) setText('ov-tokens', fmtTokens((r0.body.inputTokens || 0) + (r0.body.outputTokens || 0)));
+  /* API 信息 + curl 预览 */
+  setText('ov-apiinfo', '网关地址：' + API_BASE + '\n支持的协议：OpenAI 兼容 · Anthropic · Responses · 生图 · 生视频 · TTS/STT');
+  if (rm.ok && rm.body && (rm.body.data || []).length > 0) {
+    var first = rm.body.data[0].id;
+    var code = $('ov-curl');
+    if (code) code.textContent = 'curl ' + API_BASE + '/v1/chat/completions -H "Authorization: Bearer $YOUR_KEY" -d \'{"model": "' + first + '"}\'';
+  }
+  /* 运行状态 */
+  var run = ok ? '运行中' : '连不上网关';
+  if (rg.ok && rg.body) {
+    var usedImg = 0, usedVid = 0;
+    (rg.body.accounts || []).forEach(function (a) { usedImg += a.imagesUsed || 0; usedVid += a.videosUsed || 0; });
+    run += ' · 豆包今日：生图 ' + usedImg + '/' + (rg.body.imagesLimit || 50) + ' · 生视频 ' + usedVid + '/' + (rg.body.videosLimit || 10);
+  }
+  setText('ov-run', run);
+  /* 401 时提示密钥无效 */
+  if (rc.status === 401 || rk.status === 401 || r1.status === 401) {
+    setText('gw-msg', '密钥无效：网关返回 401，请检查主密钥是否填对。');
+    setText('gw-status', '密钥无效');
+  } else {
+    var tag = document.querySelector('#page-overview .tagline');
+    if (tag) tag.textContent = '已接 FC 网关';
+  }
+}
+
+/* ===== 仪表盘 ===== */
+function windowMinutes(days, summary) {
+  if (days > 0) return days * 24 * 60;
+  var d = (summary && summary.activeDays) || 0;
+  return d > 0 ? d * 24 * 60 : 0;
+}
+async function loadDashboard() {
+  if (!masterKey()) return;
+  var days = Number(($('dash-days') || {}).value || 7);
+  var r = await api('/admin/usage?days=' + days);
+  var rc = await api('/v1/credits?realm=cn');
+  if (!r.ok || !r.body) {
+    if (r.status === 401) showNote('note-dashboard', '密钥无效：网关返回 401。');
+    return;
+  }
+  var b = r.body;
+  var mins = windowMinutes(days, b);
+  setText('db-total', fmtNum(b.total));
+  /* 总额度：网关不记金额，如实留空；缓存读/写：网关没有缓存统计，如实留空 */
+  setText('db-tokens', fmtTokens((b.inputTokens || 0) + (b.outputTokens || 0)));
+  setText('db-rpm', mins > 0 ? (b.total / mins).toFixed(2) : '—');
+  setText('db-tpm', mins > 0 ? (((b.inputTokens || 0) + (b.outputTokens || 0)) / mins).toFixed(1) : '—');
+  setText('db-rate', b.total > 0 ? (b.ok / b.total * 100).toFixed(1) + '%' : '—');
+  setText('db-lat', fmtMs(b.avgMs));
+  setText('db-tps', fmtNum(b.total) + ' 次');
+  /* 额度分布：上游各账号剩余积分（面积图切到按供应商汇总） */
+  if (rc.ok && rc.body && Array.isArray(rc.body.accounts)) {
+    var balRows = rc.body.accounts
+      .filter(function (a) { return typeof a.total === 'number'; })
+      .map(function (a) { return { label: (a.nickname || a.uid || '') + '（' + (a.provider || '') + '）', value: a.total, provider: a.provider || '' }; })
+      .sort(function (x, y) { return y.value - x.value; });
+    if (dashQuotaMode === 'area') {
+      var byProv = {};
+      balRows.forEach(function (r) { byProv[r.provider] = (byProv[r.provider] || 0) + r.value; });
+      balRows = Object.keys(byProv).map(function (k) { return { label: k, value: byProv[k] }; })
+        .sort(function (x, y) { return y.value - x.value; });
+    }
+    renderBars($('db-quota-chart'), balRows, fmtNum);
+  }
+  renderDashModel(b);
+}
+function renderDashModel(b) {
+  var title = $('db-model-title');
+  var el = $('db-model-chart');
+  if (!b) { if (el) el.textContent = '图表区 · 未接数据'; return; }
+  if (dashTab === 'overview') {
+    if (title) title.textContent = '模型调用分析 · 按天趋势';
+    var byDay = (b.byDay || []).slice().reverse();
+    if (dashMode === 'share') {
+      var total = byDay.reduce(function (s, d) { return s + (d.count || 0); }, 0);
+      renderBars(el, byDay.map(function (d) { return { label: d.day || d.date || '', value: d.count || 0 }; }),
+        function (v) { return total > 0 ? (v / total * 100).toFixed(1) + '%' : '0%'; });
+    } else if (dashMode === 'rank') {
+      renderBars(el, byDay.map(function (d, i) { return { label: (i + 1) + ' · ' + (d.day || d.date || ''), value: d.count || 0 }; }), fmtNum);
+    } else {
+      renderBars(el, byDay.map(function (d) { return { label: d.day || d.date || '', value: d.count || 0 }; }), fmtNum);
+    }
+  } else if (dashTab === 'models') {
+    if (title) title.textContent = '模型调用分析 · 按模型';
+    renderBars(el, (b.byModel || []).map(function (m) { return { label: m.model, value: m.count }; }), fmtNum);
+  } else if (dashTab === 'traffic') {
+    if (title) title.textContent = '模型调用分析 · 按小时（仅今日窗口有意义）';
+    renderBars(el, (b.byHour || []).map(function (h) { return { label: h.hour + '时', value: h.count }; }), fmtNum);
+  } else {
+    if (title) title.textContent = '模型调用分析 · 按账号';
+    renderBars(el, (b.byAccount || []).map(function (a) { return { label: a.uid, value: a.count }; }), fmtNum);
+  }
+}
+
+/* ===== API 密钥 ===== */
+var keysCache = [];
+function keyQuotaText(k) {
+  var lim = k.limits || {}, u = k.usage || {};
+  var parts = [];
+  if (lim.maxRequests > 0) parts.push('请求 ' + fmtNum(u.requests || 0) + '/' + fmtNum(lim.maxRequests));
+  else parts.push('请求 ' + fmtNum(u.requests || 0) + '/不限');
+  if (lim.maxTokens > 0) parts.push('Token ' + fmtTokens((u.inputTokens || 0) + (u.outputTokens || 0)) + '/' + fmtTokens(lim.maxTokens));
+  return parts.join(' · ');
+}
+function renderKeys() {
+  var tb = $('keys-tbody');
+  if (!tb) return;
+  var nameF = (($('keys-filter-name') || {}).value || '').trim();
+  var keyF = (($('keys-filter-key') || {}).value || '').trim();
+  var stF = (($('keys-filter-status') || {}).value || '');
+  var rows = keysCache.filter(function (k) {
+    if (nameF && (k.name || '').indexOf(nameF) === -1) return false;
+    if (keyF && (k.prefix || '').indexOf(keyF) === -1) return false;
+    if (stF === '1' && !k.enabled) return false;
+    if (stF === '0' && k.enabled) return false;
+    return true;
+  });
+  if (rows.length === 0) {
+    tb.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#9ca3af">没有符合条件的密钥</td></tr>';
+  } else {
+    tb.innerHTML = rows.map(function (k) {
+      var lim = k.limits || {};
+      return '<tr><td><input type="checkbox"></td>' +
+        '<td>' + esc(k.name) + '</td>' +
+        '<td>' + (k.enabled ? '<span class="chip green">启用</span>' : '<span class="chip">禁用</span>') + '</td>' +
+        '<td style="font-family:ui-monospace,Menlo,monospace">' + esc(k.prefix || '') + '…</td>' +
+        '<td>' + esc(keyQuotaText(k)) + '</td>' +
+        '<td>' + esc((lim.group || '') === '' ? '—' : lim.group) + '</td>' +
+        '<td>' + esc((lim.models || []).length === 0 ? '全部' : lim.models.join(', ')) + '</td>' +
+        '<td>' + esc((lim.allowedIps || []).length === 0 ? '全部' : lim.allowedIps.join(', ')) + '</td>' +
+        '<td>' + esc(fmtDateFull(k.createdAt)) + '</td>' +
+        '<td>' + esc(lim.expiresAt > 0 ? fmtDateFull(lim.expiresAt) : '永不过期') + '</td>' +
+        '<td><button class="mini-btn" data-act="toggle" data-id="' + esc(k.id) + '">' + (k.enabled ? '停用' : '启用') + '</button>' +
+        '<button class="mini-btn" data-act="reset-usage" data-id="' + esc(k.id) + '">清用量</button>' +
+        '<button class="mini-btn" data-act="reset-key" data-id="' + esc(k.id) + '">重置密钥</button>' +
+        '<button class="mini-btn danger" data-act="remove" data-id="' + esc(k.id) + '">删除</button></td></tr>';
+    }).join('');
+  }
+  setText('keys-total', 'Total ' + rows.length);
+  tb.querySelectorAll('[data-act]').forEach(function (btn) {
+    btn.addEventListener('click', function () { keyAction(btn.dataset.act, btn.dataset.id); });
+  });
+}
+async function loadKeys() {
+  if (!masterKey()) { showNote('note-keys', '请先在「概览」页设置主密钥，才能查看和管理 API 密钥。'); return; }
+  hideNote('note-keys');
+  var r = await api('/admin/apikeys');
+  if (!r.ok) {
+    showNote('note-keys', r.status === 401 ? '密钥无效：网关返回 401。' : '加载失败（HTTP ' + r.status + '）。');
+    return;
+  }
+  keysCache = (r.body && r.body.keys) || [];
+  renderKeys();
+}
+async function keyAction(act, id) {
+  var k = keysCache.find(function (x) { return x.id === id; });
+  if (!k) return;
+  var r;
+  if (act === 'toggle') {
+    r = await api('/admin/apikeys/update', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: id, enabled: !k.enabled }) });
+    if (!r.ok) { alert('操作失败：' + JSON.stringify(r.body)); return; }
+    loadKeys();
+  } else if (act === 'reset-usage') {
+    r = await api('/admin/apikeys/reset-usage', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: id }) });
+    if (!r.ok) { alert('操作失败：' + JSON.stringify(r.body)); return; }
+    loadKeys();
+  } else if (act === 'reset-key') {
+    if (!confirm('重置后旧密钥立刻失效，且不可恢复。确定重置「' + k.name + '」吗？')) return;
+    r = await api('/admin/apikeys/reset', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: id }) });
+    if (!r.ok || !r.body || !r.body.key) { alert('重置失败：' + JSON.stringify(r.body)); return; }
+    openModal('新密钥（只显示这一次，请立即复制）',
+      '<div class="key-out">' + esc(r.body.key) + '</div>' +
+      '<div class="row"><button class="btn btn-primary" id="mk-copy">复制密钥</button><button class="btn" id="mk-done">知道了</button></div>');
+    $('mk-copy').addEventListener('click', function (e) { copyText(r.body.key, e.target); });
+    $('mk-done').addEventListener('click', closeModal);
+    loadKeys();
+  } else if (act === 'remove') {
+    if (!confirm('删除「' + k.name + '」后不可恢复。确定删除吗？')) return;
+    r = await api('/admin/apikeys/remove', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: id }) });
+    if (!r.ok) { alert('删除失败：' + JSON.stringify(r.body)); return; }
+    loadKeys();
+  }
+}
+function openCreateKey() {
+  if (!masterKey()) { alert('请先在「概览」页设置主密钥。'); return; }
+  openModal('创建 API Key',
+    '<div class="field"><label>名称</label><input class="input" id="ck-name" placeholder="比如：给小爱用" value="未命名"></div>' +
+    '<div class="field"><label>请求上限（0 = 不限）</label><input class="input" id="ck-req" type="number" min="0" value="0"></div>' +
+    '<div class="field"><label>Token 上限（0 = 不限）</label><input class="input" id="ck-tok" type="number" min="0" value="0"></div>' +
+    '<div class="field"><label>窗口（小时，默认 24，0 = 不重置）</label><input class="input" id="ck-win" type="number" min="0" value="24"></div>' +
+    '<div class="field"><label>允许的模型（逗号分隔，空 = 全部）</label><input class="input" id="ck-models" placeholder="buddy/glm-5.3-flash, openai/gpt-5"></div>' +
+    '<div class="field"><label>有效期（天，空 = 永不过期）</label><input class="input" id="ck-days" type="number" min="0" placeholder="留空永不过期"></div>' +
+    '<div class="row"><button class="btn btn-primary" id="ck-submit">创建</button><button class="btn" id="ck-cancel">取消</button></div>' +
+    '<p class="muted" id="ck-msg" style="margin-top:8px"></p>');
+  $('ck-cancel').addEventListener('click', closeModal);
+  $('ck-submit').addEventListener('click', async function () {
+    var days = Number(($('ck-days').value || '') || 0);
+    var limits = {
+      maxRequests: Number($('ck-req').value || 0),
+      maxTokens: Number($('ck-tok').value || 0),
+      windowHours: Number($('ck-win').value || 24),
+      models: ($('ck-models').value || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean),
+      allowedIps: [],
+      expiresAt: days > 0 ? Date.now() + days * 86400000 : 0,
+      group: '',
+      rateLimitPerMin: 0,
+    };
+    var r = await api('/admin/apikeys', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: ($('ck-name').value || '未命名').trim(), limits: limits }) });
+    if (!r.ok || !r.body || !r.body.key) {
+      $('ck-msg').textContent = '创建失败：' + JSON.stringify(r.body);
+      return;
+    }
+    openModal('新密钥（只显示这一次，请立即复制）',
+      '<div class="key-out">' + esc(r.body.key) + '</div>' +
+      '<div class="row"><button class="btn btn-primary" id="mk-copy">复制密钥</button><button class="btn" id="mk-done">知道了</button></div>');
+    $('mk-copy').addEventListener('click', function (e) { copyText(r.body.key, e.target); });
+    $('mk-done').addEventListener('click', closeModal);
+    loadKeys();
+  });
+}
+/* ===== 使用日志 ===== */
+var lastUsage = null;
+function usageWindowDays() {
+  var from = ($('usage-from') || {}).value, to = ($('usage-to') || {}).value;
+  if (from && to) {
+    var ms = new Date(to).getTime() - new Date(from).getTime();
+    if (ms > 0) {
+      var d = Math.ceil(ms / 86400000);
+      if (d <= 1) return 1;
+      if (d <= 7) return 7;
+      if (d <= 30) return 30;
+      return 0;
+    }
+  }
+  return 7;
+}
+function usageMinutes(days, b) {
+  if (days > 0) return days * 24 * 60;
+  var d = (b && b.activeDays) || 0;
+  return d > 0 ? d * 24 * 60 : 0;
+}
+async function loadUsage() {
+  if (!masterKey()) { showNote('note-usage', '请先在「概览」页设置主密钥，才能查看用量。'); return; }
+  var days = usageWindowDays();
+  var r = await api('/admin/usage?days=' + days);
+  if (!r.ok || !r.body) {
+    showNote('note-usage', r.status === 401 ? '密钥无效：网关返回 401。' : '加载失败（HTTP ' + r.status + '）。');
+    return;
+  }
+  lastUsage = r.body;
+  var b = r.body;
+  var mins = usageMinutes(days, b);
+  var tokens = (b.inputTokens || 0) + (b.outputTokens || 0);
+  setText('usage-tokens', '用量 ' + fmtTokens(tokens));
+  setText('usage-rpm', 'RPM ' + (mins > 0 ? (b.total / mins).toFixed(2) : '—'));
+  setText('usage-tpm', 'TPM ' + (mins > 0 ? (tokens / mins).toFixed(1) : '—'));
+  showNote('note-usage', '网关只保留聚合用量，没有逐条调用明细；下面是按模型汇总（窗口：' + (days === 0 ? '全部' : days + ' 天') + '）。');
+  renderUsageRows();
+}
+function renderUsageRows() {
+  var tb = $('usage-tbody');
+  if (!tb || !lastUsage) return;
+  var mf = (($('usage-model') || {}).value || '').trim();
+  var rows = (lastUsage.byModel || []).filter(function (m) { return !mf || m.model.indexOf(mf) !== -1; });
+  if (rows.length === 0) {
+    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#9ca3af">该窗口内暂无用量记录</td></tr>';
+  } else {
+    tb.innerHTML = rows.map(function (m) {
+      return '<tr><td>—</td><td>—</td><td>—</td><td>—</td><td>' + esc(m.model) + '</td><td>—</td>' +
+        '<td>' + fmtNum((m.input || 0) + (m.output || 0)) + '</td><td>—</td><td>—</td>' +
+        '<td>失败 ' + fmtNum(m.failed || 0) + ' 次 / 共 ' + fmtNum(m.count || 0) + ' 次</td></tr>';
+    }).join('');
+  }
+  setText('usage-total', 'Total ' + rows.length);
+}
+function exportUsageCsv() {
+  if (!lastUsage) { alert('还没有用量数据，先点搜索。'); return; }
+  var lines = ['model,count,input,output,failed'];
+  (lastUsage.byModel || []).forEach(function (m) {
+    lines.push([m.model, m.count, m.input, m.output, m.failed].join(','));
+  });
+  var blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'usage.csv';
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+}
+
+/* ===== 审计日志 ===== */
+var auditCache = [];
+function auditResultOf(kind) {
+  if (kind === 'auto_ban') return '停用';
+  if (kind === 'rate_limited') return '限速';
+  return '记录';
+}
+function renderAuditRows() {
+  var tb = $('audit-tbody');
+  if (!tb) return;
+  var resF = ($('audit-result') || {}).value || '';
+  var catF = ($('audit-cat') || {}).value || '';
+  var from = ($('audit-from') || {}).value, to = ($('audit-to') || {}).value;
+  var fromMs = from ? new Date(from).getTime() : 0;
+  var toMs = to ? new Date(to).getTime() : 0;
+  var rows = auditCache.filter(function (l) {
+    var kind = String(l.kind || '');
+    if (resF === 'ok' && (kind === 'auto_ban' || kind === 'rate_limited')) return false;
+    if (resF === 'fail' && kind !== 'auto_ban' && kind !== 'rate_limited') return false;
+    if (catF === 'login' && kind.indexOf('login') === -1) return false;
+    if (catF === 'security' && kind !== 'auto_ban') return false;
+    if (catF === 'ops' && kind !== 'rate_limited') return false;
+    if (catF === 'token' && kind !== 'rate_limited') return false;
+    var at = Number(l.at) || 0;
+    if (fromMs && at < fromMs) return false;
+    if (toMs && at > toMs) return false;
+    return true;
+  });
+  if (rows.length === 0) {
+    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#9ca3af">没有符合条件的日志</td></tr>';
+  } else {
+    tb.innerHTML = rows.map(function (l) {
+      return '<tr><td>' + esc(fmtDateFull(l.at)) + '</td><td>—</td><td>' + esc(l.kind || '—') + '</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>' +
+        '<td>' + esc(auditResultOf(String(l.kind || ''))) + '</td>' +
+        '<td title="' + esc(l.message || '') + '">' + esc(String(l.message || '—').slice(0, 60)) + '</td></tr>';
+    }).join('');
+  }
+  setText('audit-total', 'Total ' + rows.length);
+}
+async function loadAudit() {
+  if (!masterKey()) { showNote('note-audit', '请先在「概览」页设置主密钥，才能查看日志。'); return; }
+  var r = await api('/admin/logs?realm=cn&limit=100');
+  if (!r.ok || !r.body) {
+    showNote('note-audit', r.status === 401 ? '密钥无效：网关返回 401。' : '加载失败（HTTP ' + r.status + '）。');
+    return;
+  }
+  auditCache = (r.body.logs || []);
+  showNote('note-audit', '网关只记录限速、自动停用这类运维事件（最近 200 条），不是全量审计；用户名、IP 这些字段网关没记。');
+  renderAuditRows();
+}
+
+/* ===== 任务日志 ===== */
+async function lookupTask(id) {
+  var eps = [
+    { url: '/v1/images/tasks/', plugin: 'MJ 生图' },
+    { url: '/v1/videos/', plugin: '生视频' },
+    { url: '/v1/audio/music/', plugin: 'Suno 音乐' },
+  ];
+  for (var i = 0; i < eps.length; i++) {
+    var r = await api(eps[i].url + encodeURIComponent(id));
+    if (r.ok && r.body && typeof r.body === 'object') return { plugin: eps[i].plugin, body: r.body };
+  }
+  return null;
+}
+async function loadTask() {
+  var id = (($('task-id') || {}).value || '').trim();
+  var tb = $('task-tbody');
+  if (!masterKey()) { showNote('note-task', '请先在「概览」页设置主密钥，才能查任务。'); return; }
+  if (!id) {
+    showNote('note-task', '网关没有任务列表接口，只能按 Task ID 查单个任务；在上面填 Task ID 再点搜索。');
+    if (tb) tb.innerHTML = '';
+    setText('task-total', 'Total 0');
+    return;
+  }
+  hideNote('note-task');
+  if (tb) tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#9ca3af">查询中…</td></tr>';
+  var found = await lookupTask(id);
+  if (!found) {
+    showNote('note-task', '没找到 Task ID 为「' + id + '」的任务（三个任务接口都查过了；任务记录只保留 24 小时）。');
+    if (tb) tb.innerHTML = '';
+    setText('task-total', 'Total 0');
+    return;
+  }
+  var b = found.body;
+  var art = b.image_url || b.audio_url || b.video_url || b.url || '—';
+  if (tb) {
+    tb.innerHTML = '<tr><td>—</td><td>—</td><td>—</td><td>' + esc(found.plugin) + '</td>' +
+      '<td style="font-family:ui-monospace,Menlo,monospace">' + esc(b.task_id || b.id || id) + '</td><td>—</td>' +
+      '<td>' + esc(b.status || '—') + '</td><td>' + esc(b.progress !== undefined ? b.progress : '—') + '</td>' +
+      '<td>' + (art === '—' ? '—' : '<a href="' + esc(art) + '" target="_blank" rel="noopener">打开</a>') + '</td>' +
+      '<td title="' + esc(JSON.stringify(b)) + '">' + esc(b.error || '—') + '</td></tr>';
+  }
+  setText('task-total', 'Total 1');
+}
+
+/* ===== 渠道 ===== */
+var chanProviders = [], chanAccounts = [], chanOps = {}, chanModels = [];
+var chanOrder = [], chanDisabled = [];
+var chanHealth = {}, chanHealthAt = 0;
+var chanSort = 'default', chanView = 'card';
+var KEY_PROVIDERS = {
+  'openai': { label: 'OpenAI', base: 'https://api.openai.com/v1', baseRequired: false, hint: '去 platform.openai.com 建 API Key', ph: 'sk-...' },
+  'deepseek': { label: 'DeepSeek', base: 'https://api.deepseek.com/v1', baseRequired: false, hint: '去 platform.deepseek.com 建 API Key', ph: 'sk-...' },
+  'gemini-api': { label: 'Gemini（AI Studio）', base: 'https://generativelanguage.googleapis.com/v1beta/openai', baseRequired: false, hint: '去 Google AI Studio 建 API Key', ph: 'AIza...' },
+  'claude': { label: 'Claude', base: 'https://api.anthropic.com', baseRequired: false, hint: '去 console.anthropic.com 建 API Key', ph: 'sk-ant-...' },
+  'midjourney': { label: 'Midjourney（第三方中转）', base: '', baseRequired: true, hint: 'MJ 没有官方 API，去第三方中转复制地址 + KEY', ph: '中转站给你的 KEY' },
+  'suno': { label: 'Suno（第三方中转）', base: '', baseRequired: true, hint: 'Suno 没有官方开放 API，去第三方中转复制地址 + KEY', ph: '中转站给你的 KEY' },
+  'openai-compatible': { label: 'OpenAI 兼容上游', base: '', baseRequired: true, hint: '填别家中转站 / 兼容上游的地址 + KEY', ph: '上游给你的 KEY' },
+};
+async function loadChannels() {
+  if (!masterKey()) { showNote('note-channels', '请先在「概览」页设置主密钥，才能查看渠道。'); return; }
+  hideNote('note-channels');
+  var rp = api('/admin/providers');
+  var ac = api('/admin/accounts?realm=cn');
+  var ag = api('/admin/accounts?realm=global');
+  var op = api('/admin/ops/config');
+  var cr = api('/v1/credits?realm=cn');
+  var mr = cachedApi('models', 300000, '/v1/models');
+  var r1 = await rp, r2 = await ac, r3 = await ag, r4 = await op, r5 = await cr, r6 = await mr;
+  if (r1.ok && r1.body) {
+    chanProviders = r1.body.providers || [];
+    chanOrder = Array.isArray(r1.body.order) ? r1.body.order : [];
+    chanDisabled = Array.isArray(r1.body.disabled) ? r1.body.disabled : [];
+  }
+  chanAccounts = [];
+  if (r2.ok && r2.body) (r2.body.accounts || []).forEach(function (a) { a._realm = 'cn'; chanAccounts.push(a); });
+  if (r3.ok && r3.body) (r3.body.accounts || []).forEach(function (a) { a._realm = 'global'; chanAccounts.push(a); });
+  if (r4.ok && r4.body) chanOps = r4.body.config || {};
+  var creditsByProvider = {};
+  if (r5.ok && r5.body && Array.isArray(r5.body.accounts)) {
+    r5.body.accounts.forEach(function (a) {
+      if (typeof a.total === 'number') creditsByProvider[a.provider || 'buddy'] = (creditsByProvider[a.provider || 'buddy'] || 0) + a.total;
+    });
+  }
+  chanModels = (r6.ok && r6.body) ? (r6.body.data || []) : [];
+  chanProviders.forEach(function (p) { p._credits = creditsByProvider[p.id]; });
+  /* 类型下拉 + 分组下拉 */
+  var typeSel = $('chan-filter-type');
+  if (typeSel) {
+    var cur = typeSel.value;
+    typeSel.innerHTML = '<option value="">类型：全部</option>' + chanProviders.map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.name || p.id) + '</option>'; }).join('');
+    typeSel.value = cur;
+  }
+  var groupSel = $('chan-filter-group');
+  if (groupSel) {
+    var curG = groupSel.value;
+    var gset = {};
+    Object.keys((chanOps.channelGroups || {})).forEach(function (k) { gset[chanOps.channelGroups[k]] = true; });
+    var gnames = Object.keys(gset);
+    groupSel.innerHTML = '<option value="">分组：全部</option><option value="默认">默认</option>' + gnames.map(function (g) { return '<option value="' + esc(g) + '">' + esc(g) + '</option>'; }).join('');
+    groupSel.value = curG;
+  }
+  setText('chan-retries', 'Max Retries: —（网关失败只重试 1 次，无此配置）');
+  renderChannels();
+}
+function chanAccountsOf(pid) { return chanAccounts.filter(function (a) { return (a.provider || 'buddy') === pid; }); }
+function renderChannels() {
+  var box = $('channels-list');
+  if (!box) return;
+  var nameF = (($('chan-filter-name') || {}).value || '').trim();
+  var modelF = (($('chan-filter-model') || {}).value || '').trim();
+  var stF = (($('chan-filter-status') || {}).value || '');
+  var typeF = (($('chan-filter-type') || {}).value || '');
+  var groupF = (($('chan-filter-group') || {}).value || '');
+  var weights = chanOps.channelWeights || {};
+  var groups = chanOps.channelGroups || {};
+  var list = chanProviders.slice();
+  if (chanOrder.length > 0) {
+    var seen = {};
+    var ordered = [];
+    chanOrder.forEach(function (id) { var p = list.find(function (x) { return x.id === id; }); if (p) { ordered.push(p); seen[id] = true; } });
+    list.forEach(function (p) { if (!seen[p.id]) ordered.push(p); });
+    list = ordered;
+  }
+  list = list.filter(function (p) {
+    if (nameF && (p.name || '').indexOf(nameF) === -1 && p.id.indexOf(nameF) === -1) return false;
+    if (typeF && p.id !== typeF) return false;
+    var off = chanDisabled.indexOf(p.id) !== -1;
+    if (stF === 'ok' && off) return false;
+    if (stF === 'off' && !off) return false;
+    if (groupF && (groups[p.id] || '默认') !== groupF) return false;
+    if (modelF) {
+      var has = chanModels.some(function (m) { return String(m.id || '').indexOf('' + p.id + '/') === 0 && String(m.id || '').indexOf(modelF) !== -1; });
+      if (!has) return false;
+    }
+    return true;
+  });
+  if (chanSort === 'name') list.sort(function (a, b) { return (a.name || a.id).localeCompare(b.name || b.id, 'zh-CN'); });
+  if (chanSort === 'accounts') list.sort(function (a, b) { return chanAccountsOf(b.id).length - chanAccountsOf(a.id).length; });
+  setText('chan-total', 'Total ' + list.length);
+  if (list.length === 0) { box.innerHTML = '<div class="panel"><p class="muted">没有符合条件的渠道。</p></div>'; return; }
+  if (chanView === 'table') {
+    box.innerHTML = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>供应商</th><th>状态</th><th>账号</th><th>权重</th><th>分组</th><th>余额</th><th>响应</th></tr></thead><tbody>' +
+      list.map(function (p) {
+        var off = chanDisabled.indexOf(p.id) !== -1;
+        var accts = chanAccountsOf(p.id);
+        var healthy = accts.filter(function (a) { return !a.disabled && !(a.until > Date.now()); }).length;
+        var h = chanHealth[p.id];
+        return '<tr><td>' + esc(p.name || p.id) + '（' + esc(p.id) + '）</td><td>' + (off ? '已关闭' : '正常') + '</td>' +
+          '<td>' + healthy + '/' + accts.length + '</td><td>' + esc(weights[p.id] !== undefined ? String(weights[p.id]) : '—') + '</td>' +
+          '<td>' + esc(groups[p.id] || '默认') + '</td><td>' + (p._credits !== undefined ? fmtNum(p._credits) : '—') + '</td>' +
+          '<td>' + esc(h ? h.ok + '/' + h.total + ' 正常' : '—') + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+    return;
+  }
+  box.innerHTML = list.map(function (p) {
+    var off = chanDisabled.indexOf(p.id) !== -1;
+    var accts = chanAccountsOf(p.id);
+    var healthy = accts.filter(function (a) { return !a.disabled && !(a.until > Date.now()); }).length;
+    var h = chanHealth[p.id];
+    return '<div class="chan-card" data-provider="' + esc(p.id) + '">' +
+      '<div class="row space"><div class="row"><span class="chip blue">类型 · ' + esc(p.id) + '</span>' +
+      '<span class="chip ' + (off ? '' : 'green') + '">状态 · ' + (off ? '已关闭' : '正常') + '</span></div>' +
+      '<div class="row"><button class="btn" data-cact="accts" data-id="' + esc(p.id) + '">账号</button>' +
+      '<button class="btn" data-cact="toggle-prov" data-id="' + esc(p.id) + '">' + (off ? '开启' : '关闭') + '</button></div></div>' +
+      '<div style="margin:10px 0 6px;font-weight:650">#' + esc(p.id) + ' · ' + esc(p.name || p.id) + '</div>' +
+      '<div class="kv" style="gap:20px">' +
+      '<div><div class="k">Priority</div><div class="v">—</div></div>' +
+      '<div><div class="k">Weight</div><div class="v">' + esc(weights[p.id] !== undefined ? String(weights[p.id]) : '—') + '</div></div>' +
+      '<div><div class="k">账号</div><div class="v">' + healthy + '/' + accts.length + '</div></div>' +
+      '<div><div class="k">响应</div><div class="v">' + esc(h ? h.ok + '/' + h.total + ' 正常' : '—') + '</div></div>' +
+      '<div><div class="k">上次测试</div><div class="v">' + esc(h ? fmtDateFull(chanHealthAt) : '—') + '</div></div>' +
+      '</div>' +
+      '<div class="row" style="margin-top:10px"><span class="chip">分组 · ' + esc(groups[p.id] || '默认') + '</span>' +
+      '<span class="chip">余额 · ' + (p._credits !== undefined ? fmtNum(p._credits) : '—') + '</span></div>' +
+      '<div class="acct-list" id="accts-' + esc(p.id) + '" hidden></div>' +
+      '</div>';
+  }).join('');
+  box.querySelectorAll('[data-cact]').forEach(function (btn) {
+    btn.addEventListener('click', function () { chanCardAction(btn.dataset.cact, btn.dataset.id); });
+  });
+}
+async function chanCardAction(act, pid) {
+  if (act === 'accts') {
+    var box = $('accts-' + pid);
+    if (!box) return;
+    if (!box.hidden) { box.hidden = true; return; }
+    var accts = chanAccountsOf(pid);
+    if (accts.length === 0) { box.innerHTML = '<div class="acct-row">该供应商还没有账号。</div>'; }
+    else {
+      box.innerHTML = accts.map(function (a) {
+        var state = a.disabled ? '已停用' : (a.until > Date.now() ? '冷却中' : '正常');
+        return '<div class="acct-row"><span class="uid">' + esc(a.uid) + '</span><span>' + esc(a.nickname || '') + '</span>' +
+          '<span class="chip ' + (state === '正常' ? 'green' : '') + '">' + state + '</span>' +
+          '<span>成功 ' + fmtNum(a.successCount || 0) + ' · 失败 ' + fmtNum(a.errTotal || 0) + '</span>' +
+          '<span style="margin-left:auto"></span>' +
+          '<button class="mini-btn" data-acct-toggle="' + esc(a.uid) + '" data-realm="' + esc(a._realm || 'cn') + '" data-off="' + (a.disabled ? '1' : '0') + '">' + (a.disabled ? '启用' : '停用') + '</button></div>';
+      }).join('');
+      box.querySelectorAll('[data-acct-toggle]').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          var r = await api('/admin/accounts/toggle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ uid: btn.dataset.acctToggle, realm: btn.dataset.realm, disabled: btn.dataset.off !== '1' }) });
+          if (!r.ok) { alert('操作失败：' + JSON.stringify(r.body)); return; }
+          loadChannels();
+        });
+      });
+    }
+    box.hidden = false;
+  } else if (act === 'toggle-prov') {
+    var off = chanDisabled.indexOf(pid) !== -1;
+    if (!off && !confirm('关闭「' + pid + '」？它的模型会从 /v1/models 消失，客户端也调不到。')) return;
+    var next = chanDisabled.slice();
+    if (off) next = next.filter(function (x) { return x !== pid; });
+    else next.push(pid);
+    var r = await api('/admin/providers/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ order: chanOrder, disabled: next }) });
+    if (!r.ok) { alert('操作失败：' + JSON.stringify(r.body)); return; }
+    chanDisabled = next;
+    renderChannels();
+  }
+}
+async function runHealth() {
+  if (!masterKey()) { alert('请先在「概览」页设置主密钥。'); return; }
+  var btn = $('chan-refresh');
+  if (btn) { btn.disabled = true; btn.textContent = '检测中…'; }
+  showNote('note-channels', '健康检查逐账号调一次上游目录，可能要等几十秒，请稍候。');
+  var r = await api('/admin/providers/health', {}, 120000);
+  if (btn) { btn.disabled = false; btn.textContent = '刷新'; }
+  if (!r.ok || !r.body) {
+    showNote('note-channels', r.status === 0 ? '健康检查超时或网络错误（120 秒内没回）。' : '健康检查失败（HTTP ' + r.status + '）。');
+    return;
+  }
+  chanHealth = {};
+  (r.body.providers || []).forEach(function (p) {
+    var accts = p.accounts || [];
+    chanHealth[p.id] = { ok: accts.filter(function (a) { return a.ok; }).length, total: accts.length };
+  });
+  chanHealthAt = Date.now();
+  hideNote('note-channels');
+  renderChannels();
+}
+function openCreateChannel() {
+  if (!masterKey()) { alert('请先在「概览」页设置主密钥。'); return; }
+  var opts = Object.keys(KEY_PROVIDERS).map(function (id) { return '<option value="' + id + '">' + esc(KEY_PROVIDERS[id].label) + '</option>'; }).join('');
+  openModal('创建渠道（导入上游 KEY）',
+    '<div class="field"><label>供应商</label><select class="select" id="cc-prov">' + opts + '</select></div>' +
+    '<div class="field"><label>API KEY（必填）</label><input class="input" id="cc-key" type="password" placeholder="sk-..." autocomplete="off"></div>' +
+    '<div class="field"><label>Base URL（MJ / Suno / 兼容上游必填；官方四家留空用默认）</label><input class="input" id="cc-base" placeholder="https://..."></div>' +
+    '<div class="field"><label>备注</label><input class="input" id="cc-nick" placeholder="可选"></div>' +
+    '<div class="field"><label>模型（逗号分隔，空 = 上游自动拉取）</label><input class="input" id="cc-models" placeholder="可选"></div>' +
+    '<p class="muted" id="cc-hint" style="margin-top:4px">' + esc(KEY_PROVIDERS['openai'].hint) + '</p>' +
+    '<div class="row" style="margin-top:10px"><button class="btn btn-primary" id="cc-submit">导入</button><button class="btn" id="cc-cancel">取消</button></div>' +
+    '<p class="muted" id="cc-msg" style="margin-top:8px"></p>');
+  $('cc-prov').addEventListener('change', function () {
+    var cfg = KEY_PROVIDERS[$('cc-prov').value];
+    $('cc-hint').textContent = cfg.hint;
+    $('cc-key').placeholder = cfg.ph;
+    $('cc-base').placeholder = cfg.baseRequired ? '必填，例如 https://...' : (cfg.base || '留空用默认');
+  });
+  $('cc-cancel').addEventListener('click', closeModal);
+  $('cc-submit').addEventListener('click', async function () {
+    var pid = $('cc-prov').value;
+    var cfg = KEY_PROVIDERS[pid];
+    var key = ($('cc-key').value || '').trim();
+    var base = ($('cc-base').value || '').trim();
+    if (!key) { $('cc-msg').textContent = '请先填写 API KEY。'; return; }
+    if (cfg.baseRequired && !base) { $('cc-msg').textContent = '请填写 Base URL（第三方中转地址）。'; return; }
+    var payload = { provider: pid, apiKey: key };
+    if (base) payload.baseUrl = base;
+    var nick = ($('cc-nick').value || '').trim();
+    if (nick) payload.nickname = nick;
+    var models = ($('cc-models').value || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+    if (models.length > 0) payload.models = models;
+    var r = await api('/admin/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+    if (!r.ok) { $('cc-msg').textContent = '导入失败：' + JSON.stringify(r.body); return; }
+    closeModal();
+    dropCache('models');
+    loadChannels();
+  });
+}
+
+/* ===== 模型 ===== */
+var modelsCache = [], modelsProviders = [];
+function priceText(f) {
+  if (f === undefined || f === null || f === Infinity) return '—';
+  if (f === 0) return '免费';
+  return '×' + f;
+}
+function renderModels() {
+  var tb = $('models-tbody');
+  if (!tb) return;
+  var nameF = (($('models-filter-name') || {}).value || '').trim();
+  var vendorF = (($('models-filter-vendor') || {}).value || '');
+  var rows = modelsCache.filter(function (m) {
+    if (nameF && String(m.id || '').indexOf(nameF) === -1) return false;
+    if (vendorF && (m.providerName || '') !== vendorF) return false;
+    return true;
+  });
+  if (rows.length === 0) {
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#9ca3af">没有符合条件的模型</td></tr>';
+  } else {
+    tb.innerHTML = rows.map(function (m) {
+      var id = String(m.id || '');
+      var slash = id.indexOf('/');
+      var prov = slash > 0 ? id.slice(0, slash) : '';
+      var bare = slash > 0 ? id.slice(slash + 1) : id;
+      var agg = prov === 'aggregate';
+      var off = false;
+      return '<tr><td><input type="checkbox"></td>' +
+        '<td style="font-family:ui-monospace,Menlo,monospace">' + esc(id) + '</td>' +
+        '<td>' + esc(priceText(m.priceFactor)) + '</td><td>—</td>' +
+        '<td>' + esc((m.providerName || prov) + (m.realm ? ' · ' + m.realm : '')) + '</td>' +
+        '<td>' + esc(m.kind || '—') + '</td><td>—</td>' +
+        '<td>' + (agg ? '<span style="color:#9ca3af;font-size:12.5px">聚合模型</span>' :
+          '<button class="mini-btn" data-mtoggle="' + esc(prov) + '|' + esc(bare) + '" data-off="' + (off ? '1' : '0') + '">停用</button>') + '</td></tr>';
+    }).join('');
+  }
+  setText('models-total', 'Total ' + rows.length);
+  tb.querySelectorAll('[data-mtoggle]').forEach(function (btn) {
+    btn.addEventListener('click', async function () {
+      var parts = btn.dataset.mtoggle.split('|');
+      var r = await api('/admin/providers/models/toggle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ provider: parts[0], model: parts[1], enabled: false }) });
+      if (!r.ok) { alert('停用失败：' + JSON.stringify(r.body)); return; }
+      dropCache('models');
+      loadModels();
+    });
+  });
+}
+async function loadModels() {
+  if (!masterKey()) { showNote('note-models', '请先在「概览」页设置主密钥，才能查看模型。'); return; }
+  var rm = await cachedApi('models', 300000, '/v1/models');
+  var rp = await cachedApi('providers', 300000, '/admin/providers');
+  if (!rm.ok || !rm.body) {
+    showNote('note-models', rm.status === 401 ? '密钥无效：网关返回 401。' : '加载失败（HTTP ' + rm.status + '）。');
+    return;
+  }
+  hideNote('note-models');
+  modelsCache = rm.body.data || [];
+  if (rp.ok && rp.body) modelsProviders = rp.body.providers || [];
+  var sel = $('models-filter-vendor');
+  if (sel) {
+    var cur = sel.value;
+    var names = [];
+    modelsCache.forEach(function (m) { if (m.providerName && names.indexOf(m.providerName) === -1) names.push(m.providerName); });
+    sel.innerHTML = '<option value="">厂商：全部</option>' + names.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
+    sel.value = cur;
+  }
+  renderModels();
+}
+function renderVendors() {
+  var tb = $('models-tbody');
+  if (!tb) return;
+  if (modelsProviders.length === 0) {
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#9ca3af">暂无供应商数据</td></tr>';
+    return;
+  }
+  tb.innerHTML = modelsProviders.map(function (p) {
+    var n = chanAccountsOf(p.id).length;
+    var caps = p.capabilities || {};
+    var capText = ['login', 'balance', 'checkin', 'listModels'].filter(function (k) { return caps[k]; }).join(' · ') || '—';
+    return '<tr><td><input type="checkbox"></td><td>' + esc(p.name || p.id) + '</td><td>—</td><td>—</td>' +
+      '<td>账号 ' + n + ' 个</td><td>' + esc(capText) + '</td><td>—</td><td>—</td></tr>';
+  }).join('');
+  setText('models-total', 'Total ' + modelsProviders.length);
+}
+
+/* ===== 调度与启动 ===== */
+function loadPage(page) {
+  if (page === 'chat') return; /* 对话页不接真聊天：纯中转站，之前已去掉对话功能 */
+  if (page === 'overview') loadOverview();
+  else if (page === 'dashboard') loadDashboard();
+  else if (page === 'keys') loadKeys();
+  else if (page === 'usage') loadUsage();
+  else if (page === 'audit') loadAudit();
+  else if (page === 'task') loadTask();
+  else if (page === 'channels') loadChannels();
+  else if (page === 'models') loadModels();
+}
+
+/* 密钥面板 */
+$('gw-save').addEventListener('click', async function () {
+  var v = ($('gw-key').value || '').trim();
+  if (!v) { $('gw-msg').textContent = '请先粘贴主密钥。'; return; }
+  try { localStorage.setItem(KEY_STORE, v); } catch (e) {}
+  refreshKeyStatus();
+  $('gw-msg').textContent = '已保存，正在测试连接…';
+  var ok = await testConnection($('gw-msg'));
+  if (ok) loadOverview();
+});
+$('gw-clear').addEventListener('click', function () {
+  try { localStorage.removeItem(KEY_STORE); } catch (e) {}
+  $('gw-key').value = '';
+  refreshKeyStatus();
+  $('gw-msg').textContent = '已清除主密钥。';
+});
+$('gw-test').addEventListener('click', function () { testConnection($('gw-msg')); });
+$('ov-hide-guide').addEventListener('click', function () {
+  var p = $('ov-create-key').closest('.panel');
+  if (p) p.hidden = true;
+});
+$('ov-create-key').addEventListener('click', openCreateKey);
+$('keys-create').addEventListener('click', openCreateKey);
+$('keys-apiaddr').addEventListener('click', function (e) { copyText(API_BASE, e.target); });
+['keys-filter-name', 'keys-filter-key'].forEach(function (id) {
+  var el = $(id);
+  if (el) el.addEventListener('input', renderKeys);
+});
+$('keys-filter-status').addEventListener('change', renderKeys);
+
+/* 仪表盘 */
+$('dash-days').addEventListener('change', loadDashboard);
+$('dash-tabs').querySelectorAll('.tab').forEach(function (t) {
+  t.addEventListener('click', function () {
+    $('dash-tabs').querySelectorAll('.tab').forEach(function (x) { x.classList.remove('active'); });
+    t.classList.add('active');
+    dashTab = t.dataset.tab;
+    if (lastUsage) renderDashModel(lastUsage);
+    else loadDashboard();
+  });
+});
+$('db-model-seg').querySelectorAll('span').forEach(function (s) {
+  s.addEventListener('click', function () {
+    $('db-model-seg').querySelectorAll('span').forEach(function (x) { x.classList.remove('on'); });
+    s.classList.add('on');
+    dashMode = s.dataset.mode;
+    if (lastUsage) renderDashModel(lastUsage);
+  });
+});
+$('db-quota-seg').querySelectorAll('span').forEach(function (s) {
+  s.addEventListener('click', function () {
+    $('db-quota-seg').querySelectorAll('span').forEach(function (x) { x.classList.remove('on'); });
+    s.classList.add('on');
+    dashQuotaMode = s.dataset.mode;
+    loadDashboard();
+  });
+});
+$('dash-prefs').addEventListener('click', function () { alert('网关没有偏好设置接口。'); });
+$('dash-filter').addEventListener('click', function () { alert('网关没有筛选接口；时间窗口用上面那个下拉框换。'); });
+
+/* 使用日志 */
+$('usage-search').addEventListener('click', loadUsage);
+$('usage-reset').addEventListener('click', function () {
+  $('usage-from').value = ''; $('usage-to').value = ''; $('usage-model').value = '';
+  loadUsage();
+});
+$('usage-model').addEventListener('input', renderUsageRows);
+$('usage-export').addEventListener('click', exportUsageCsv);
+$('usage-expand').addEventListener('click', function () { showNote('note-usage', '没有更多可展开的筛选（网关只支持按天窗口查用量）。'); });
+$('usage-eye').addEventListener('click', function () { showNote('note-usage', '列显示：网关的用量只有按模型汇总这一组列。'); });
+$('usage-cols').addEventListener('click', function () { showNote('note-usage', '列显示：网关的用量只有按模型汇总这一组列。'); });
+$('usage-scope').querySelectorAll('span').forEach(function (s) {
+  s.addEventListener('click', function () {
+    $('usage-scope').querySelectorAll('span').forEach(function (x) { x.classList.remove('on'); });
+    s.classList.add('on');
+    if (s.dataset.scope === 'mine') showNote('note-usage', '网关用量不分用户，都是全站合计；「仅我的」没有单独的数据。');
+    else hideNote('note-usage');
+  });
+});
+
+/* 审计日志 */
+$('audit-search').addEventListener('click', loadAudit);
+$('audit-reset').addEventListener('click', function () {
+  $('audit-from').value = ''; $('audit-to').value = '';
+  $('audit-result').value = ''; $('audit-cat').value = '';
+  loadAudit();
+});
+$('audit-result').addEventListener('change', renderAuditRows);
+$('audit-cat').addEventListener('change', renderAuditRows);
+$('audit-expand').addEventListener('click', function () { showNote('note-audit', '没有更多可展开的筛选。'); });
+$('audit-cols').addEventListener('click', function () { showNote('note-audit', '列显示：网关的日志只有这几列。'); });
+$('audit-scope').querySelectorAll('span').forEach(function (s) {
+  s.addEventListener('click', function () {
+    $('audit-scope').querySelectorAll('span').forEach(function (x) { x.classList.remove('on'); });
+    s.classList.add('on');
+    if (s.dataset.scope === 'mine') showNote('note-audit', '日志不分用户。');
+    else hideNote('note-audit');
+  });
+});
+
+/* 任务日志 */
+$('task-search').addEventListener('click', loadTask);
+$('task-reset').addEventListener('click', function () {
+  $('task-id').value = ''; $('task-channel').value = '';
+  loadTask();
+});
+document.querySelectorAll('#page-task .tab').forEach(function (t) {
+  t.addEventListener('click', function () {
+    document.querySelectorAll('#page-task .tab').forEach(function (x) { x.classList.remove('active'); });
+    t.classList.add('active');
+  });
+});
+$('task-scope').querySelectorAll('span').forEach(function (s) {
+  s.addEventListener('click', function () {
+    $('task-scope').querySelectorAll('span').forEach(function (x) { x.classList.remove('on'); });
+    s.classList.add('on');
+  });
+});
+
+/* 渠道 */
+$('chan-create').addEventListener('click', openCreateChannel);
+$('chan-refresh').addEventListener('click', runHealth);
+$('chan-sort').addEventListener('click', function () {
+  chanSort = chanSort === 'default' ? 'name' : (chanSort === 'name' ? 'accounts' : 'default');
+  renderChannels();
+});
+$('chan-bulk').addEventListener('click', function () { showNote('note-channels', '网关没有批量操作接口。'); });
+$('chan-tags').addEventListener('click', function () { showNote('note-channels', '网关没有标签模式接口。'); });
+$('chan-more').addEventListener('click', function () { showNote('note-channels', '没有更多操作。'); });
+$('chan-eye').addEventListener('click', function () { showNote('note-channels', '列显示：渠道卡片只有这些字段。'); });
+$('chan-view').querySelectorAll('span').forEach(function (s) {
+  s.addEventListener('click', function () {
+    $('chan-view').querySelectorAll('span').forEach(function (x) { x.classList.remove('on'); });
+    s.classList.add('on');
+    chanView = s.dataset.view;
+    renderChannels();
+  });
+});
+['chan-filter-name', 'chan-filter-model'].forEach(function (id) {
+  var el = $(id);
+  if (el) el.addEventListener('input', renderChannels);
+});
+['chan-filter-status', 'chan-filter-type', 'chan-filter-group'].forEach(function (id) {
+  var el = $(id);
+  if (el) el.addEventListener('change', renderChannels);
+});
+
+/* 模型 */
+$('models-filter-name').addEventListener('input', renderModels);
+$('models-filter-vendor').addEventListener('change', renderModels);
+$('models-sync-meta').addEventListener('click', function () { showNote('note-models', '网关没有同步元数据接口：模型目录来自上游实时拉取。'); });
+$('models-sync-price').addEventListener('click', function () { showNote('note-models', '网关没有同步价格接口：倍率来自上游返回或模型名。'); });
+$('models-add').addEventListener('click', function () { showNote('note-models', '网关没有手动添加模型接口：模型来自已登录账号的上游目录。'); });
+$('models-more').addEventListener('click', function () { showNote('note-models', '没有更多操作。'); });
+$('models-tabs').querySelectorAll('.tab').forEach(function (t) {
+  t.addEventListener('click', function () {
+    $('models-tabs').querySelectorAll('.tab').forEach(function (x) { x.classList.remove('active'); });
+    t.classList.add('active');
+    var tab = t.dataset.mtab;
+    if (tab === 'models') { hideNote('note-models'); renderModels(); }
+    else if (tab === 'vendors') { hideNote('note-models'); renderVendors(); }
+    else {
+      showNote('note-models', '网关没有部署（deployments）概念。');
+      var tb = $('models-tbody');
+      if (tb) tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#9ca3af">网关没有部署（deployments）概念</td></tr>';
+      setText('models-total', 'Total 0');
+    }
+  });
+});
+
+/* 启动：先恢复密钥状态，再加载当前页 */
+refreshKeyStatus();
+(function () {
+  var active = document.querySelector('.nav-item.active');
+  if (active) loadPage(active.dataset.page);
+})();
 </script>
 </body>
 </html>
