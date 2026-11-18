@@ -1963,6 +1963,34 @@ const CAPS = [
  */
 const LOGIN_KIND_LABEL = { codearts: '浏览器登录', trae: '浏览器登录', raccoon: '微信扫码', cline: '用户码登录', loomy: '短信验证码登录', doubao: '豆包扫码' }
 
+/**
+ * v38：API KEY 直连供应商（官方 KEY / 第三方中转）。
+ *
+ * 这 7 家在网关里 `capabilities.login/balance/checkin` 全是 false ——
+ * 官方 KEY 本来就没有设备码登录、没有查余额、没有签到，KEY 本身就是凭据。
+ * 卡片上再挂三个划掉的标签只会让人以为「这家坏了」，故改成一个
+ * 「✓ API KEY 导入」标签；弹窗里也不再只留一句「不支持登录」，而是给
+ * 一个直接填 KEY 的表单（见 `renderModalApiKeyForm`）。
+ */
+const API_KEY_PROVIDERS = new Set(['openai', 'deepseek', 'gemini-api', 'claude', 'midjourney', 'suno', 'openai-compatible'])
+
+/**
+ * v38：API KEY 导入表单的逐家配置。
+ *
+ * `baseUrl` 是官方默认地址（只做占位提示，留空就用它）；`baseRequired`
+ * 为 true 的三家没有官方地址，必须填第三方中转地址，`baseExample` 是
+ * 占位示例。`keyHint` 告诉用户 KEY 去哪建。
+ */
+const API_KEY_FORM = {
+  openai: { baseUrl: 'https://api.openai.com/v1', baseRequired: false, baseExample: '', keyPlaceholder: 'sk-...', keyHint: '去 platform.openai.com 建 API Key' },
+  deepseek: { baseUrl: 'https://api.deepseek.com/v1', baseRequired: false, baseExample: '', keyPlaceholder: 'sk-...', keyHint: '去 platform.deepseek.com 建 API Key' },
+  'gemini-api': { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', baseRequired: false, baseExample: '', keyPlaceholder: 'AIza...', keyHint: '去 Google AI Studio 建 API Key' },
+  claude: { baseUrl: 'https://api.anthropic.com', baseRequired: false, baseExample: '', keyPlaceholder: 'sk-ant-...', keyHint: '去 console.anthropic.com 建 API Key' },
+  midjourney: { baseUrl: '', baseRequired: true, baseExample: 'https://mj.example.com', keyPlaceholder: '中转站给你的 KEY', keyHint: 'Midjourney 没有官方 API，去第三方中转复制地址 + KEY' },
+  suno: { baseUrl: '', baseRequired: true, baseExample: 'https://suno.example.com', keyPlaceholder: '中转站给你的 KEY', keyHint: 'Suno 没有官方开放 API，去第三方中转复制地址 + KEY' },
+  'openai-compatible': { baseUrl: '', baseRequired: true, baseExample: 'https://example.com/v1', keyPlaceholder: '上游给你的 KEY', keyHint: '填别家中转站 / 兼容上游的地址 + KEY' },
+}
+
 /** 缓存的供应商目录（弹窗要用）。 */
 let providerCache = []
 /** 服务端的面板设置：展示顺序 与 已关闭的供应商。 */
@@ -2094,16 +2122,26 @@ async function loadProviders() {
     card.appendChild(name); card.appendChild(id)
 
     const caps = document.createElement('div'); caps.className = 'caps'
-    for (const [key, label] of CAPS) {
+    // ⚠️ v38：API KEY 直连的 7 家没有「设备码登录 / 查余额 / 每日签到」
+    //（官方 KEY 本来就没有这三个能力，KEY 本身就是凭据），三个划掉的
+    // 标签只会让人以为「这家坏了」——改成一个「✓ API KEY 导入」。
+    if (API_KEY_PROVIDERS.has(prov.id)) {
       const tag = document.createElement('span')
-      const on = prov.capabilities[key] === true
-      tag.className = 'cap ' + (on ? 'on' : 'off')
-      const shown = key === 'login' ? (LOGIN_KIND_LABEL[prov.id] || label) : label
-      // ⚠️ 用 `×`（U+00D7，拉丁字母区，所有字体都有）而不是 `✕`（U+2715，
-      // 杂项符号区，部分手机字体缺字形会渲染成空框）。
-      // `✓`（U+2713）覆盖较广，且这是**文本标记**而非按钮，保留。
-      tag.textContent = (on ? '✓ ' : '× ') + shown
+      tag.className = 'cap on'
+      tag.textContent = '✓ API KEY 导入'
       caps.appendChild(tag)
+    } else {
+      for (const [key, label] of CAPS) {
+        const tag = document.createElement('span')
+        const on = prov.capabilities[key] === true
+        tag.className = 'cap ' + (on ? 'on' : 'off')
+        const shown = key === 'login' ? (LOGIN_KIND_LABEL[prov.id] || label) : label
+        // ⚠️ 用 `×`（U+00D7，拉丁字母区，所有字体都有）而不是 `✕`（U+2715，
+        // 杂项符号区，部分手机字体缺字形会渲染成空框）。
+        // `✓`（U+2713）覆盖较广，且这是**文本标记**而非按钮，保留。
+        tag.textContent = (on ? '✓ ' : '× ') + shown
+        caps.appendChild(tag)
+      }
     }
     card.appendChild(caps)
     // ⚠️ 已关闭的家在卡片上**明说**，否则用户会以为是账号/网络问题。
@@ -2708,6 +2746,88 @@ async function loadModalModels() {
   }
 }
 
+/** v38：API KEY 直连供应商的粘贴导入示例（按家给 KEY 形状）。 */
+function apiKeyImportExample(providerId) {
+  const cfg = API_KEY_FORM[providerId]
+  if (!cfg) return '{"accessToken":"...","uid":"..."}'
+  const example = { provider: providerId, apiKey: cfg.keyPlaceholder }
+  if (cfg.baseRequired) example.baseUrl = cfg.baseExample
+  return JSON.stringify(example)
+}
+
+/**
+ * v38：API KEY 直连供应商的导入表单（放在「添加账号」最上面）。
+ *
+ * 为什么要有它：这 7 家没有设备码登录，KEY 就是凭据本身；以前只能手写
+ * JSON 粘贴导入，占位符还是 accessToken/uid，用户根本不知道 KEY 往哪放。
+ * 现在是四个明框：KEY（必填）、Base URL（中转三家必填，官方四家可选，
+ * 留空用网关内置的官方默认地址）、备注、模型（可选，逗号分隔）。
+ * 提交走同一条 `POST /admin/import`，成功刷新账号列表，失败把服务端
+ * 返回的错误原样弹出来。
+ */
+function renderModalApiKeyForm(box) {
+  const cfg = API_KEY_FORM[modalProviderId]
+  const h2 = document.createElement('h3')
+  h2.textContent = 'API KEY 导入'
+  box.appendChild(h2)
+  const hint = document.createElement('p'); hint.className = 'hint'
+  hint.textContent = '这家没有设备码登录，KEY 本身就是账号。' + cfg.keyHint + '。'
+  box.appendChild(hint)
+
+  const field = (label, input) => {
+    const wrap = document.createElement('div'); wrap.className = 'field'
+    const span = document.createElement('span'); span.textContent = label
+    wrap.appendChild(span); wrap.appendChild(input)
+    box.appendChild(wrap)
+  }
+  const keyInput = document.createElement('input')
+  keyInput.type = 'password'
+  keyInput.placeholder = cfg.keyPlaceholder
+  keyInput.setAttribute('aria-label', 'API KEY')
+  field('API KEY（必填）', keyInput)
+
+  const baseInput = document.createElement('input')
+  baseInput.type = 'url'
+  baseInput.placeholder = cfg.baseRequired ? cfg.baseExample : cfg.baseUrl + '（留空用默认）'
+  baseInput.setAttribute('aria-label', 'Base URL')
+  field(cfg.baseRequired ? 'Base URL（必填）' : 'Base URL（可选）', baseInput)
+
+  const nickInput = document.createElement('input')
+  nickInput.type = 'text'
+  nickInput.placeholder = '给这个账号起个名（可选）'
+  nickInput.setAttribute('aria-label', '备注')
+  field('备注（可选）', nickInput)
+
+  const modelsInput = document.createElement('input')
+  modelsInput.type = 'text'
+  modelsInput.placeholder = 'gpt-5, gpt-5-mini（可选，逗号分隔）'
+  modelsInput.setAttribute('aria-label', '模型')
+  field('模型（可选）', modelsInput)
+
+  const imp = document.createElement('button'); imp.textContent = '导入'
+  imp.onclick = async () => {
+    const apiKey = keyInput.value.trim()
+    if (apiKey === '') { alert('请先填写 API KEY'); return }
+    const baseUrl = baseInput.value.trim()
+    if (cfg.baseRequired && baseUrl === '') { alert('请填写 Base URL（第三方中转地址）'); return }
+    const nickname = nickInput.value.trim()
+    const models = modelsInput.value.split(',').map((m) => m.trim()).filter((m) => m !== '')
+    const payload = { provider: modalProviderId, apiKey }
+    if (baseUrl !== '') payload.baseUrl = baseUrl
+    if (nickname !== '') payload.nickname = nickname
+    if (models.length > 0) payload.models = models
+    const r = await api('/admin/import', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
+    })
+    alert(r.ok ? '导入成功' : '导入失败：' + JSON.stringify(r.body))
+    if (r.ok) {
+      keyInput.value = ''; baseInput.value = ''; nickInput.value = ''; modelsInput.value = ''
+      loadModalAccounts(); loadAccounts(); loadPool()
+    }
+  }
+  box.appendChild(imp)
+}
+
 /** 弹窗「添加账号」页：导入 + （若支持）设备码登录。 */
 function renderModalAdd() {
   const box = $('modal-add-body')
@@ -2715,9 +2835,12 @@ function renderModalAdd() {
   const prov = providerCache.find((p) => p.id === modalProviderId)
   const canLogin = prov && prov.capabilities.login
 
-  // ⚠️ **顺序**：设备码登录在上、粘贴凭据在下（用户要求）。
-  // ⚠️ 文案**保持原样不动** —— 只调顺序，不改用词。
-  if (!canLogin) {
+  // ⚠️ **顺序**：登录/KEY 表单在上、粘贴凭据在下（用户要求）。
+  // ⚠️ v38：API KEY 直连的家没有登录可发起，上面放填 KEY 的表单；
+  // 其余不支持登录的家仍只留一句提示。
+  if (!canLogin && API_KEY_PROVIDERS.has(modalProviderId)) {
+    renderModalApiKeyForm(box)
+  } else if (!canLogin) {
     const n = document.createElement('p'); n.className = 'hint'
     n.textContent = '该供应商不支持从本服务发起登录，请导入凭据。'
     box.appendChild(n)
@@ -2746,7 +2869,9 @@ function renderModalAdd() {
 
   const ta = document.createElement('textarea')
   ta.id = 'modal-import-body'; ta.rows = 6
-  ta.placeholder = '{"accessToken":"...","uid":"..."}'
+  // ⚠️ v38：占位符按供应商给 KEY 示例 —— 原先的 accessToken/uid
+  // 是账号池那套凭据形状，KEY 直连的家根本看不懂要贴什么。
+  ta.placeholder = apiKeyImportExample(modalProviderId)
   // ⚠️ 必须给可访问名：这个 textarea **没有 `<label>`**（它由 JS 动态插进弹窗，
   // 没有稳定的 HTML 位置可挂 label）。没有 `aria-label` 时屏幕阅读器
   // 只会念「编辑框」，用户不知道要粘什么进去（实测可访问性扫描报出此项）。
