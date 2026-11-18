@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>New API · 控制台</title>
+<title>page工作台 · 控制台</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
@@ -140,9 +140,8 @@
 <header>
   <button class="hamburger" id="hamburger" aria-label="菜单">☰</button>
   <div class="brand">
-    <div class="brand-mark">N</div>
-    <span class="brand-name">New API</span>
-    <span class="brand-ver">v1.0.0-rc.51</span>
+    <div class="brand-mark">页</div>
+    <span class="brand-name">page工作台</span>
   </div>
   <div class="header-search">
     <span>搜索菜单、渠道、密钥…</span>
@@ -239,7 +238,7 @@
     title.textContent = item.dataset.title;
     sub.textContent = item.dataset.desc;
     phName.textContent = item.dataset.title;
-    document.title = 'New API · ' + item.dataset.title;
+    document.title = 'page工作台 · ' + item.dataset.title;
     if (push) { try { history.replaceState(null, '', '#' + item.dataset.title); } catch (e) {} }
     sidebar.classList.remove('open');
     overlay.classList.remove('show');
