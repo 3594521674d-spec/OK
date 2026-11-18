@@ -105,22 +105,80 @@
   }
   .page-title { font-size: 20px; font-weight: 650; margin-bottom: 4px; }
   .page-sub { font-size: 13px; color: #6b7280; margin-bottom: 20px; }
-  .placeholder {
-    background: #fff; border: 1px dashed #d1d5db; border-radius: 12px;
-    padding: 48px 24px; text-align: center;
-  }
-  .placeholder .big { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
-  .placeholder p { font-size: 13px; color: #6b7280; line-height: 1.8; }
-  .placeholder .tag {
-    display: inline-block; margin-top: 16px; font-size: 12px; color: #92400e;
-    background: #fef3c7; border-radius: 999px; padding: 3px 10px;
-  }
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
   .mini-card {
     background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px;
   }
   .mini-card .k { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
   .mini-card .v { font-size: 18px; font-weight: 650; color: #d1d5db; }
+
+  /* ===== 内壳通用 ===== */
+  .page { display: none; }
+  .page.active { display: block; }
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .row.space { justify-content: space-between; }
+  .row.mb { margin-bottom: 14px; }
+  .btn {
+    border: 1px solid #e5e7eb; background: #fff; border-radius: 8px;
+    padding: 6px 12px; font-size: 13px; cursor: pointer; color: #374151; white-space: nowrap;
+  }
+  .btn-primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .input, .select {
+    border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px 10px;
+    font-size: 13px; background: #fff; color: #374151; min-width: 0;
+  }
+  .input { width: 180px; }
+  .input.wide { width: 240px; }
+  .panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .panel h3 { font-size: 14px; font-weight: 650; margin-bottom: 10px; }
+  .panel .muted { font-size: 13px; color: #6b7280; line-height: 1.8; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #e5e7eb; overflow-x: auto; }
+  .tab {
+    padding: 8px 12px; font-size: 13.5px; color: #6b7280; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
+  }
+  .tab.active { color: #1d4ed8; border-bottom-color: #2563eb; font-weight: 600; }
+  .tbl-wrap { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow-x: auto; }
+  table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px; }
+  .tbl th {
+    text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600;
+    border-bottom: 1px solid #e5e7eb; white-space: nowrap; background: #f9fafb;
+  }
+  .tbl td { padding: 12px; border-bottom: 1px solid #f3f4f6; color: #d1d5db; white-space: nowrap; }
+  .tbl tr:last-child td { border-bottom: 0; }
+  .pager {
+    display: flex; align-items: center; gap: 10px; justify-content: flex-end;
+    padding: 12px; font-size: 12.5px; color: #6b7280; background: #fff;
+    border: 1px solid #e5e7eb; border-top: 0; border-radius: 0 0 12px 12px;
+  }
+  .pager .select { padding: 3px 6px; font-size: 12.5px; }
+  .chart {
+    border: 1px dashed #d1d5db; border-radius: 10px; height: 170px;
+    display: flex; align-items: center; justify-content: center;
+    color: #9ca3af; font-size: 13px; background: #f9fafb; text-align: center; padding: 12px;
+  }
+  .chip {
+    display: inline-block; font-size: 12px; background: #f3f4f6; color: #4b5563;
+    border-radius: 999px; padding: 3px 9px; white-space: nowrap;
+  }
+  .chip.green { background: #dcfce7; color: #166534; }
+  .chip.blue { background: #dbeafe; color: #1d4ed8; }
+  .kv { display: flex; gap: 28px; flex-wrap: wrap; }
+  .kv .k { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+  .kv .v { font-size: 16px; font-weight: 650; color: #d1d5db; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .chan-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  .code {
+    background: #111827; color: #9ca3af; border-radius: 10px; padding: 12px 14px;
+    font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    overflow-x: auto; white-space: nowrap;
+  }
+  .steps { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  .step { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; font-size: 13px; color: #6b7280; }
+  .seg { display: inline-flex; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+  .seg span { padding: 6px 12px; font-size: 13px; color: #4b5563; cursor: pointer; background: #fff; }
+  .seg span.on { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+  .tagline { font-size: 12px; color: #92400e; background: #fef3c7; border-radius: 999px; padding: 3px 10px; }
 
   @media (max-width: 768px) {
     .hamburger { display: block; }
@@ -132,6 +190,8 @@
     }
     aside.open { transform: translateX(0); }
     main { padding: 16px 14px 32px; }
+    .grid2 { grid-template-columns: 1fr; }
+    .input, .input.wide { width: 100%; }
   }
 </style>
 </head>
@@ -166,55 +226,390 @@
     <nav id="nav">
       <div class="nav-group">
         <div class="nav-group-label">对话</div>
-        <div class="nav-item" data-title="对话" data-desc="聊天会话列表"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>对话</div>
+        <div class="nav-item" data-page="chat" data-title="对话" data-desc="聊天会话列表"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>对话</div>
       </div>
 
       <div class="nav-group">
         <div class="nav-group-label">通用</div>
-        <div class="nav-item active" data-title="概览" data-desc="余额、密钥、请求、消费、Token 一眼看完"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>概览</div>
-        <div class="nav-item" data-title="仪表盘" data-desc="模型调用量、性能、延迟统计"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>仪表盘</div>
-        <div class="nav-item" data-title="API 密钥" data-desc="创建、查看、停用自己的调用密钥"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m11 12 9-9"/><path d="m15.5 7.5 3 3"/><path d="m18.5 4.5 2 2"/></svg>API 密钥</div>
-        <div class="nav-item" data-title="使用日志" data-desc="每一次调用的记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>使用日志</div>
-        <div class="nav-item" data-title="审计日志" data-desc="登录、改配置等操作记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>审计日志</div>
-        <div class="nav-item" data-title="任务日志" data-desc="生图、生视频等异步任务的记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>任务日志</div>
+        <div class="nav-item active" data-page="overview" data-title="概览" data-desc="余额、密钥、请求、消费、Token 一眼看完"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>概览</div>
+        <div class="nav-item" data-page="dashboard" data-title="仪表盘" data-desc="模型调用量、性能、延迟统计"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>仪表盘</div>
+        <div class="nav-item" data-page="keys" data-title="API 密钥" data-desc="创建、查看、停用自己的调用密钥"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m11 12 9-9"/><path d="m15.5 7.5 3 3"/><path d="m18.5 4.5 2 2"/></svg>API 密钥</div>
+        <div class="nav-item" data-page="usage" data-title="使用日志" data-desc="每一次调用的记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>使用日志</div>
+        <div class="nav-item" data-page="audit" data-title="审计日志" data-desc="登录、改配置等操作记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>审计日志</div>
+        <div class="nav-item" data-page="task" data-title="任务日志" data-desc="生图、生视频等异步任务的记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>任务日志</div>
       </div>
-
 
       <div class="nav-group">
         <div class="nav-group-label">管理</div>
-        <div class="nav-item" data-title="渠道" data-desc="接上游的地方：每个渠道就是一家上游 + 一把 KEY"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></svg>渠道</div>
-        <div class="nav-item" data-title="模型" data-desc="对外提供的模型列表和倍率"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/></svg>模型</div>
+        <div class="nav-item" data-page="channels" data-title="渠道" data-desc="接上游的地方：每个渠道就是一家上游 + 一把 KEY"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></svg>渠道</div>
+        <div class="nav-item" data-page="models" data-title="模型" data-desc="对外提供的模型列表和倍率"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/></svg>模型</div>
       </div>
     </nav>
-    <div class="sidebar-foot">只是一个壳。<br>数据和功能都还没接。</div>
+    <div class="sidebar-foot">内外壳都拿过来了。<br>数据和功能都还没接。</div>
   </aside>
 
   <main>
     <h1 class="page-title" id="page-title">概览</h1>
     <div class="page-sub" id="page-sub">余额、密钥、请求、消费、Token 一眼看完</div>
 
-    <div class="cards" id="cards">
-      <div class="mini-card"><div class="k">余额</div><div class="v">—</div></div>
-      <div class="mini-card"><div class="k">API 密钥</div><div class="v">—</div></div>
-      <div class="mini-card"><div class="k">今日请求</div><div class="v">—</div></div>
-      <div class="mini-card"><div class="k">今日消费</div><div class="v">—</div></div>
-      <div class="mini-card"><div class="k">累计 Token</div><div class="v">—</div></div>
-      <div class="mini-card"><div class="k">平均响应</div><div class="v">—</div></div>
-    </div>
+    <!-- ===== 概览 ===== -->
+    <section class="page active" id="page-overview">
+      <div class="cards">
+        <div class="mini-card"><div class="k">余额</div><div class="v">—</div></div>
+        <div class="mini-card"><div class="k">API 密钥</div><div class="v">—</div></div>
+        <div class="mini-card"><div class="k">今日请求</div><div class="v">—</div></div>
+        <div class="mini-card"><div class="k">今日消费</div><div class="v">—</div></div>
+        <div class="mini-card"><div class="k">累计 Token</div><div class="v">—</div></div>
+        <div class="mini-card"><div class="k">平均响应</div><div class="v">—</div></div>
+      </div>
 
-    <div class="placeholder">
-      <div class="big">这里是「<span id="ph-name">概览</span>」页</div>
-      <p>壳已经拿过来了，里面的数据和功能都还没接。<br>点左边菜单可以换页看看排版，都是空占位。</p>
-      <span class="tag">空壳预览 · 未接后端</span>
-    </div>
+      <div class="panel">
+        <div class="row space">
+          <h3>新手引导 · 几分钟接好你的中转站</h3>
+          <span class="tagline">空壳预览 · 未接后端</span>
+        </div>
+        <div class="steps">
+          <span class="step">1 · 创建 API Key</span>
+          <span class="step">2 · 接上游渠道</span>
+          <span class="step">3 · 发一次请求</span>
+        </div>
+        <div class="row mb">
+          <button class="btn btn-primary">创建 API Key</button>
+          <button class="btn">隐藏引导</button>
+        </div>
+        <div class="code">curl $API_BASE/v1/chat/completions -H "Authorization: Bearer $YOUR_KEY" -d '{"model": "—"}'</div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h3>性能健康</h3>
+          <div class="kv">
+            <div><div class="k">成功率</div><div class="v">—</div></div>
+            <div><div class="k">平均延迟</div><div class="v">—</div></div>
+            <div><div class="k">吞吐</div><div class="v">—</div></div>
+          </div>
+          <p class="muted" style="margin-top:10px">调用最多的模型：—</p>
+        </div>
+        <div class="panel">
+          <h3>API 信息</h3>
+          <p class="muted">网关地址：—<br>支持的协议：—</p>
+        </div>
+        <div class="panel">
+          <h3>公告</h3>
+          <p class="muted">—</p>
+        </div>
+        <div class="panel">
+          <h3>运行状态</h3>
+          <p class="muted">—</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 仪表盘 ===== -->
+    <section class="page" id="page-dashboard">
+      <div class="tabs">
+        <span class="tab active">概览</span>
+        <span class="tab">模型调用</span>
+        <span class="tab">流量</span>
+        <span class="tab">用户</span>
+      </div>
+      <div class="row space mb">
+        <div class="row">
+          <span class="chip">最近 7 天</span>
+          <span class="chip">粒度：天</span>
+        </div>
+        <div class="row">
+          <button class="btn">偏好设置</button>
+          <button class="btn">筛选</button>
+        </div>
+      </div>
+      <div class="cards">
+        <div class="mini-card"><div class="k">总数</div><div class="v">—</div></div>
+        <div class="mini-card"><div class="k">总额度</div><div class="v">—</div></div>
+        <div class="mini-card"><div class="k">总 Token</div><div class="v">—</div></div>
+        <div class="mini-card"><div class="k">缓存读</div><div class="v">—</div></div>
+        <div class="mini-card"><div class="k">缓存写</div><div class="v">—</div></div>
+        <div class="mini-card"><div class="k">平均 RPM</div><div class="v">—</div></div>
+        <div class="mini-card"><div class="k">平均 TPM</div><div class="v">—</div></div>
+      </div>
+      <div class="panel">
+        <h3>性能健康</h3>
+        <div class="kv">
+          <div><div class="k">成功率</div><div class="v">—</div></div>
+          <div><div class="k">平均延迟</div><div class="v">—</div></div>
+          <div><div class="k">吞吐</div><div class="v">—</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="row space">
+          <h3>额度分布</h3>
+          <div class="seg"><span class="on">柱状图</span><span>面积图</span></div>
+        </div>
+        <div class="chart">图表区 · 未接数据</div>
+      </div>
+      <div class="panel">
+        <div class="row space">
+          <h3>模型调用分析</h3>
+          <div class="seg"><span class="on">调用趋势</span><span>调用分布</span><span>调用排行</span></div>
+        </div>
+        <div class="chart">图表区 · 未接数据</div>
+      </div>
+    </section>
+
+    <!-- ===== 对话 ===== -->
+    <section class="page" id="page-chat">
+      <div class="panel" style="padding:0;overflow:hidden">
+        <div class="row" style="padding:10px 14px;border-bottom:1px solid #e5e7eb">
+          <span class="chip blue">预设 · —</span>
+          <span style="flex:1"></span>
+          <button class="btn">在新窗口打开</button>
+        </div>
+        <div class="chart" style="height:340px;border:0;border-radius:0">聊天窗口（外嵌外部聊天站）· 未接</div>
+        <div class="row" style="padding:12px 14px;border-top:1px solid #e5e7eb">
+          <input class="input" style="flex:1" placeholder="输入消息…">
+          <button class="btn btn-primary">发送</button>
+        </div>
+      </div>
+      <p class="muted" style="font-size:13px;color:#6b7280">对话页在原版里是外嵌一个聊天站，不是本站自己做的聊天框。</p>
+    </section>
+
+    <!-- ===== API 密钥 ===== -->
+    <section class="page" id="page-keys">
+      <div class="row space mb">
+        <div></div>
+        <div class="row">
+          <button class="btn">API 地址</button>
+          <button class="btn btn-primary">+ 创建 API Key</button>
+        </div>
+      </div>
+      <div class="row mb">
+        <input class="input" placeholder="Filter by name…">
+        <input class="input" placeholder="Filter by API key…">
+        <select class="select"><option>状态：全部</option><option>启用</option><option>禁用</option></select>
+      </div>
+      <div class="tbl-wrap" style="border-radius:12px 12px 0 0">
+        <table class="tbl">
+          <thead><tr><th><input type="checkbox"></th><th>Name</th><th>Status</th><th>API Key</th><th>Quota</th><th>Group</th><th>Models</th><th>IP Restriction</th><th>Time</th><th>Expires</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr><td><input type="checkbox"></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>⋯</td></tr>
+            <tr><td><input type="checkbox"></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>⋯</td></tr>
+            <tr><td><input type="checkbox"></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>⋯</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pager"><span>Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+    </section>
+
+    <!-- ===== 使用日志 ===== -->
+    <section class="page" id="page-usage">
+      <div class="row space mb">
+        <div></div>
+        <div class="seg"><span class="on">全部</span><span>仅我的</span></div>
+      </div>
+      <div class="panel">
+        <div class="row mb">
+          <input class="input" type="datetime-local">
+          <span style="color:#9ca3af">至</span>
+          <input class="input" type="datetime-local">
+          <input class="input" placeholder="Model Name">
+          <select class="select"><option>分组：全部</option></select>
+          <select class="select"><option>类型：全部</option></select>
+          <button class="btn">展开</button>
+          <button class="btn">👁</button>
+          <button class="btn">导出</button>
+        </div>
+        <div class="row space">
+          <div class="row">
+            <span class="chip">用量 —</span>
+            <span class="chip">RPM —</span>
+            <span class="chip">TPM —</span>
+          </div>
+          <div class="row">
+            <button class="btn">重置</button>
+            <button class="btn btn-primary">搜索</button>
+            <button class="btn">列显示</button>
+          </div>
+        </div>
+      </div>
+      <div class="tbl-wrap" style="border-radius:12px 12px 0 0">
+        <table class="tbl">
+          <thead><tr><th>Time</th><th>Channel</th><th>User</th><th>Token</th><th>Model</th><th>Stream</th><th>Tokens</th><th>Cost</th><th>Timing</th><th>Details</th></tr></thead>
+          <tbody>
+            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>详情</td></tr>
+            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>详情</td></tr>
+            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>详情</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pager"><span>Total 0</span><span>Rows per page</span><select class="select"><option>100</option><option>20</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+    </section>
+
+    <!-- ===== 审计日志 ===== -->
+    <section class="page" id="page-audit">
+      <div class="row space mb">
+        <div></div>
+        <div class="seg"><span class="on">全部</span><span>仅我的</span></div>
+      </div>
+      <div class="panel">
+        <div class="row mb">
+          <input class="input" type="datetime-local">
+          <span style="color:#9ca3af">至</span>
+          <input class="input" type="datetime-local">
+          <select class="select"><option>结果：全部</option><option>成功</option><option>失败</option></select>
+          <select class="select"><option>分类：全部</option><option>登录</option><option>账号安全</option><option>操作审计</option><option>访问令牌</option></select>
+          <button class="btn">展开</button>
+        </div>
+        <div class="row" style="justify-content:flex-end">
+          <button class="btn">重置</button>
+          <button class="btn btn-primary">搜索</button>
+          <button class="btn">列显示</button>
+        </div>
+      </div>
+      <div class="tbl-wrap" style="border-radius:12px 12px 0 0">
+        <table class="tbl">
+          <thead><tr><th>Time</th><th>Username</th><th>Event</th><th>IP</th><th>Client</th><th>Method</th><th>Route</th><th>HTTP</th><th>Result</th><th>Details</th></tr></thead>
+          <tbody>
+            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>详情</td></tr>
+            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>详情</td></tr>
+            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>详情</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pager"><span>Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+    </section>
+
+    <!-- ===== 任务日志 ===== -->
+    <section class="page" id="page-task">
+      <div class="row space mb">
+        <div></div>
+        <div class="seg"><span class="on">全部</span><span>仅我的</span></div>
+      </div>
+      <div class="tabs">
+        <span class="tab">Drawing Logs</span>
+        <span class="tab active">Task Logs</span>
+      </div>
+      <div class="panel">
+        <div class="row">
+          <input class="input" type="datetime-local">
+          <span style="color:#9ca3af">至</span>
+          <input class="input" type="datetime-local">
+          <input class="input" placeholder="Filter by task ID">
+          <input class="input" placeholder="Channel ID">
+          <button class="btn btn-primary">搜索</button>
+          <button class="btn">重置</button>
+        </div>
+      </div>
+      <div class="tbl-wrap" style="border-radius:12px 12px 0 0">
+        <table class="tbl">
+          <thead><tr><th>Submit Time</th><th>Channel</th><th>User</th><th>Plugin</th><th>Task ID</th><th>Duration</th><th>Status</th><th>Progress</th><th>Artifacts</th><th>Details</th></tr></thead>
+          <tbody>
+            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>查看详情</td></tr>
+            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>查看详情</td></tr>
+            <tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>查看详情</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pager"><span>Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+    </section>
+
+    <!-- ===== 渠道 ===== -->
+    <section class="page" id="page-channels">
+      <div class="row space mb">
+        <span class="chip">Max Retries: —</span>
+        <div class="row">
+          <button class="btn">批量操作</button>
+          <button class="btn">标签模式</button>
+          <button class="btn">排序</button>
+          <button class="btn btn-primary">+ 创建渠道</button>
+          <button class="btn">⋯</button>
+        </div>
+      </div>
+      <div class="row mb">
+        <input class="input wide" placeholder="Filter by name, ID, or key...">
+        <input class="input" placeholder="Filter by model...">
+        <select class="select"><option>状态：全部</option></select>
+        <select class="select"><option>类型：全部</option></select>
+        <select class="select"><option>分组：全部</option></select>
+        <button class="btn">👁</button>
+        <button class="btn">刷新</button>
+        <div class="seg"><span class="on">卡片</span><span>表格</span></div>
+      </div>
+      <div class="chan-card">
+        <div class="row space">
+          <div class="row"><span class="chip blue">类型 · —</span><span class="chip green">状态 · —</span></div>
+          <button class="btn">⋯</button>
+        </div>
+        <div style="margin:10px 0 6px;font-weight:650">#— · 渠道名 —</div>
+        <div class="kv" style="gap:20px">
+          <div><div class="k">Priority</div><div class="v">—</div></div>
+          <div><div class="k">Weight</div><div class="v">—</div></div>
+          <div><div class="k">已用 / 剩余</div><div class="v">—</div></div>
+          <div><div class="k">响应</div><div class="v">—</div></div>
+          <div><div class="k">上次测试</div><div class="v">—</div></div>
+        </div>
+        <div class="row" style="margin-top:10px"><span class="chip">分组 · —</span></div>
+      </div>
+      <div class="chan-card">
+        <div class="row space">
+          <div class="row"><span class="chip blue">类型 · —</span><span class="chip green">状态 · —</span></div>
+          <button class="btn">⋯</button>
+        </div>
+        <div style="margin:10px 0 6px;font-weight:650">#— · 渠道名 —</div>
+        <div class="kv" style="gap:20px">
+          <div><div class="k">Priority</div><div class="v">—</div></div>
+          <div><div class="k">Weight</div><div class="v">—</div></div>
+          <div><div class="k">已用 / 剩余</div><div class="v">—</div></div>
+          <div><div class="k">响应</div><div class="v">—</div></div>
+          <div><div class="k">上次测试</div><div class="v">—</div></div>
+        </div>
+        <div class="row" style="margin-top:10px"><span class="chip">分组 · —</span></div>
+      </div>
+      <div class="pager" style="border:1px solid #e5e7eb;border-radius:12px"><span>Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+    </section>
+
+    <!-- ===== 模型 ===== -->
+    <section class="page" id="page-models">
+      <div class="tabs">
+        <span class="tab active">Models</span>
+        <span class="tab">Vendors</span>
+        <span class="tab">Deployments</span>
+      </div>
+      <div class="row space mb">
+        <div></div>
+        <div class="row">
+          <button class="btn">同步元数据</button>
+          <button class="btn">同步价格</button>
+          <button class="btn btn-primary">+ 添加模型</button>
+          <button class="btn">⋯</button>
+        </div>
+      </div>
+      <div class="row mb">
+        <input class="input wide" placeholder="Filter by model name...">
+        <select class="select"><option>展示策略：全部</option></select>
+        <select class="select"><option>模型广场：全部</option></select>
+        <select class="select"><option>厂商：全部</option></select>
+        <select class="select"><option>同步策略：全部</option></select>
+      </div>
+      <div class="tbl-wrap" style="border-radius:12px 12px 0 0">
+        <table class="tbl">
+          <thead><tr><th><input type="checkbox"></th><th>Model</th><th>Pricing</th><th>模型广场</th><th>渠道与分组</th><th>Tags</th><th>同步策略</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr><td><input type="checkbox"></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>⋯</td></tr>
+            <tr><td><input type="checkbox"></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>⋯</td></tr>
+            <tr><td><input type="checkbox"></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>⋯</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pager"><span>Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+    </section>
   </main>
 </div>
 
 <script>
   var items = document.querySelectorAll('.nav-item');
+  var pages = document.querySelectorAll('.page');
   var title = document.getElementById('page-title');
   var sub = document.getElementById('page-sub');
-  var phName = document.getElementById('ph-name');
   var sidebar = document.getElementById('sidebar');
   var overlay = document.getElementById('overlay');
 
@@ -223,11 +618,16 @@
     item.classList.add('active');
     title.textContent = item.dataset.title;
     sub.textContent = item.dataset.desc;
-    phName.textContent = item.dataset.title;
     document.title = 'page工作台 · ' + item.dataset.title;
+    pages.forEach(function (p) { p.classList.remove('active'); });
+    var pg = document.getElementById('page-' + item.dataset.page);
+    if (pg) { pg.classList.add('active'); }
     if (push) { try { history.replaceState(null, '', '#' + item.dataset.title); } catch (e) {} }
     sidebar.classList.remove('open');
     overlay.classList.remove('show');
+    window.scrollTo(0, 0);
+    var main = document.querySelector('main');
+    if (main) { main.scrollTop = 0; }
   }
 
   items.forEach(function (item) {
