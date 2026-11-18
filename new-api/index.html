@@ -1,41 +1,270 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="google" content="notranslate" />
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New API · 控制台</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 14px; color: #1f2937; background: #fff;
+    overflow: hidden;
+  }
+  a { text-decoration: none; color: inherit; }
 
-    <!-- Primary Meta Tags -->
-    <title>New API</title>
-    <meta name="title" content="New API" />
-    <meta
-      name="description"
-      content="Unified AI API gateway and admin dashboard."
-    />
+  /* ===== 顶栏 ===== */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; height: 48px; z-index: 40;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px; background: #fff; border-bottom: 1px solid #e5e7eb;
+  }
+  .hamburger {
+    display: none; width: 32px; height: 32px; border: 0; background: none;
+    border-radius: 6px; cursor: pointer; color: #4b5563; font-size: 18px; line-height: 1;
+  }
+  .hamburger:hover { background: #f3f4f6; }
+  .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .brand-mark {
+    width: 28px; height: 28px; flex: none; border-radius: 7px;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    color: #fff; font-weight: 700; font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brand-name { font-size: 15px; font-weight: 650; white-space: nowrap; }
+  .brand-ver {
+    font-size: 11px; color: #6b7280; background: #f3f4f6;
+    border-radius: 999px; padding: 2px 7px; white-space: nowrap;
+  }
+  .header-search {
+    flex: 1; max-width: 380px; margin-left: 16px;
+    display: flex; align-items: center; gap: 6px;
+    border: 1px solid #e5e7eb; border-radius: 8px;
+    padding: 5px 10px; color: #9ca3af; font-size: 13px; background: #f9fafb;
+  }
+  .header-search kbd {
+    margin-left: auto; font-family: inherit; font-size: 11px;
+    border: 1px solid #e5e7eb; border-bottom-width: 2px; border-radius: 4px;
+    padding: 0 4px; background: #fff; color: #6b7280;
+  }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+  .icon-btn {
+    width: 32px; height: 32px; border: 0; background: none; border-radius: 6px;
+    cursor: pointer; color: #4b5563; display: flex; align-items: center; justify-content: center;
+  }
+  .icon-btn:hover { background: #f3f4f6; }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .lang { font-size: 13px; color: #4b5563; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
+  .lang:hover { background: #f3f4f6; }
+  .avatar {
+    width: 28px; height: 28px; border-radius: 50%; margin-left: 4px;
+    background: #2563eb; color: #fff; font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
 
-    <meta name="theme-color" content="#fff" />
-    <!-- Resolve the theme before first paint so the page never flashes light
-         and one-shot detectors (e.g. Dark Reader) see the real theme.
-         Keep in sync with ThemeProvider and THEME_STORAGE_KEYS.mode. -->
-    <script>
-      ;(function () {
-        var theme = 'system'
-        try {
-          theme = localStorage.getItem('newapi:theme:v1:mode') || 'system'
-        } catch (e) {}
-        if (theme !== 'dark' && theme !== 'light') {
-          theme = window.matchMedia('(prefers-color-scheme: dark)').matches
-            ? 'dark'
-            : 'light'
-        }
-        document.documentElement.classList.add(theme)
-      })()
-    </script>
-    <!--umami-->
-    <!--Google Analytics-->
-  <link rel="icon" href="/OK/new-api/favicon.ico"><script defer src="/OK/new-api/static/js/vendor-ui-primitives.25755e2a57.js"></script><script defer src="/OK/new-api/static/js/vendor-tanstack.86948fa79d.js"></script><script defer src="/OK/new-api/static/js/lib-react.318395377d.js"></script><script defer src="/OK/new-api/static/js/87058.79382a8726.js"></script><script defer src="/OK/new-api/static/js/index.bcc724c9d5.js"></script><link href="/OK/new-api/static/css/index.63871fd4b4.css" rel="stylesheet"></head>
+  /* ===== 整体布局 ===== */
+  .layout { display: flex; height: 100vh; padding-top: 48px; }
 
-  <body>
-    <div id="root" translate="no" class="notranslate"></div>
-  </body>
+  /* ===== 侧边栏 ===== */
+  aside {
+    width: 248px; flex: none; height: 100%; overflow-y: auto;
+    background: #fff; border-right: 1px solid #e5e7eb; padding: 8px;
+  }
+  .nav-group { margin-bottom: 14px; }
+  .nav-group-label {
+    font-size: 11px; font-weight: 600; letter-spacing: .06em;
+    text-transform: uppercase; color: #9ca3af; padding: 6px 10px 4px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px; margin: 1px 0; border-radius: 7px;
+    color: #374151; font-size: 13.5px; cursor: pointer; white-space: nowrap;
+  }
+  .nav-item:hover { background: #f3f4f6; }
+  .nav-item.active { background: #eff6ff; color: #1d4ed8; font-weight: 550; }
+  .nav-item svg { width: 16px; height: 16px; flex: none; }
+  .nav-item .badge {
+    margin-left: auto; font-size: 10px; background: #dbeafe; color: #1d4ed8;
+    border-radius: 999px; padding: 1px 6px;
+  }
+  .sidebar-foot {
+    margin-top: 8px; padding: 10px; border-top: 1px solid #f3f4f6;
+    font-size: 12px; color: #9ca3af; line-height: 1.7;
+  }
+  .overlay {
+    display: none; position: fixed; inset: 48px 0 0 0; z-index: 30;
+    background: rgba(0,0,0,.35);
+  }
+  .overlay.show { display: block; }
+
+  /* ===== 内容区 ===== */
+  main {
+    flex: 1; min-width: 0; height: 100%; overflow-y: auto;
+    background: #f9fafb; padding: 20px 24px 40px;
+  }
+  .page-title { font-size: 20px; font-weight: 650; margin-bottom: 4px; }
+  .page-sub { font-size: 13px; color: #6b7280; margin-bottom: 20px; }
+  .placeholder {
+    background: #fff; border: 1px dashed #d1d5db; border-radius: 12px;
+    padding: 48px 24px; text-align: center;
+  }
+  .placeholder .big { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .placeholder p { font-size: 13px; color: #6b7280; line-height: 1.8; }
+  .placeholder .tag {
+    display: inline-block; margin-top: 16px; font-size: 12px; color: #92400e;
+    background: #fef3c7; border-radius: 999px; padding: 3px 10px;
+  }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .mini-card {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px;
+  }
+  .mini-card .k { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+  .mini-card .v { font-size: 18px; font-weight: 650; color: #d1d5db; }
+
+  @media (max-width: 768px) {
+    .hamburger { display: block; }
+    .header-search, .brand-ver, .lang { display: none; }
+    aside {
+      position: fixed; top: 48px; bottom: 0; left: 0; z-index: 40;
+      transform: translateX(-100%); transition: transform .2s ease;
+      box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    }
+    aside.open { transform: translateX(0); }
+    main { padding: 16px 14px 32px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="hamburger" id="hamburger" aria-label="菜单">☰</button>
+  <div class="brand">
+    <div class="brand-mark">N</div>
+    <span class="brand-name">New API</span>
+    <span class="brand-ver">v1.0.0-rc.51</span>
+  </div>
+  <div class="header-search">
+    <span>搜索菜单、渠道、密钥…</span>
+    <kbd>⌘ K</kbd>
+  </div>
+  <div class="header-right">
+    <button class="icon-btn" title="通知" aria-label="通知">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+    </button>
+    <span class="lang">简体中文</span>
+    <button class="icon-btn" title="设置" aria-label="设置">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+    <div class="avatar">郝</div>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="overlay" id="overlay"></div>
+
+  <aside id="sidebar">
+    <nav id="nav">
+      <div class="nav-group">
+        <div class="nav-group-label">对话</div>
+        <div class="nav-item" data-title="操场" data-desc="在线试聊天、试模型的地方"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.5"/><path d="M14 2v7.5"/><path d="M16 9.5a4 4 0 0 1 4 4v1a6 6 0 0 1-6 6H9.5a3 3 0 0 1-3-3v-1a4 4 0 0 1 4-4Z"/><path d="M6 9.5a4 4 0 0 0-4 4v1a6 6 0 0 0 6 6"/></svg>操场</div>
+        <div class="nav-item" data-title="对话" data-desc="聊天会话列表"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>对话</div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-label">通用</div>
+        <div class="nav-item active" data-title="概览" data-desc="余额、密钥、请求、消费、Token 一眼看完"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>概览</div>
+        <div class="nav-item" data-title="仪表盘" data-desc="模型调用量、性能、延迟统计"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>仪表盘</div>
+        <div class="nav-item" data-title="API 密钥" data-desc="创建、查看、停用自己的调用密钥"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m11 12 9-9"/><path d="m15.5 7.5 3 3"/><path d="m18.5 4.5 2 2"/></svg>API 密钥</div>
+        <div class="nav-item" data-title="使用日志" data-desc="每一次调用的记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>使用日志</div>
+        <div class="nav-item" data-title="审计日志" data-desc="登录、改配置等操作记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>审计日志</div>
+        <div class="nav-item" data-title="任务日志" data-desc="生图、生视频等异步任务的记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>任务日志</div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-label">个人</div>
+        <div class="nav-item" data-title="钱包" data-desc="余额、充值记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 1 0-4h16v4"/><path d="M20 7v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5"/><path d="M16 13h.01"/></svg>钱包</div>
+        <div class="nav-item" data-title="个人资料" data-desc="昵称、头像、账号信息"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>个人资料</div>
+        <div class="nav-item" data-title="安全与访问" data-desc="密码、登录方式、二次验证"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-3.6 8-10V5l-8-3-8 3v7c0 6.4 8 10 8 10z"/></svg>安全与访问</div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-label">管理</div>
+        <div class="nav-item" data-title="渠道" data-desc="接上游的地方：每个渠道就是一家上游 + 一把 KEY"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></svg>渠道</div>
+        <div class="nav-item" data-title="模型" data-desc="对外提供的模型列表和倍率"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/></svg>模型</div>
+        <div class="nav-item" data-title="用户" data-desc="用这个站的人、分组和额度"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M17.5 15.5c2 .7 3.5 2.2 4 4.5"/></svg>用户</div>
+        <div class="nav-item" data-title="兑换码" data-desc="发兑换码给别人充额度"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>兑换码</div>
+        <div class="nav-item" data-title="订阅" data-desc="套餐和订阅管理"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>订阅</div>
+        <div class="nav-item" data-title="系统信息" data-desc="版本、运行状态"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>系统信息</div>
+        <div class="nav-item" data-title="插件" data-desc="异步任务插件"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7h3a2 2 0 0 1 2 2v3"/><path d="M9 14a4 4 0 0 1-4-4V7a2 2 0 0 1 2-2h3"/><path d="M9 14a4 4 0 0 0 4 4h3a2 2 0 0 0 2-2v-3"/><path d="M14 9a4 4 0 0 0-4 4"/></svg>插件</div>
+        <div class="nav-item" data-title="请求处理" data-desc="请求改写、限速等处理规则"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg>请求处理</div>
+        <div class="nav-item" data-title="系统设置" data-desc="站点、计费、安全等设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>系统设置</div>
+      </div>
+    </nav>
+    <div class="sidebar-foot">只是一个壳。<br>数据和功能都还没接。</div>
+  </aside>
+
+  <main>
+    <h1 class="page-title" id="page-title">概览</h1>
+    <div class="page-sub" id="page-sub">余额、密钥、请求、消费、Token 一眼看完</div>
+
+    <div class="cards" id="cards">
+      <div class="mini-card"><div class="k">余额</div><div class="v">—</div></div>
+      <div class="mini-card"><div class="k">API 密钥</div><div class="v">—</div></div>
+      <div class="mini-card"><div class="k">今日请求</div><div class="v">—</div></div>
+      <div class="mini-card"><div class="k">今日消费</div><div class="v">—</div></div>
+      <div class="mini-card"><div class="k">累计 Token</div><div class="v">—</div></div>
+      <div class="mini-card"><div class="k">平均响应</div><div class="v">—</div></div>
+    </div>
+
+    <div class="placeholder">
+      <div class="big">这里是「<span id="ph-name">概览</span>」页</div>
+      <p>壳已经拿过来了，里面的数据和功能都还没接。<br>点左边菜单可以换页看看排版，都是空占位。</p>
+      <span class="tag">空壳预览 · 未接后端</span>
+    </div>
+  </main>
+</div>
+
+<script>
+  var items = document.querySelectorAll('.nav-item');
+  var title = document.getElementById('page-title');
+  var sub = document.getElementById('page-sub');
+  var phName = document.getElementById('ph-name');
+  var sidebar = document.getElementById('sidebar');
+  var overlay = document.getElementById('overlay');
+
+  function select(item, push) {
+    items.forEach(function (el) { el.classList.remove('active'); });
+    item.classList.add('active');
+    title.textContent = item.dataset.title;
+    sub.textContent = item.dataset.desc;
+    phName.textContent = item.dataset.title;
+    document.title = 'New API · ' + item.dataset.title;
+    if (push) { try { history.replaceState(null, '', '#' + item.dataset.title); } catch (e) {} }
+    sidebar.classList.remove('open');
+    overlay.classList.remove('show');
+  }
+
+  items.forEach(function (item) {
+    item.addEventListener('click', function () { select(item, true); });
+  });
+
+  document.getElementById('hamburger').addEventListener('click', function () {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('show', sidebar.classList.contains('open'));
+  });
+  overlay.addEventListener('click', function () {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('show');
+  });
+
+  // 打开时如果地址栏带 #，选中对应的菜单
+  var hash = decodeURIComponent(location.hash.slice(1));
+  if (hash) {
+    items.forEach(function (item) {
+      if (item.dataset.title === hash) { select(item, false); }
+    });
+  }
+</script>
+</body>
 </html>
