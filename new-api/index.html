@@ -586,21 +586,21 @@
             <div class="k">均线 MA7 / MA25</div>
             <div class="v" id="btc-sig-ma" style="font-size:26px">—</div>
             <div class="muted" id="btc-val-ma" style="font-size:13px">—</div>
-            <div class="muted" style="font-size:12px">MA7 上穿 MA25 为买入，下穿为卖出（只看已收完的 K 线）</div>
+            <div class="muted" style="font-size:12px">MA7 上穿 MA25 为做多，下穿为做空（只看已收完的 K 线）</div>
             <div class="muted" id="btc-age-ma" style="font-size:12px">—</div>
           </div>
           <div class="mini-card" style="flex:1;min-width:200px">
             <div class="k">RSI（14）</div>
             <div class="v" id="btc-sig-rsi" style="font-size:26px">—</div>
             <div class="muted" id="btc-val-rsi" style="font-size:13px">—</div>
-            <div class="muted" style="font-size:12px">RSI &lt; 30 为买入（超卖），&gt; 70 为卖出（超买）</div>
+            <div class="muted" style="font-size:12px">RSI &lt; 30 为做多（超卖），&gt; 70 为做空（超买）</div>
             <div class="muted" id="btc-age-rsi" style="font-size:12px">—</div>
           </div>
           <div class="mini-card" style="flex:1;min-width:200px">
             <div class="k">MACD（12,26,9）</div>
             <div class="v" id="btc-sig-macd" style="font-size:26px">—</div>
             <div class="muted" id="btc-val-macd" style="font-size:13px">—</div>
-            <div class="muted" style="font-size:12px">DIF 上穿 DEA 为买入，下穿为卖出（只看已收完的 K 线）</div>
+            <div class="muted" style="font-size:12px">DIF 上穿 DEA 为做多，下穿为做空（只看已收完的 K 线）</div>
             <div class="muted" id="btc-age-macd" style="font-size:12px">—</div>
           </div>
         </div>
@@ -2331,8 +2331,8 @@ function btcRuleLabel(rule) {
   return rule || '—';
 }
 function btcSignalText(sig) {
-  if (sig === 'buy') return '买入';
-  if (sig === 'sell') return '卖出';
+  if (sig === 'buy') return '做多';
+  if (sig === 'sell') return '做空';
   return '持有';
 }
 function btcSignalColor(sig) {
