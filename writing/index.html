@@ -142,6 +142,24 @@
       .progress .bar { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
       .progress .fill { height: 100%; width: 0%; background: var(--accent); border-radius: 99px; transition: width 0.4s ease; }
       .progress .ptext { font-size: 12.5px; color: var(--ink-2); margin-top: 6px; }
+      .skilltoggle {
+        width: 100%; margin-top: 12px; text-align: left;
+        border: 1px solid var(--gold); background: var(--surface-2); color: var(--ink);
+        border-radius: var(--radius); padding: 10px 11px;
+        display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center;
+      }
+      .skilltoggle-main { font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 7px; }
+      .skilldot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex: none; }
+      .skilltoggle-sub { grid-column: 1; font-size: 11.5px; color: var(--ink-2); line-height: 1.45; }
+      .skilltoggle-state {
+        grid-row: 1 / span 2; grid-column: 2; align-self: center;
+        font-size: 12px; font-weight: 700; color: var(--gold);
+        border: 1px solid var(--gold); border-radius: 999px; padding: 3px 10px; background: var(--surface);
+      }
+      .skilltoggle.off { border-color: var(--line); }
+      .skilltoggle.off .skilldot { background: var(--ink-3); }
+      .skilltoggle.off .skilltoggle-state { color: var(--ink-3); border-color: var(--line); }
+      .skillnote { font-size: 11.5px; color: var(--ink-3); margin: 7px 0 0; line-height: 1.55; }
 
       .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
       .tool {
@@ -313,6 +331,12 @@
             <div class="bar"><div class="fill" id="progressFill"></div></div>
             <div class="ptext" id="progressText"></div>
           </div>
+          <button class="skilltoggle" id="skillToggle" type="button" aria-pressed="true">
+            <span class="skilltoggle-main"><span class="skilldot"></span>起点榜单写法 · 已内置</span>
+            <span class="skilltoggle-sub">63 本实读提炼 · 本次开写自动带上</span>
+            <span class="skilltoggle-state" id="skillState">开</span>
+          </button>
+          <p class="skillnote" id="skillNote">提炼自起点 15 个榜 94 本中实读的 63 本免费章节（快照 2026-11-19，VIP 章节未读）：开篇钩子、节奏、对话、人物、反转与收尾。关掉后，本次按普通写法写。</p>
           <p class="mode-note">点一次，AI 按右边的故事设定写完整篇：不分章节、不加小标题，一口气写到结局。中途断了，点「接着写完」从断点继续。</p>
         </section>
         <section>
@@ -405,7 +429,7 @@
       <div class="sheet" role="dialog" aria-label="网关设置">
         <button class="x" type="button" data-close="settingsScrim">✕</button>
         <h3>网关设置</h3>
-        <p class="hint">和你的 page 工作台面板同一套：页面直连阿里云网关，密钥只存在这台设备的浏览器里，不写进页面。粘一次，以后打开不用再填。</p>
+        <p class="hint">和你的 page 工作台面板同一套：页面直连阿里云网关，密钥只存在这台设备的浏览器里，不写进页面。面板和本站在同一个 GitHub Pages 域名下时，浏览器会自动共用你面板里存好的那份密钥（同一个 localStorage 键），不用再填；如果打开后仍显示未连接，说明当前打开的地址和面板不同源，在这里粘一次保存即可，以后这个地址打开不用再填。</p>
         <div class="field">
           <label for="setBase">网关地址</label>
           <input id="setBase" type="text" autocomplete="off" spellcheck="false" />
@@ -582,6 +606,28 @@ $('btnStop').addEventListener('click', stopGen)
 $('btnStopM').addEventListener('click', stopGen)
 
 /* ── 写作提示词 ── */
+var skillOn = true
+var QIDIAN_SKILL = [
+'【起点畅销榜写法 · 已内置】以下写法提炼自起点 2026-11-19 榜单 94 本中 63 本实读的免费章节（VIP 章节未读），写这篇短篇时必须真正落实到正文里，不要只在心里知道：',
+'开篇钩子（前 3 句、前 300 字）：三件套一起上——一个反常场面或感官异常、一个身份问题、一个逼到眼前的死局／倒计时／精确的欠债数；不许用天气、景物或履历开场。手法任选其一二：身份错位并在第一段末翻一次身份；先用路人议论／流言给结论、主角后出场；用清单列 3—5 件不对劲的小事，最后一件落到身边最亲近的人或物上；用一桩小交易当场演示金手指的规则与代价。',
+'节奏（约 1 万字切成 4—5 个场景）：每个场景只办一件事、只推一条线；每 1000—1500 字完成一个小目标，同时立刻挂一个新钩子——新人物进门、一件旧物异动、一句刚出口的坏消息、一个待办动作。金手指与世界观规则一条一条给，拿到立刻用上，不一次倒完；中段可用一个固定仪式／任务循环撑住，靠每次换新料防重复；砍掉一切不推进冲突的铺垫。',
+'对话：短、口语、带性格。每场对话必须办一件事——试探、交易、逼出决定或暴露信息差，没有纯聊天的对话；关键信息让人物在对话里互相逼出来，旁白只补刀和抖包袱。世界观藏进对话、短信／账单／榜单／考题／入职手续里，不单开说明段；人物靠称呼变化、一句口头禅、一个怪癖区分。',
+'人物：主角一句话立住，金手指必须和他的老本行／旧本事锁死，并且有明确代价、上限和可数的进度，数字越具体越可信（钱、时间、胜率、修为每次推进报一次数）。配角只给一个标签＋一个反差细节＋一个怪癖，不堆外貌；反派给一套自洽的歪理或一段「怕什么」的恐惧史；压迫感优先来自制度、规矩、名额，不只靠一个坏人。',
+'反转与收尾：反转靠预期违背——先把读者预期立起来，再用一个具体证据、晒图或事先埋好的底牌打翻，翻完立刻给新方向。伏笔要以比许诺时更合理的方式兑现；开篇出现过的物件或意象，在结尾重现一次、意思要变。结尾不写尘埃落定：停在认知反转、接了更大的活、赶往下一站，或一件约好还没办成的事上，有余味、不烂尾。',
+'通用招法：清单是最省力的信息交付（处境清单、债务数、攻略、物证，一眼看到刻度）；同一场景或同一招式第二次出现，必须写出不同结果来显出成长。'
+].join('\n')
+function effectiveSystem() {
+return skillOn? STORY_SYSTEM + '\n\n' + QIDIAN_SKILL: STORY_SYSTEM
+}
+function renderSkillToggle() {
+var btn = $('skillToggle')
+if (!btn) return
+btn.classList.toggle('off',!skillOn)
+btn.setAttribute('aria-pressed', skillOn? 'true': 'false')
+$('skillState').textContent = skillOn? '开': '关'
+var sub = btn.querySelector('.skilltoggle-sub')
+if (sub) sub.textContent = skillOn? '63 本实读提炼 · 本次开写自动带上': '已关 · 本次按普通写法写'
+}
 var STORY_SYSTEM = [
 '你是一位顶尖的中文短篇小说作家，擅长写节奏快、钩子密、读完让人回味的短篇小说。',
 '写作铁律：',
@@ -614,7 +660,7 @@ var n = countChars(text)
 var T = target()
 if (!isResume) {
 return [
-{ role: 'system', content: STORY_SYSTEM},
+{ role: 'system', content: effectiveSystem()},
 { role: 'user', content: '请按下面的设定，写一整篇短篇小说，总篇幅约 ' + T + ' 字：\n' + settingsText() +
 '\n\n现在开始写正文，直接从第一句写起。这一轮先写开头部分，约 2500 到 3000 字，写到一个让人想往下看的钩子处自然停住，不要写结局，不要收尾。只输出正文。'}
 ]
@@ -625,7 +671,7 @@ var instr = finishing
 ? '这是最后一轮：请在这轮里把故事写完——收回前面的伏笔，给出有力量的结局，写完自然停笔。'
 : '不要写结局，把冲突继续推高或抛出新转折，停在一个让人想往下看的地方。'
 return [
-{ role: 'system', content: STORY_SYSTEM},
+{ role: 'system', content: effectiveSystem()},
 { role: 'user', content: '这是一篇正在写的短篇小说，设定如下：\n' + settingsText() +
 '\n总目标约 ' + T + ' 字，目前已写约 ' + n + ' 字。\n\n' + head +
 '\n\n' + tail +
@@ -689,6 +735,11 @@ if (aborted) { setStatus('已停止，已写 ' + final.toLocaleString('zh-CN') +
 else if (err) { setStatus('中断了：' + err.message + '。已写 ' + final.toLocaleString('zh-CN') + ' 字，点「接着写完」继续'); toast('生成中断：' + err.message)}
 else { setStatus('写完了，共 ' + final.toLocaleString('zh-CN') + ' 字'); toast('写完了，共 ' + final.toLocaleString('zh-CN') + ' 字')}
 }
+$('skillToggle').addEventListener('click', function () {
+skillOn =!skillOn
+renderSkillToggle()
+toast(skillOn? '起点榜单写法已开，本次开写会自动带上': '起点榜单写法已关，本次按普通写法写')
+})
 $('btnStory').addEventListener('click', function () { generateStory(false)})
 $('btnStoryM').addEventListener('click', function () { generateStory(false)})
 $('btnResume').addEventListener('click', function () { generateStory(true)})
@@ -726,7 +777,7 @@ var before = full.slice(0, start === end? full.length: end)
 if (!before.trim()) { toast('正文是空的，先写点东西或生成整篇'); return}
 sheetCtx = { mode: 'continue', start: before.length, end: before.length}
 messages = [
-{ role: 'system', content: STORY_SYSTEM},
+{ role: 'system', content: effectiveSystem()},
 { role: 'user', content: '这是一篇短篇小说的已写部分，设定：\n' + settingsText() + '\n\n' + before.slice(-3500) + '\n请紧接着最后一段往下续写约 800 到 1200 字：保持人物、口吻一致，不要重复，不要加标题或说明，只输出续写正文，不要写结局（除非故事自然该结束了）。'}
 ]
 openSheet('续写结果', '满意就点「替换原文」接到正文后面（光标处），或插入到光标处。', mode)
@@ -925,7 +976,7 @@ document.body.setAttribute('data-view', b.getAttribute('data-tab')); syncTabs()
 
 /* ── 初始化 ── */
 $('modelInput').value = cfg.model
-refreshCounts(); refreshConn(); renderMs(); syncTabs()
+refreshCounts(); refreshConn(); renderMs(); syncTabs(); renderSkillToggle()
 if (cfg.key) verifyConn(true)
 </script>
 </body>
