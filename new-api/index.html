@@ -578,6 +578,46 @@
       </div>
 
       <div class="panel">
+        <h3>策略信号（1h K 线，每小时整点算一次）</h3>
+        <p class="muted">只看不下单：三个策略各自独立给信号，不合成总信号；信号只供你手动下单参考，不保证赚钱。</p>
+        <p class="muted" id="btc-strat-err" hidden></p>
+        <div class="row" style="margin-top:10px;align-items:stretch">
+          <div class="mini-card" style="flex:1;min-width:200px">
+            <div class="k">均线 MA7 / MA25</div>
+            <div class="v" id="btc-sig-ma" style="font-size:26px">—</div>
+            <div class="muted" id="btc-val-ma" style="font-size:13px">—</div>
+            <div class="muted" style="font-size:12px">MA7 上穿 MA25 为买入，下穿为卖出（只看已收完的 K 线）</div>
+            <div class="muted" id="btc-age-ma" style="font-size:12px">—</div>
+          </div>
+          <div class="mini-card" style="flex:1;min-width:200px">
+            <div class="k">RSI（14）</div>
+            <div class="v" id="btc-sig-rsi" style="font-size:26px">—</div>
+            <div class="muted" id="btc-val-rsi" style="font-size:13px">—</div>
+            <div class="muted" style="font-size:12px">RSI &lt; 30 为买入（超卖），&gt; 70 为卖出（超买）</div>
+            <div class="muted" id="btc-age-rsi" style="font-size:12px">—</div>
+          </div>
+          <div class="mini-card" style="flex:1;min-width:200px">
+            <div class="k">MACD（12,26,9）</div>
+            <div class="v" id="btc-sig-macd" style="font-size:26px">—</div>
+            <div class="muted" id="btc-val-macd" style="font-size:13px">—</div>
+            <div class="muted" style="font-size:12px">DIF 上穿 DEA 为买入，下穿为卖出（只看已收完的 K 线）</div>
+            <div class="muted" id="btc-age-macd" style="font-size:12px">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>信号变化（最近 20 条）</h3>
+        <div class="tbl-wrap" style="margin-top:10px">
+          <table class="tbl">
+            <thead><tr><th>时间</th><th>策略</th><th>信号变化</th><th>当时价格（$）</th></tr></thead>
+            <tbody id="btc-signal-tbody">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
         <h3>提醒条件</h3>
         <p class="muted">全留空 = 只显示价格、不提醒。价格穿过条件那一下记一条提醒，回来之后再穿过去才重新记，不会刷屏。</p>
         <div class="row" style="margin-top:10px">
@@ -620,19 +660,20 @@
 
     <!-- ===== 对话 ===== -->
     <section class="page" id="page-chat">
+      <p class="page-note" id="note-chat" hidden></p>
       <div class="panel" style="padding:0;overflow:hidden">
         <div class="row" style="padding:10px 14px;border-bottom:1px solid #e5e7eb">
-          <span class="chip blue">预设 · —</span>
+          <select class="select" id="chat-model" style="max-width:280px"><option value="">加载模型…</option></select>
           <span style="flex:1"></span>
-          <button class="btn">在新窗口打开</button>
+          <button class="btn" id="chat-new">新对话</button>
         </div>
-        <div class="chart" style="height:340px;border:0;border-radius:0">聊天窗口（外嵌外部聊天站）· 未接</div>
+        <div id="chat-list" style="height:340px;overflow-y:auto;padding:14px"></div>
         <div class="row" style="padding:12px 14px;border-top:1px solid #e5e7eb">
-          <input class="input" style="flex:1" placeholder="输入消息…">
-          <button class="btn btn-primary">发送</button>
+          <input class="input" style="flex:1" id="chat-input" placeholder="输入消息…">
+          <button class="btn btn-primary" id="chat-send">发送</button>
         </div>
       </div>
-      <p class="muted" style="font-size:13px;color:#6b7280">对话页在原版里是外嵌一个聊天站，不是本站自己做的聊天框。</p>
+      <p class="muted" style="font-size:13px;color:#6b7280">走网关的 /v1/chat/completions（OpenAI 兼容），流式逐字显示；消息只放内存里，刷新页面就没了。</p>
     </section>
 
     <!-- ===== API 密钥 ===== -->
@@ -2086,7 +2127,7 @@ function renderVendors() {
 
 /* ===== 调度与启动 ===== */
 function loadPage(page) {
-  if (page === 'chat') return; /* 对话页不接真聊天：纯中转站，之前已去掉对话功能 */
+  if (page === 'chat') { loadChat(); return; }
   if (page === 'overview') loadOverview();
   else if (page === 'dashboard') loadDashboard();
   else if (page === 'btc') loadBtc();
@@ -2284,7 +2325,49 @@ function btcRuleLabel(rule) {
   if (rule === 'above') return '高于价';
   if (rule === 'below') return '低于价';
   if (rule === 'changePct') return '涨跌幅';
+  if (rule === 'ma') return '均线';
+  if (rule === 'rsi') return 'RSI';
+  if (rule === 'macd') return 'MACD';
   return rule || '—';
+}
+function btcSignalText(sig) {
+  if (sig === 'buy') return '买入';
+  if (sig === 'sell') return '卖出';
+  return '持有';
+}
+function btcSignalColor(sig) {
+  if (sig === 'buy') return '#16a34a';
+  if (sig === 'sell') return '#dc2626';
+  return '#9ca3af';
+}
+function btcAgeText(updatedAt) {
+  if (!updatedAt) return '还没算出过';
+  var mins = Math.max(0, Math.round((Date.now() - updatedAt) / 60000));
+  if (mins < 60) return '算于 ' + mins + ' 分钟前';
+  return '算于 ' + Math.floor(mins / 60) + ' 小时 ' + (mins % 60) + ' 分钟前';
+}
+function renderBtcStrategy(key, s) {
+  var sigEl = $('btc-sig-' + key);
+  var valEl = $('btc-val-' + key);
+  var ageEl = $('btc-age-' + key);
+  if (!sigEl) return;
+  if (!s) {
+    sigEl.textContent = '—';
+    sigEl.style.color = '#9ca3af';
+    if (valEl) valEl.textContent = '网关还没上线策略信号';
+    if (ageEl) ageEl.textContent = '';
+    return;
+  }
+  sigEl.textContent = btcSignalText(s.signal);
+  sigEl.style.color = btcSignalColor(s.signal);
+  var v = s.value || null;
+  if (valEl) {
+    if (!v) valEl.textContent = 'K 线不足，还算不出来';
+    else if (key === 'ma') valEl.textContent = 'MA7 ' + fmtUsd(v.ma7) + ' / MA25 ' + fmtUsd(v.ma25);
+    else if (key === 'rsi') valEl.textContent = 'RSI ' + Number(v.rsi).toFixed(1);
+    else valEl.textContent = 'DIF ' + Number(v.dif).toFixed(2) + ' / DEA ' + Number(v.dea).toFixed(2);
+  }
+  if (ageEl) ageEl.textContent = btcAgeText(s.updatedAt);
 }
 async function loadBtc() {
   if (!masterKey()) { showNote('note-btc', '请先在「概览」页设置主密钥，才能查看 BTC 盯盘。'); return; }
@@ -2307,7 +2390,10 @@ async function loadBtc() {
   setText('btc-updated', '更新时间：' + (b.updatedAt ? fmtDateFull(b.updatedAt) : '网关还没查到过价格（每小时整点查一次）'));
   var errEl = $('btc-err');
   if (errEl) {
-    if (b.lastError) { errEl.textContent = '最近一次查价失败：' + b.lastError + '（等下个整点再试）。'; errEl.hidden = false; }
+    var errs = [];
+    if (b.lastError) errs.push('最近一次查价失败：' + b.lastError + '（等下个整点再试）。');
+    if (b.candleError) errs.push('最近一次 K 线失败：' + b.candleError + '（信号保持上次的值，等下个整点再试）。');
+    if (errs.length) { errEl.textContent = errs.join(' '); errEl.hidden = false; }
     else errEl.hidden = true;
   }
   var cfg = b.config || {};
@@ -2333,6 +2419,29 @@ async function loadBtc() {
           return '<tr><td>' + esc(fmtDateFull(a.ts)) + '</td><td>' + esc(fmtUsd(a.price)) + '</td><td>' + esc(btcRuleLabel(a.rule)) + '</td><td>' + esc(a.text) + '</td></tr>';
         }).join('');
   }
+  /* 策略信号（网关没部署新接口时 b.strategies 为空，老实提示，不编假信号） */
+  var st = b.strategies || null;
+  var stratErr = $('btc-strat-err');
+  if (!st) {
+    if (stratErr) { stratErr.textContent = '网关还没上线策略信号：需要重新部署网关后才能看均线/RSI/MACD，页面不编假信号。'; stratErr.hidden = false; }
+    renderBtcStrategy('ma', null);
+    renderBtcStrategy('rsi', null);
+    renderBtcStrategy('macd', null);
+  } else {
+    if (stratErr) stratErr.hidden = true;
+    renderBtcStrategy('ma', st.ma);
+    renderBtcStrategy('rsi', st.rsi);
+    renderBtcStrategy('macd', st.macd);
+  }
+  var sh = (b.signalHistory || []).slice().reverse();
+  var sht = $('btc-signal-tbody');
+  if (sht) {
+    sht.innerHTML = sh.length === 0
+      ? '<tr><td colspan="4" style="text-align:center;color:#9ca3af">暂无信号变化</td></tr>'
+      : sh.map(function (s) {
+          return '<tr><td>' + esc(fmtDateFull(s.ts)) + '</td><td>' + esc(btcRuleLabel(s.strategy)) + '</td><td>' + esc(btcSignalText(s.from)) + ' → ' + esc(btcSignalText(s.to)) + '</td><td>' + esc(fmtUsd(s.price)) + '</td></tr>';
+        }).join('');
+  }
 }
 $('btc-save').addEventListener('click', async function () {
   if (!masterKey()) { alert('请先在「概览」页设置主密钥。'); return; }
@@ -2353,6 +2462,159 @@ $('btc-save').addEventListener('click', async function () {
     var msg = (r.body && r.body.error && r.body.error.message) ? r.body.error.message : ('保存失败（HTTP ' + r.status + '）');
     setText('btc-msg', msg);
   }
+});
+
+/* ===== 对话（走网关 /v1/chat/completions，流式） ===== */
+var chatMessages = []; /* 只放内存：[{role, content}]，刷新页面就没了 */
+var chatSending = false;
+
+function chatAddBubble(role, text) {
+  var list = $('chat-list');
+  if (!list) return null;
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'margin-bottom:10px;display:flex;' + (role === 'user' ? 'justify-content:flex-end' : 'justify-content:flex-start');
+  var b = document.createElement('div');
+  b.style.cssText = 'max-width:85%;padding:9px 12px;border-radius:12px;white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.6;' +
+    (role === 'user' ? 'background:linear-gradient(180deg,#e8bd60,#cf9c31);color:#1a1405' : 'background:rgba(128,128,128,0.15)');
+  b.textContent = text;
+  wrap.appendChild(b);
+  list.appendChild(wrap);
+  list.scrollTop = list.scrollHeight;
+  return b;
+}
+
+async function loadChatModels() {
+  var sel = $('chat-model');
+  if (!sel) return;
+  if (!masterKey()) {
+    sel.innerHTML = '<option value="">请先在「概览」页设置主密钥</option>';
+    return;
+  }
+  var rm = await cachedApi('models', 300000, '/v1/models');
+  if (!rm.ok || !rm.body || !(rm.body.data || []).length) {
+    sel.innerHTML = '<option value="">模型加载失败（HTTP ' + rm.status + '）</option>';
+    return;
+  }
+  var models = rm.body.data;
+  var saved = '';
+  try { saved = localStorage.getItem('chat_model') || ''; } catch (e) {}
+  var def = 'buddy/deepseek';
+  var picked = models.some(function (m) { return m.id === def; }) ? def : models[0].id;
+  if (saved && models.some(function (m) { return m.id === saved; })) picked = saved;
+  sel.innerHTML = models.map(function (m) {
+    return '<option value="' + esc(m.id) + '"' + (m.id === picked ? ' selected' : '') + '>' + esc(m.id) + '</option>';
+  }).join('');
+  sel.addEventListener('change', function () {
+    try { localStorage.setItem('chat_model', sel.value); } catch (e) {}
+  });
+}
+
+function loadChat() {
+  loadChatModels();
+  var list = $('chat-list');
+  if (list && list.children.length === 0) {
+    chatAddBubble('assistant', '你好，选个模型、输消息就能聊（走网关中转，流式回）。');
+  }
+}
+
+function chatSetSending(on) {
+  chatSending = on;
+  var btn = $('chat-send');
+  var input = $('chat-input');
+  if (btn) btn.disabled = on;
+  if (input) input.disabled = on;
+}
+
+async function sendChat() {
+  if (chatSending) return;
+  var input = $('chat-input');
+  var text = (input.value || '').trim();
+  if (!text) return;
+  if (!masterKey()) { showNote('note-chat', '请先在「概览」页设置主密钥，才能聊天。'); return; }
+  hideNote('note-chat');
+  var sel = $('chat-model');
+  var model = sel ? sel.value : '';
+  if (!model) { showNote('note-chat', '请先选一个模型（模型列表还没加载出来）。'); return; }
+  chatMessages.push({ role: 'user', content: text });
+  chatAddBubble('user', text);
+  input.value = '';
+  chatSetSending(true);
+  var asstEl = chatAddBubble('assistant', '…');
+  var full = '';
+  try {
+    var res = await fetch(API_BASE + '/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: 'Bearer ' + masterKey(), 'content-type': 'application/json' },
+      body: JSON.stringify({ model: model, messages: chatMessages, stream: true }),
+    });
+    if (!res.ok) {
+      var msg = '请求失败（HTTP ' + res.status + '）';
+      try {
+        var errText = await res.text();
+        var ej = JSON.parse(errText);
+        if (ej.error && ej.error.message) msg = ej.error.message;
+      } catch (e) {}
+      if (asstEl) asstEl.textContent = '出错了：' + msg;
+      chatSetSending(false);
+      return;
+    }
+    var contentType = res.headers.get('content-type') || '';
+    if (contentType.indexOf('text/event-stream') === -1 && contentType.indexOf('application/json') !== -1) {
+      // 上游没走流式：整包 JSON 回来，直接取正文
+      var jt = await res.text();
+      try {
+        var jj = JSON.parse(jt);
+        var content = jj.choices && jj.choices[0] && jj.choices[0].message && jj.choices[0].message.content;
+        if (content) { full = content; if (asstEl) asstEl.textContent = full; chatMessages.push({ role: 'assistant', content: full }); }
+        else if (asstEl) asstEl.textContent = '（上游没有返回内容）';
+      } catch (e) { if (asstEl) asstEl.textContent = '出错了：网关返回的不是合法 JSON。'; }
+      chatSetSending(false);
+      return;
+    }
+    var reader = res.body.getReader();
+    var decoder = new TextDecoder();
+    var buf = '';
+    if (asstEl) asstEl.textContent = '';
+    while (true) {
+      var chunk = await reader.read();
+      if (chunk.done) break;
+      buf += decoder.decode(chunk.value, { stream: true });
+      var lines = buf.split('\n');
+      buf = lines.pop();
+      for (var i = 0; i < lines.length; i += 1) {
+        var line = lines[i].trim();
+        if (!line || line.indexOf('data:') !== 0) continue;
+        var data = line.slice(5).trim();
+        if (data === '[DONE]') continue;
+        try {
+          var j = JSON.parse(data);
+          var delta = j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content;
+          if (delta) {
+            full += delta;
+            if (asstEl) asstEl.textContent = full;
+            var list = $('chat-list');
+            if (list) list.scrollTop = list.scrollHeight;
+          }
+        } catch (e) { /* 单行 JSON 不完整就跳过，等下一块 */ }
+      }
+    }
+    if (!full) { if (asstEl) asstEl.textContent = '（上游没有返回内容）'; }
+    else chatMessages.push({ role: 'assistant', content: full });
+  } catch (e) {
+    if (asstEl) asstEl.textContent = '出错了：网络错误（' + e.message + '）。';
+  }
+  chatSetSending(false);
+}
+$('chat-send').addEventListener('click', sendChat);
+$('chat-input').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+$('chat-new').addEventListener('click', function () {
+  chatMessages = [];
+  var list = $('chat-list');
+  if (list) list.innerHTML = '';
+  hideNote('note-chat');
+  loadChat();
 });
 
 /* 启动：先恢复密钥状态，再加载当前页 */
