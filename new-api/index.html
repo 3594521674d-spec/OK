@@ -566,7 +566,8 @@
       <div class="panel">
         <div class="row space">
           <h3>BTC / USDT 现价</h3>
-          <span class="chip" id="btc-source">每小时整点更新</span>
+          <span class="chip" id="btc-source">每 5 分钟更新</span>
+          <span class="muted" style="font-size:12px">自动刷新：每 60 秒</span>
         </div>
         <div style="font-size:36px;font-weight:700;line-height:1.2;margin-top:6px" id="btc-price">—</div>
         <div class="row" style="margin-top:6px">
@@ -574,11 +575,11 @@
           <span class="muted" id="btc-updated">更新时间：—</span>
         </div>
         <p class="muted" id="btc-err" hidden></p>
-        <p class="muted" style="margin-top:8px">只看不下单：每小时整点网关查一次公开行情（OKX 主用，CoinGecko 备用），价格与提醒都存在网关里；下单还是你自己手动下。</p>
+        <p class="muted" style="margin-top:8px">只看不下单：每 5 分钟网关查一次公开行情（OKX 主用，CoinGecko 备用），价格与提醒都存在网关里；下单还是你自己手动下。</p>
       </div>
 
       <div class="panel">
-        <h3>策略信号（1h K 线，每小时整点算一次）</h3>
+        <h3>策略信号（5m K 线，每 5 分钟算一次）</h3>
         <p class="muted">只看不下单：三个策略各自独立给信号，不合成总信号；信号只供你手动下单参考，不保证赚钱。</p>
         <p class="muted" id="btc-strat-err" hidden></p>
         <div class="row" style="margin-top:10px;align-items:stretch">
@@ -636,7 +637,7 @@
       </div>
 
       <div class="panel">
-        <h3>价格历史（最近 48 条，两天）</h3>
+        <h3>价格历史（最近 288 条，24 小时）</h3>
         <div class="tbl-wrap" style="margin-top:10px">
           <table class="tbl">
             <thead><tr><th>时间</th><th>价格（$）</th><th>24h 涨跌幅</th></tr></thead>
@@ -2127,6 +2128,7 @@ function renderVendors() {
 
 /* ===== 调度与启动 ===== */
 function loadPage(page) {
+  if (page !== 'btc') stopBtcAutoRefresh(); /* 离开 BTC 页就停掉自动刷新 */
   if (page === 'chat') { loadChat(); return; }
   if (page === 'overview') loadOverview();
   else if (page === 'dashboard') loadDashboard();
@@ -2369,12 +2371,31 @@ function renderBtcStrategy(key, s) {
   }
   if (ageEl) ageEl.textContent = btcAgeText(s.updatedAt);
 }
-async function loadBtc() {
+var btcRefreshTimer = null;
+var btcLoading = false;
+/* BTC 页自动刷新：打开 BTC 页后每 60 秒重新拉一次；切到别的页面就停掉，不在后台刷。 */
+function startBtcAutoRefresh() {
+  stopBtcAutoRefresh();
+  btcRefreshTimer = setInterval(function () {
+    var pg = document.getElementById('page-btc');
+    if (!pg || !pg.classList.contains('active')) { stopBtcAutoRefresh(); return; }
+    if (btcLoading || !masterKey()) return;
+    loadBtc(true);
+  }, 60000);
+}
+function stopBtcAutoRefresh() {
+  if (btcRefreshTimer) { clearInterval(btcRefreshTimer); btcRefreshTimer = null; }
+}
+async function loadBtc(quiet) {
   if (!masterKey()) { showNote('note-btc', '请先在「概览」页设置主密钥，才能查看 BTC 盯盘。'); return; }
+  if (btcLoading) return;
+  btcLoading = true;
   hideNote('note-btc');
-  setText('btc-price', '加载中…');
-  setText('btc-change', '24h 涨跌幅：—');
-  setText('btc-updated', '更新时间：—');
+  if (!quiet) {
+    setText('btc-price', '加载中…');
+    setText('btc-change', '24h 涨跌幅：—');
+    setText('btc-updated', '更新时间：—');
+  }
   var r = await api('/admin/btc/watch');
   if (!r.ok) {
     setText('btc-price', '—');
@@ -2382,17 +2403,18 @@ async function loadBtc() {
     else if (r.status === 401) showNote('note-btc', '密钥无效：网关返回 401。');
     else if (r.status === 0) showNote('note-btc', '网络错误：没连上网关（' + r.body + '）。');
     else showNote('note-btc', '加载失败（HTTP ' + r.status + '）。');
+    btcLoading = false;
     return;
   }
   var b = r.body || {};
   setText('btc-price', b.price === null || b.price === undefined ? '—' : fmtUsd(b.price));
   setText('btc-change', '24h 涨跌幅：' + fmtChg(b.change24h));
-  setText('btc-updated', '更新时间：' + (b.updatedAt ? fmtDateFull(b.updatedAt) : '网关还没查到过价格（每小时整点查一次）'));
+  setText('btc-updated', '更新时间：' + (b.updatedAt ? fmtDateFull(b.updatedAt) : '网关还没查到过价格（每 5 分钟查一次）'));
   var errEl = $('btc-err');
   if (errEl) {
     var errs = [];
-    if (b.lastError) errs.push('最近一次查价失败：' + b.lastError + '（等下个整点再试）。');
-    if (b.candleError) errs.push('最近一次 K 线失败：' + b.candleError + '（信号保持上次的值，等下个整点再试）。');
+    if (b.lastError) errs.push('最近一次查价失败：' + b.lastError + '（等下个 5 分钟再试）。');
+    if (b.candleError) errs.push('最近一次 K 线失败：' + b.candleError + '（信号保持上次的值，等下个 5 分钟再试）。');
     if (errs.length) { errEl.textContent = errs.join(' '); errEl.hidden = false; }
     else errEl.hidden = true;
   }
@@ -2405,7 +2427,7 @@ async function loadBtc() {
   var ht = $('btc-history-tbody');
   if (ht) {
     ht.innerHTML = hist.length === 0
-      ? '<tr><td colspan="3" style="text-align:center;color:#9ca3af">暂无历史：网关每小时整点查一次，下一整点后就有数据。</td></tr>'
+      ? '<tr><td colspan="3" style="text-align:center;color:#9ca3af">暂无历史：网关每 5 分钟查一次，下个 5 分钟后就有数据。</td></tr>'
       : hist.map(function (p) {
           return '<tr><td>' + esc(fmtDateFull(p.ts)) + '</td><td>' + esc(fmtUsd(p.price)) + '</td><td>' + esc(fmtChg(p.change24h)) + '</td></tr>';
         }).join('');
@@ -2442,6 +2464,8 @@ async function loadBtc() {
           return '<tr><td>' + esc(fmtDateFull(s.ts)) + '</td><td>' + esc(btcRuleLabel(s.strategy)) + '</td><td>' + esc(btcSignalText(s.from)) + ' → ' + esc(btcSignalText(s.to)) + '</td><td>' + esc(fmtUsd(s.price)) + '</td></tr>';
         }).join('');
   }
+  btcLoading = false;
+  startBtcAutoRefresh();
 }
 $('btc-save').addEventListener('click', async function () {
   if (!masterKey()) { alert('请先在「概览」页设置主密钥。'); return; }
