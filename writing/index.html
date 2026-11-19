@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>AI写作网站</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@400;600;900&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #f6f4ef;
+        --surface: #fffdf9;
+        --surface-2: #efeadf;
+        --ink: #211d16;
+        --ink-2: #57503f;
+        --ink-3: #8a8271;
+        --line: #ddd5c3;
+        --accent: #b23a2e;
+        --accent-ink: #ffffff;
+        --accent-soft: #f7e3df;
+        --ok: #2e7d4f;
+        --err: #b23a2e;
+        --gold: #a97b1e;
+        --shadow: 0 10px 30px rgba(33, 29, 22, 0.14);
+        --radius: 10px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #12100d;
+          --surface: #1c1915;
+          --surface-2: #26221c;
+          --ink: #ece5d5;
+          --ink-2: #b3aa97;
+          --ink-3: #7e7663;
+          --line: #38322a;
+          --accent: #d96a58;
+          --accent-ink: #ffffff;
+          --accent-soft: #3a2320;
+          --ok: #5cb887;
+          --err: #e07a6a;
+          --gold: #d9a441;
+          --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+      }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+        font-size: 15px;
+        line-height: 1.55;
+        -webkit-text-size-adjust: 100%;
+      }
+      button, [role="button"], select, summary, input:not([type="checkbox"], [type="radio"]), textarea { min-height: 2.25rem; }
+      button { font: inherit; cursor: pointer; }
+      button:disabled { opacity: 0.45; cursor: not-allowed; }
+      :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+      /* ── 顶部工具条 ─────────────────────────── */
+      .topbar {
+        position: sticky; top: 0; z-index: 40;
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        padding: 8px 12px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+      }
+      .brand { font-family: "Noto Serif SC", serif; font-weight: 900; font-size: 17px; letter-spacing: 0.06em; margin-right: 2px; }
+      .brand .dot { color: var(--accent); }
+      .pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 12.5px; color: var(--ink-2);
+        border: 1px solid var(--line); border-radius: 999px;
+        padding: 3px 10px; min-height: 2rem; background: var(--surface);
+      }
+      .pill .led { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); flex: none; }
+      .pill.ok .led { background: var(--ok); }
+      .pill.err .led { background: var(--err); }
+      .pill button { border: 0; background: none; color: var(--accent); font-weight: 700; padding: 0 2px; min-height: 1.6rem; }
+      .topbar .spacer { flex: 1; }
+      .modelpick { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
+      .modelpick input {
+        width: 190px; max-width: 44vw; padding: 4px 8px;
+        border: 1px solid var(--line); border-radius: 8px;
+        background: var(--surface); color: var(--ink); font: inherit; font-size: 13px;
+      }
+      .tbtn {
+        border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+        border-radius: 8px; padding: 5px 12px; font-size: 13.5px;
+      }
+      .tbtn:active { background: var(--surface-2); }
+
+      /* ── 三栏布局 ─────────────────────────── */
+      .layout {
+        display: grid; grid-template-columns: 252px minmax(0, 1fr) 292px;
+        gap: 14px; max-width: 1520px; margin: 0 auto; padding: 14px;
+        align-items: start;
+      }
+      .rail {
+        background: var(--surface); border: 1px solid var(--line);
+        border-radius: var(--radius); padding: 14px;
+        position: sticky; top: 64px;
+        max-height: calc(100vh - 84px); overflow: auto;
+      }
+      .rail h2 {
+        font-family: "Noto Serif SC", serif; font-size: 15px; font-weight: 900;
+        margin: 0 0 10px; letter-spacing: 0.04em;
+        display: flex; align-items: baseline; justify-content: space-between;
+      }
+      .rail h2 .sub { font-family: "Noto Sans SC", sans-serif; font-size: 11.5px; font-weight: 400; color: var(--ink-3); }
+      .rail section + section { border-top: 1px dashed var(--line); margin-top: 16px; padding-top: 14px; }
+
+      .bigbtn {
+        width: 100%; border: 0; border-radius: var(--radius);
+        background: var(--accent); color: var(--accent-ink);
+        font-size: 16.5px; font-weight: 700; letter-spacing: 0.05em;
+        padding: 13px 10px; min-height: 3.2rem;
+      }
+      .bigbtn:active { filter: brightness(0.92); }
+      .bigbtn.ghost {
+        background: var(--surface); color: var(--accent);
+        border: 1.5px solid var(--accent); font-size: 15px; padding: 10px;
+        min-height: 2.9rem;
+      }
+      .rowbtns { display: flex; gap: 8px; margin-top: 8px; }
+      .rowbtns button { flex: 1; }
+      .stopbtn {
+        border: 1px solid var(--line); background: var(--surface-2); color: var(--ink);
+        border-radius: var(--radius); padding: 9px; font-weight: 500;
+      }
+      .mode-note { font-size: 12.5px; color: var(--ink-2); margin: 9px 0 0; }
+      .targetrow { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; color: var(--ink-2); }
+      .targetrow select {
+        flex: 1; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px;
+        background: var(--surface); color: var(--ink); font: inherit; font-size: 13.5px;
+      }
+      .progress { margin-top: 12px; display: none; }
+      .progress.on { display: block; }
+      .progress .bar { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+      .progress .fill { height: 100%; width: 0%; background: var(--accent); border-radius: 99px; transition: width 0.4s ease; }
+      .progress .ptext { font-size: 12.5px; color: var(--ink-2); margin-top: 6px; }
+
+      .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .tool {
+        border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+        border-radius: var(--radius); padding: 10px 6px; text-align: center;
+      }
+      .tool b { display: block; font-size: 14.5px; font-weight: 700; }
+      .tool span { font-size: 11.5px; color: var(--ink-3); }
+      .tool:active { background: var(--accent-soft); border-color: var(--accent); }
+
+      .field { margin-bottom: 11px; }
+      .field label { display: block; font-size: 12.5px; font-weight: 500; color: var(--ink-2); margin-bottom: 4px; }
+      .field input, .field select, .field textarea {
+        width: 100%; box-sizing: border-box;
+        border: 1px solid var(--line); border-radius: 8px;
+        background: var(--surface); color: var(--ink);
+        font: inherit; font-size: 14px; padding: 7px 9px;
+      }
+      .field textarea { min-height: 4.2rem; resize: vertical; line-height: 1.5; }
+
+      .mscript { border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 11px; margin-bottom: 8px; background: var(--surface); }
+      .mscript.cur { border-color: var(--accent); background: var(--accent-soft); }
+      .mscript .mt { font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; gap: 8px; }
+      .mscript .mt button { border: 0; background: none; color: var(--ink-3); font-size: 12px; padding: 2px 4px; min-height: 1.8rem; }
+      .mscript .mm { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+      .empty-note { font-size: 12.5px; color: var(--ink-3); }
+
+      /* ── 编辑器 ─────────────────────────── */
+      .editor-col { min-width: 0; }
+      .actionbar {
+        display: none; gap: 8px; margin-bottom: 10px; align-items: stretch;
+      }
+      .actionbar .bigbtn { flex: 1; }
+      .actionbar .stopbtn { flex: 0 0 92px; border-radius: var(--radius); }
+      .paper {
+        background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+        padding: 20px 22px 14px; box-shadow: var(--shadow);
+      }
+      #titleInput {
+        width: 100%; box-sizing: border-box; border: 0; background: none; color: var(--ink);
+        font-family: "Noto Serif SC", serif; font-weight: 900; font-size: 22px;
+        padding: 2px 0 10px; border-bottom: 1px solid var(--line); border-radius: 0;
+      }
+      #titleInput::placeholder { color: var(--ink-3); font-weight: 600; }
+      #editor {
+        width: 100%; box-sizing: border-box; border: 0; background: none; color: var(--ink);
+        font-family: "Noto Serif SC", "Songti SC", serif; font-size: 17.5px; line-height: 1.95;
+        min-height: 62vh; resize: vertical; padding: 14px 0 6px; display: block;
+      }
+      #editor::placeholder { color: var(--ink-3); font-size: 16px; line-height: 1.8; }
+      #editor:focus, #titleInput:focus { outline: none; }
+      .paper:focus-within { border-color: var(--accent); }
+      .editor-foot {
+        display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center;
+        border-top: 1px dashed var(--line); padding-top: 10px; margin-top: 4px;
+        font-size: 12.5px; color: var(--ink-2);
+      }
+      .editor-foot .st { color: var(--accent); font-weight: 500; }
+      .editor-foot .spacer { flex: 1; }
+      .mini { border: 0; background: none; color: var(--ink-2); padding: 4px 6px; font-size: 12.5px; min-height: 2rem; }
+      .mini:active { color: var(--accent); }
+
+      /* ── 手机标签栏 ─────────────────────────── */
+      .tabbar {
+        display: none; position: sticky; bottom: 0; z-index: 40;
+        background: var(--surface); border-top: 1px solid var(--line);
+        padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+        gap: 6px;
+      }
+      .tabbar button {
+        flex: 1; border: 1px solid transparent; background: none; color: var(--ink-2);
+        border-radius: 8px; padding: 8px 4px; font-size: 14px; min-height: 2.8rem;
+      }
+      .tabbar button.on { background: var(--accent-soft); color: var(--accent); font-weight: 700; border-color: var(--accent); }
+
+      @media (max-width: 1023px) {
+        .layout { grid-template-columns: 1fr; padding: 10px 10px 96px; gap: 10px; }
+        .rail { position: static; max-height: none; }
+        .tabbar { display: flex; }
+        .actionbar { display: flex; }
+        body[data-view="write"] .editor-col, body[data-view="write"] #railSide { display: none; }
+        body[data-view="edit"] #railWrite, body[data-view="edit"] #railSide { display: none; }
+        body[data-view="side"] #railWrite, body[data-view="side"] .editor-col { display: none; }
+        .paper { padding: 16px 15px 12px; }
+        #editor { min-height: 34vh; font-size: 17px; }
+        .editor-foot, .editor-foot .mini, .rail { scroll-margin-bottom: 110px; }
+        .brand { font-size: 16px; }
+      }
+
+      /* ── 弹层：设置 / AI 结果 ─────────────────────────── */
+      .scrim {
+        position: fixed; inset: 0; z-index: 60; background: rgba(18, 14, 10, 0.52);
+        display: none; align-items: flex-end; justify-content: center;
+      }
+      .scrim.on { display: flex; }
+      .sheet {
+        background: var(--surface); color: var(--ink); width: min(680px, 100%);
+        max-height: 88vh; overflow: auto; border-radius: 16px 16px 0 0;
+        padding: 18px 18px calc(16px + env(safe-area-inset-bottom));
+        box-shadow: var(--shadow);
+      }
+      @media (min-width: 700px) { .scrim { align-items: center; } .sheet { border-radius: 16px; } }
+      .sheet h3 { font-family: "Noto Serif SC", serif; margin: 0 0 4px; font-size: 17px; font-weight: 900; }
+      .sheet .hint { font-size: 12.5px; color: var(--ink-2); margin: 0 0 12px; }
+      .sheet .x {
+        float: right; border: 1px solid var(--line); background: var(--surface);
+        border-radius: 8px; width: 2.4rem; font-size: 15px; color: var(--ink-2);
+      }
+      #sheetText {
+        width: 100%; box-sizing: border-box; min-height: 9rem;
+        border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+        color: var(--ink); font-family: "Noto Serif SC", serif; font-size: 15.5px; line-height: 1.8; padding: 10px;
+      }
+      .titlechips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+      .titlechips button {
+        border: 1px solid var(--accent); color: var(--accent); background: var(--accent-soft);
+        border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 500;
+      }
+      .sheetbtns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+      .sheetbtns button { flex: 1; border-radius: var(--radius); padding: 11px 8px; font-size: 14.5px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+      .sheetbtns .primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+      .setmsg { font-size: 13px; margin-top: 8px; min-height: 1.2em; }
+      .setmsg.ok { color: var(--ok); } .setmsg.err { color: var(--err); }
+
+      #toast {
+        position: fixed; left: 50%; bottom: 86px; transform: translateX(-50%) translateY(20px);
+        background: var(--ink); color: var(--bg); font-size: 13.5px;
+        padding: 9px 16px; border-radius: 999px; opacity: 0; pointer-events: none;
+        transition: opacity 0.25s ease, transform 0.25s ease; z-index: 80; max-width: 88vw; text-align: center;
+      }
+      #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+      @media (prefers-reduced-motion: reduce) {
+        .progress .fill, #toast { transition: none; }
+      }
+    </style>
+  </head>
+  <body data-view="edit">
+    <header class="topbar">
+      <div class="brand">墨池<span class="dot">·</span>AI写作</div>
+      <span class="pill" id="connPill"><span class="led"></span><span id="connText">网关未连接</span><button id="connFix" type="button">去设置</button></span>
+      <div class="spacer"></div>
+      <label class="modelpick">模型
+        <input id="modelInput" list="modelList" value="buddy/deepseek-v4.1-flash" autocomplete="off" spellcheck="false" />
+        <datalist id="modelList"></datalist>
+      </label>
+      <button class="tbtn" id="btnSettings" type="button">网关设置</button>
+      <button class="tbtn" id="btnExport" type="button">导出全文</button>
+    </header>
+
+    <div class="layout">
+      <!-- 左栏：写作 -->
+      <aside class="rail" id="railWrite">
+        <section>
+          <h2>短篇小说 <span class="sub">整篇一次写完</span></h2>
+          <button class="bigbtn" id="btnStory" type="button">写一整篇短篇</button>
+          <div class="rowbtns">
+            <button class="stopbtn" id="btnResume" type="button" style="flex:1">接着写完</button>
+            <button class="stopbtn" id="btnStop" type="button" style="flex:1" disabled>停止</button>
+          </div>
+          <div class="targetrow">
+            <label for="targetSel">目标字数</label>
+            <select id="targetSel">
+              <option value="6000">约 6,000 字</option>
+              <option value="10000" selected>约 10,000 字</option>
+              <option value="15000">约 15,000 字</option>
+            </select>
+          </div>
+          <div class="progress" id="progressBox">
+            <div class="bar"><div class="fill" id="progressFill"></div></div>
+            <div class="ptext" id="progressText"></div>
+          </div>
+          <p class="mode-note">点一次，AI 按右边的故事设定写完整篇：不分章节、不加小标题，一口气写到结局。中途断了，点「接着写完」从断点继续。</p>
+        </section>
+        <section>
+          <h2>选中文字工具 <span class="sub">先在正文里选中一段</span></h2>
+          <div class="tools">
+            <button class="tool" id="toolContinue" type="button"><b>续写</b><span>从光标处往下接</span></button>
+            <button class="tool" id="toolExpand" type="button"><b>扩写</b><span>把选中段写丰满</span></button>
+            <button class="tool" id="toolPolish" type="button"><b>润色</b><span>改顺、改有文采</span></button>
+            <button class="tool" id="toolTitles" type="button"><b>起标题</b><span>按正文拟 5 个名</span></button>
+          </div>
+        </section>
+      </aside>
+
+      <!-- 中栏：编辑器 -->
+      <main class="editor-col">
+        <div class="actionbar">
+          <button class="bigbtn" id="btnStoryM" type="button">写一整篇短篇</button>
+          <button class="stopbtn" id="btnStopM" type="button" disabled>停止</button>
+        </div>
+        <div class="paper">
+          <input id="titleInput" type="text" placeholder="给这篇小说起个名（可让 AI 起）" autocomplete="off" />
+          <textarea id="editor" placeholder="正文会写在这里，你也可以自己直接打字。
+
+点左边（手机上点下面的「写作」）的「写一整篇短篇」，AI 就按故事设定一口气写完整篇，约一万字，不要章节。
+
+写之前先在「设定」里填一下题材和梗概，写出来更对味；不填也能写，AI 会自己构思一个故事。"></textarea>
+          <div class="editor-foot">
+            <span>正文 <b id="wcNow">0</b> 字</span>
+            <span id="wcTarget"></span>
+            <span class="st" id="statusLine"></span>
+            <span class="spacer"></span>
+            <button class="mini" id="btnCopy" type="button">复制全文</button>
+            <button class="mini" id="btnSaveMs" type="button">存入稿件</button>
+            <button class="mini" id="btnClear" type="button">清空</button>
+          </div>
+        </div>
+      </main>
+
+      <!-- 右栏：设定 + 稿件 -->
+      <aside class="rail" id="railSide">
+        <section>
+          <h2>故事设定 <span class="sub">写之前填，越具体越对味</span></h2>
+          <div class="field">
+            <label for="fGenre">题材</label>
+            <select id="fGenre">
+              <option>都市</option><option>悬疑</option><option>玄幻</option><option>武侠</option>
+              <option>科幻</option><option>言情</option><option>历史</option><option>恐怖灵异</option>
+              <option>现实生活</option><option>搞笑</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fHero">主角（名字＋一句话人设，可空）</label>
+            <input id="fHero" type="text" placeholder="如：陈默，嘴硬心软的外卖小哥" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="fPremise">一句话梗概（可空，空了 AI 自拟）</label>
+            <textarea id="fPremise" placeholder="如：一个专门给人写差评赚钱的人，接了一单骂自己的活"></textarea>
+          </div>
+          <div class="field">
+            <label for="fStyle">文风</label>
+            <select id="fStyle">
+              <option>快节奏爽文</option><option>幽默风趣</option><option>细腻文学</option>
+              <option>冷峻硬朗</option><option>温情治愈</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fPov">视角</label>
+            <select id="fPov"><option>第三人称</option><option>第一人称</option></select>
+          </div>
+          <div class="field">
+            <label for="fExtra">补充要求（想加的元素、忌讳，可空）</label>
+            <input id="fExtra" type="text" placeholder="如：结尾要反转；不要写悲剧" autocomplete="off" />
+          </div>
+        </section>
+        <section>
+          <h2>稿件 <span class="sub">本次打开期间有效</span></h2>
+          <div id="msList"><p class="empty-note">还没有稿件。写完一篇点编辑器下方的「存入稿件」，可以存多篇来回切换；要长期保存请用「导出全文」存成文件。</p></div>
+        </section>
+      </aside>
+    </div>
+
+    <nav class="tabbar">
+      <button type="button" data-tab="write">写作</button>
+      <button type="button" data-tab="edit" class="on">正文</button>
+      <button type="button" data-tab="side">设定·稿件</button>
+    </nav>
+
+    <!-- 网关设置 -->
+    <div class="scrim" id="settingsScrim">
+      <div class="sheet" role="dialog" aria-label="网关设置">
+        <button class="x" type="button" data-close="settingsScrim">✕</button>
+        <h3>网关设置</h3>
+        <p class="hint">和你的 page 工作台面板同一套：页面直连阿里云网关，密钥只存在这台设备的浏览器里，不写进页面。粘一次，以后打开不用再填。</p>
+        <div class="field">
+          <label for="setBase">网关地址</label>
+          <input id="setBase" type="text" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="setKey">网关密钥（就是面板那个密码）</label>
+          <input id="setKey" type="password" placeholder="粘贴密钥" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="setModel">默认模型</label>
+          <input id="setModel" type="text" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="setmsg" id="setMsg"></div>
+        <div class="sheetbtns">
+          <button type="button" id="btnTestConn">测试连接</button>
+          <button type="button" class="primary" id="btnSaveSettings">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI 结果 -->
+    <div class="scrim" id="sheetScrim">
+      <div class="sheet" role="dialog" aria-label="AI 结果">
+        <button class="x" type="button" data-close="sheetScrim">✕</button>
+        <h3 id="sheetTitle">AI 结果</h3>
+        <p class="hint" id="sheetHint"></p>
+        <textarea id="sheetText"></textarea>
+        <div class="titlechips" id="titleChips"></div>
+        <div class="sheetbtns" id="sheetBtns">
+          <button type="button" id="btnSheetReplace">替换原文</button>
+          <button type="button" id="btnSheetInsert">插入到光标处</button>
+          <button type="button" class="primary" id="btnSheetDone">就这样</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" role="status"></div>
+<script>
+'use strict'
+var $ = function (id) { return document.getElementById(id)}
+
+/* ── 配置：网关与模型内嵌，密钥只存本机浏览器（与面板同一套做法） ── */
+var DEFAULT_BASE = 'https://free-ll-gateway-ilghvenboz.cn-hangzhou.fcapp.run'
+var DEFAULT_MODEL = 'buddy/deepseek-v4.1-flash'
+var cfg = {
+base: localStorage.getItem('wb_api_base') || DEFAULT_BASE,
+key: localStorage.getItem('wb_api_key') || '',
+model: localStorage.getItem('wb_model') || DEFAULT_MODEL
+}
+function saveCfg() {
+localStorage.setItem('wb_api_base', cfg.base)
+localStorage.setItem('wb_api_key', cfg.key)
+localStorage.setItem('wb_model', cfg.model)
+}
+
+var editor = $('editor'), titleInput = $('titleInput')
+var busy = false, abortCtl = null
+var manuscripts = [], currentMsId = null, msSeq = 0
+
+function toast(msg) {
+var t = $('toast'); t.textContent = msg; t.classList.add('on')
+clearTimeout(toast._h); toast._h = setTimeout(function () { t.classList.remove('on')}, 2600)
+}
+function countChars(s) { return (s || '').replace(/\s/g, '').length}
+function setStatus(msg) { $('statusLine').textContent = msg || ''}
+function refreshCounts() {
+var n = countChars(editor.value)
+$('wcNow').textContent = n.toLocaleString('zh-CN')
+$('wcTarget').textContent = n? '／ 目标约 ' + Number($('targetSel').value).toLocaleString('zh-CN') + ' 字': ''
+return n
+}
+editor.addEventListener('input', refreshCounts)
+$('targetSel').addEventListener('change', refreshCounts)
+
+/* ── 连接状态 ── */
+function setConn(state, text) {
+var pill = $('connPill'); pill.className = 'pill' + (state? ' ' + state: '')
+$('connText').textContent = text
+$('connFix').style.display = state === 'ok'? 'none': ''
+}
+function refreshConn() {
+if (!cfg.key) { setConn('err', '网关未连接：还没填密钥'); return}
+setConn('', '网关：已填密钥，未验证')
+}
+async function fetchModels() {
+if (!cfg.key) return null
+var res = await fetch(cfg.base + '/v1/models', { headers: { authorization: 'Bearer ' + cfg.key}})
+if (!res.ok) throw new Error('HTTP ' + res.status)
+var body = await res.json()
+return (body.data || []).map(function (m) { return m.id}).filter(Boolean)
+}
+async function verifyConn(silent) {
+if (!cfg.key) { refreshConn(); return false}
+try {
+var ids = await fetchModels()
+var dl = $('modelList'); dl.innerHTML = ''
+;(ids || []).forEach(function (id) { var o = document.createElement('option'); o.value = id; dl.appendChild(o)})
+setConn('ok', '网关已连接 · ' + (ids? ids.length: 0) + ' 个模型')
+return true
+} catch (e) {
+setConn('err', '网关连不上或密钥不对')
+if (!silent) toast('连接失败：检查网关地址和密钥')
+return false
+}
+}
+
+/* ── 网关流式对话（OpenAI 兼容） ── */
+async function streamChat(messages, opts) {
+opts = opts || {}
+var ctl = new AbortController(); abortCtl = ctl
+var res
+try {
+res = await fetch(cfg.base + '/v1/chat/completions', {
+method: 'POST',
+headers: { 'content-type': 'application/json', authorization: 'Bearer ' + cfg.key},
+body: JSON.stringify({
+model: cfg.model, messages: messages, stream: true,
+temperature: opts.temperature!= null? opts.temperature: 0.9,
+max_tokens: opts.maxTokens || 8000
+}),
+signal: ctl.signal
+})
+} catch (e) {
+if (e.name === 'AbortError') throw e
+throw new Error('网络错误：连不上网关（' + e.message + '）')
+}
+if (!res.ok) {
+var t = ''; try { t = await res.text()} catch (_) {}
+if (res.status === 401) throw new Error('密钥不对或没填（网关返回 401）')
+throw new Error('网关返回 ' + res.status + (t? '：' + t.slice(0, 160): ''))
+}
+var ct = res.headers.get('content-type') || ''
+if (ct.indexOf('event-stream') === -1 ||!res.body) {
+var j = await res.json()
+var c = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content
+if (c) opts.onDelta(c)
+return
+}
+var reader = res.body.getReader(), dec = new TextDecoder(), buf = ''
+while (true) {
+var r = await reader.read()
+if (r.done) break
+buf += dec.decode(r.value, { stream: true})
+var lines = buf.split('\n'); buf = lines.pop()
+for (var i = 0; i < lines.length; i++) {
+var line = lines[i].trim()
+if (line.indexOf('data:')!== 0) continue
+var data = line.slice(5).trim()
+if (data === '[DONE]') return
+try {
+var obj = JSON.parse(data)
+var d = obj.choices && obj.choices[0] && obj.choices[0].delta
+if (d && d.content) opts.onDelta(d.content)
+} catch (_) { /* 半行 JSON 跳过 */}
+}
+}
+}
+
+function ensureKey() {
+if (cfg.key) return true
+openSettings()
+$('setMsg').className = 'setmsg err'
+$('setMsg').textContent = '先把网关密钥粘进来（和面板同一个密码），保存后就能写了。'
+return false
+}
+function setBusy(on) {
+busy = on
+;['btnStory', 'btnStoryM', 'btnResume', 'toolContinue', 'toolExpand', 'toolPolish', 'toolTitles'].forEach(function (id) { $(id).disabled = on})
+;['btnStop', 'btnStopM'].forEach(function (id) { $(id).disabled =!on})
+editor.readOnly = on
+}
+function stopGen() { if (abortCtl) abortCtl.abort()}
+$('btnStop').addEventListener('click', stopGen)
+$('btnStopM').addEventListener('click', stopGen)
+
+/* ── 写作提示词 ── */
+var STORY_SYSTEM = [
+'你是一位顶尖的中文短篇小说作家，擅长写节奏快、钩子密、读完让人回味的短篇小说。',
+'写作铁律：',
+'1. 只输出小说正文，绝不输出标题、章节名、小标题、序号、分集标记、写作说明或任何解释性文字。',
+'2. 全篇是一个连续完整的故事，一口气写到底，不要分章节。',
+'3. 开篇三句之内必须出现钩子（冲突、悬念或反常之事），不许用天气、景物描写或人物履历开场。',
+'4. 节奏要快：每一段都要有新信息、新冲突或新转折，砍掉一切可有可无的铺垫和注水描写。',
+'5. 对话要多，要像真人说话，带性格、带潜台词；用对话和动作推进剧情，少用大段心理独白。',
+'6. 人物名字、身份、说话口吻前后必须一致；前面埋下的伏笔要在结尾收回。',
+'7. 结尾要有力：反转、余味或情感落点，不许烂尾，不许写「（完）」「全文完」之类的标记。'
+].join('\n')
+
+function settingsText() {
+var parts = []
+parts.push('题材：' + $('fGenre').value)
+if ($('fHero').value.trim()) parts.push('主角：' + $('fHero').value.trim())
+if ($('fPremise').value.trim()) parts.push('一句话梗概：' + $('fPremise').value.trim())
+else parts.push('梗概：请你自行构思一个有爆点、有反转的故事')
+parts.push('文风：' + $('fStyle').value)
+parts.push('视角：' + $('fPov').value)
+if ($('fExtra').value.trim()) parts.push('补充要求：' + $('fExtra').value.trim())
+if (titleInput.value.trim()) parts.push('暂定标题（正文里不要写出来）：' + titleInput.value.trim())
+return parts.join('\n')
+}
+function target() { return Number($('targetSel').value) || 10000}
+
+function storyMessages(isResume, finishing) {
+var text = editor.value
+var n = countChars(text)
+var T = target()
+if (!isResume) {
+return [
+{ role: 'system', content: STORY_SYSTEM},
+{ role: 'user', content: '请按下面的设定，写一整篇短篇小说，总篇幅约 ' + T + ' 字：\n' + settingsText() +
+'\n\n现在开始写正文，直接从第一句写起。这一轮先写开头部分，约 2500 到 3000 字，写到一个让人想往下看的钩子处自然停住，不要写结局，不要收尾。只输出正文。'}
+]
+}
+var head = text.slice(0, 400)
+var tail = text.length > 2200? text.slice(-2200): text
+var instr = finishing
+? '这是最后一轮：请在这轮里把故事写完——收回前面的伏笔，给出有力量的结局，写完自然停笔。'
+: '不要写结局，把冲突继续推高或抛出新转折，停在一个让人想往下看的地方。'
+return [
+{ role: 'system', content: STORY_SYSTEM},
+{ role: 'user', content: '这是一篇正在写的短篇小说，设定如下：\n' + settingsText() +
+'\n总目标约 ' + T + ' 字，目前已写约 ' + n + ' 字。\n\n' + head +
+'\n\n' + tail +
+'\n请紧接着最近内容继续往下写：保持人物、口吻、时态完全一致，不要重复已写情节，不要加任何标题或说明，只输出续写正文。这一轮写约 2500 字。' + instr}
+]
+}
+
+function showProgress(on, n) {
+var box = $('progressBox')
+box.classList.toggle('on',!!on)
+if (on) {
+var T = target()
+$('progressFill').style.width = Math.min(100, Math.round(n / T * 100)) + '%'
+$('progressText').textContent = '已写 ' + n.toLocaleString('zh-CN') + ' 字 ／ 目标约 ' + T.toLocaleString('zh-CN') + ' 字'
+}
+}
+
+/* ── 整篇生成：自动续写到目标字数 ── */
+async function generateStory(resume) {
+if (busy) return
+if (!ensureKey()) return
+if (!resume) {
+if (editor.value.trim()) stashDraft('（自动存档）')
+editor.value = ''
+} else if (!editor.value.trim()) {
+toast('正文是空的，先点「写一整篇短篇」')
+return
+}
+refreshCounts(); setBusy(true)
+setStatus(resume? '正在接着写…': '正在写…')
+showProgress(true, countChars(editor.value))
+var stalls = 0, rounds = 0, err = null, aborted = false
+try {
+while (rounds < 16) {
+var n = countChars(editor.value)
+if (n >= target() + 300) break
+var finishing = (target() - n) <= 2800
+var before = n
+await streamChat(storyMessages(rounds > 0 || resume, finishing), {
+temperature: 0.9,
+onDelta: function (d) {
+editor.value += d
+editor.scrollTop = editor.scrollHeight
+var c = countChars(editor.value)
+$('wcNow').textContent = c.toLocaleString('zh-CN')
+showProgress(true, c)
+}
+})
+rounds++
+var gained = countChars(editor.value) - before
+if (gained < 30) { stalls++; if (stalls >= 2) break} else stalls = 0
+if (finishing && gained >= 30) break
+}
+} catch (e) {
+if (e.name === 'AbortError') aborted = true; else err = e
+}
+setBusy(false)
+var final = refreshCounts()
+showProgress(true, final)
+if (aborted) { setStatus('已停止，已写 ' + final.toLocaleString('zh-CN') + ' 字，点「接着写完」可继续'); toast('已停止')}
+else if (err) { setStatus('中断了：' + err.message + '。已写 ' + final.toLocaleString('zh-CN') + ' 字，点「接着写完」继续'); toast('生成中断：' + err.message)}
+else { setStatus('写完了，共 ' + final.toLocaleString('zh-CN') + ' 字'); toast('写完了，共 ' + final.toLocaleString('zh-CN') + ' 字')}
+}
+$('btnStory').addEventListener('click', function () { generateStory(false)})
+$('btnStoryM').addEventListener('click', function () { generateStory(false)})
+$('btnResume').addEventListener('click', function () { generateStory(true)})
+
+/* ── 选中文字工具 ── */
+var sheetCtx = null // {start, end, mode}
+function openScrim(id) { $(id).classList.add('on')}
+function closeScrim(id) { $(id).classList.remove('on')}
+document.querySelectorAll('[data-close]').forEach(function (b) {
+b.addEventListener('click', function () { closeScrim(b.getAttribute('data-close'))})
+})
+;['settingsScrim', 'sheetScrim'].forEach(function (id) {
+$(id).addEventListener('click', function (e) { if (e.target === $(id)) closeScrim(id)})
+})
+
+function openSheet(title, hint, mode) {
+$('sheetTitle').textContent = title
+$('sheetHint').textContent = hint
+$('sheetText').value = ''
+$('titleChips').innerHTML = ''
+$('btnSheetReplace').style.display = mode === 'titles'? 'none': ''
+$('btnSheetInsert').textContent = mode === 'titles'? '不用了': '插入到光标处'
+openScrim('sheetScrim')
+}
+
+async function runTool(mode) {
+if (busy) return
+if (!ensureKey()) return
+var start = editor.selectionStart, end = editor.selectionEnd
+var sel = editor.value.slice(start, end)
+var full = editor.value
+var messages, hint
+if (mode === 'continue') {
+var before = full.slice(0, start === end? full.length: end)
+if (!before.trim()) { toast('正文是空的，先写点东西或生成整篇'); return}
+sheetCtx = { mode: 'continue', start: before.length, end: before.length}
+messages = [
+{ role: 'system', content: STORY_SYSTEM},
+{ role: 'user', content: '这是一篇短篇小说的已写部分，设定：\n' + settingsText() + '\n\n' + before.slice(-3500) + '\n请紧接着最后一段往下续写约 800 到 1200 字：保持人物、口吻一致，不要重复，不要加标题或说明，只输出续写正文，不要写结局（除非故事自然该结束了）。'}
+]
+openSheet('续写结果', '满意就点「替换原文」接到正文后面（光标处），或插入到光标处。', mode)
+} else if (mode === 'expand' || mode === 'polish') {
+if (!sel.trim()) { toast('先在正文里选中一段文字，再点' + (mode === 'expand'? '扩写': '润色')); return}
+sheetCtx = { mode: mode, start: start, end: end}
+var task = mode === 'expand'
+? '请把下面这段文字扩写到约两倍长：补上动作、神态、环境和对话细节，让画面立起来，但不要改变情节走向、人物和事实，不要添加标题或说明，只输出扩写后的正文：\n\n' + sel
+: '请润色下面这段文字：改顺句子、去掉啰嗦和重复、用词更准更有文采，但保持原意、情节和人物口吻不变，不要添加标题或说明，只输出润色后的正文：\n\n' + sel
+messages = [
+{ role: 'system', content: '你是一位资深的中文小说编辑，文字干净有力。'},
+{ role: 'user', content: task}
+]
+openSheet(mode === 'expand'? '扩写结果': '润色结果', '满意就点「替换原文」换掉选中段，或插入到光标处。', mode)
+} else if (mode === 'titles') {
+if (!full.trim()) { toast('正文是空的，先写出正文再起标题'); return}
+sheetCtx = { mode: 'titles', start: 0, end: 0}
+messages = [
+{ role: 'system', content: '你是一位懂网文市场的资深编辑，起的标题短、狠、有钩子。'},
+{ role: 'user', content: '下面是一篇短篇小说的开头部分，请给它拟 5 个标题，每个一行，不要编号、不要引号、不要解释，每个标题不超过 14 个字，要能勾起点击欲：\n\n' + full.slice(0, 1600)}
+]
+openSheet('标题候选', '点任意一个标题，就填到正文上方的标题栏。', mode)
+}
+setBusy(true); setStatus('AI 正在处理…')
+var acc = ''
+try {
+await streamChat(messages, {
+temperature: mode === 'polish'? 0.6: 0.85,
+maxTokens: 4000,
+onDelta: function (d) { acc += d; $('sheetText').value = acc; $('sheetText').scrollTop = $('sheetText').scrollHeight}
+})
+if (mode === 'titles') renderTitleChips(acc)
+setStatus('处理完了')
+} catch (e) {
+if (e.name === 'AbortError') { setStatus('已停止')}
+else { setStatus('出错：' + e.message); toast(e.message)}
+}
+setBusy(false)
+}
+function renderTitleChips(text) {
+var box = $('titleChips'); box.innerHTML = ''
+text.split('\n').map(function (s) { return s.replace(/^[\d、.．·\-—\s"「『]+/, '').replace(/["」』]$/, '').trim()}).filter(Boolean).slice(0, 6).forEach(function (t) {
+var b = document.createElement('button'); b.type = 'button'; b.textContent = t
+b.addEventListener('click', function () { titleInput.value = t; closeScrim('sheetScrim'); toast('标题已填上')})
+box.appendChild(b)
+})
+}
+$('toolContinue').addEventListener('click', function () { runTool('continue')})
+$('toolExpand').addEventListener('click', function () { runTool('expand')})
+$('toolPolish').addEventListener('click', function () { runTool('polish')})
+$('toolTitles').addEventListener('click', function () { runTool('titles')})
+
+$('btnSheetReplace').addEventListener('click', function () {
+if (!sheetCtx) return
+var v = $('sheetText').value
+var s = sheetCtx.start, e = sheetCtx.mode === 'continue'? sheetCtx.start: sheetCtx.end
+editor.value = editor.value.slice(0, s) + v + editor.value.slice(e)
+refreshCounts(); closeScrim('sheetScrim'); toast('已替换到正文')
+})
+$('btnSheetInsert').addEventListener('click', function () {
+if (sheetCtx && sheetCtx.mode === 'titles') { closeScrim('sheetScrim'); return}
+var v = $('sheetText').value, pos = editor.selectionStart || editor.value.length
+editor.value = editor.value.slice(0, pos) + v + editor.value.slice(pos)
+refreshCounts(); closeScrim('sheetScrim'); toast('已插入')
+})
+$('btnSheetDone').addEventListener('click', function () { closeScrim('sheetScrim')})
+
+/* ── 稿件（本次打开期间，内存保存） ── */
+function stashDraft(tag) {
+if (!editor.value.trim()) return
+manuscripts.unshift({
+id: ++msSeq,
+title: (titleInput.value.trim() || '未命名') + (tag || ''),
+text: editor.value,
+time: new Date()
+})
+currentMsId = msSeq
+renderMs()
+}
+function renderMs() {
+var box = $('msList'); box.innerHTML = ''
+if (!manuscripts.length) {
+box.innerHTML = '<p class="empty-note">还没有稿件。写完一篇点编辑器下方的「存入稿件」，可以存多篇来回切换；要长期保存请用「导出全文」存成文件。</p>'
+return
+}
+manuscripts.forEach(function (m) {
+var d = document.createElement('div')
+d.className = 'mscript' + (m.id === currentMsId? ' cur': '')
+var t = document.createElement('div'); t.className = 'mt'
+var name = document.createElement('span'); name.textContent = m.title
+var del = document.createElement('button'); del.type = 'button'; del.textContent = '删除'
+del.addEventListener('click', function (ev) {
+ev.stopPropagation()
+manuscripts = manuscripts.filter(function (x) { return x.id!== m.id})
+if (currentMsId === m.id) currentMsId = null
+renderMs()
+})
+t.appendChild(name); t.appendChild(del)
+var mm = document.createElement('div'); mm.className = 'mm'
+mm.textContent = countChars(m.text).toLocaleString('zh-CN') + ' 字 · ' + m.time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit'}) + ' · 点开载入'
+d.appendChild(t); d.appendChild(mm)
+d.addEventListener('click', function () {
+if (editor.value.trim() && editor.value!== m.text) stashDraft('（自动存档）')
+editor.value = m.text
+titleInput.value = m.title.replace(/（自动存档）$/, '')
+currentMsId = m.id
+refreshCounts(); renderMs()
+document.body.setAttribute('data-view', 'edit'); syncTabs()
+toast('已载入稿件')
+})
+box.appendChild(d)
+})
+}
+$('btnSaveMs').addEventListener('click', function () {
+if (!editor.value.trim()) { toast('正文是空的，没什么可存'); return}
+stashDraft('')
+toast('已存入稿件')
+})
+$('btnClear').addEventListener('click', function () {
+if (busy) return
+if (editor.value.trim()) stashDraft('（清空前存档）')
+editor.value = ''; titleInput.value = ''; currentMsId = null
+refreshCounts(); renderMs(); setStatus('')
+})
+
+/* ── 复制 / 导出 ── */
+$('btnCopy').addEventListener('click', async function () {
+if (!editor.value.trim()) { toast('正文是空的'); return}
+try { await navigator.clipboard.writeText(editor.value); toast('全文已复制')}
+catch (e) { editor.select(); document.execCommand('copy'); toast('全文已复制')}
+})
+$('btnExport').addEventListener('click', function () {
+if (!editor.value.trim()) { toast('正文是空的，没什么可导出'); return}
+var name = (titleInput.value.trim() || '未命名短篇') + '.txt'
+var content = (titleInput.value.trim()? titleInput.value.trim() + '\n\n': '') + editor.value
+var blob = new Blob([content], { type: 'text/plain;charset=utf-8'})
+var a = document.createElement('a')
+a.href = URL.createObjectURL(blob); a.download = name
+document.body.appendChild(a); a.click(); a.remove()
+setTimeout(function () { URL.revokeObjectURL(a.href)}, 4000)
+toast('已导出 ' + name)
+})
+
+/* ── 网关设置 ── */
+function fillSettings() {
+$('setBase').value = cfg.base
+$('setKey').value = cfg.key
+$('setModel').value = cfg.model
+$('setMsg').textContent = ''; $('setMsg').className = 'setmsg'
+}
+function openSettings() { fillSettings(); openScrim('settingsScrim')}
+$('btnSettings').addEventListener('click', openSettings)
+$('connFix').addEventListener('click', openSettings)
+function readSettings() {
+cfg.base = $('setBase').value.trim().replace(/\/+$/, '') || DEFAULT_BASE
+cfg.key = $('setKey').value.trim()
+cfg.model = $('setModel').value.trim() || DEFAULT_MODEL
+$('modelInput').value = cfg.model
+}
+$('btnSaveSettings').addEventListener('click', async function () {
+readSettings(); saveCfg(); refreshConn()
+closeScrim('settingsScrim'); toast('设置已保存')
+verifyConn(true)
+})
+$('btnTestConn').addEventListener('click', async function () {
+readSettings()
+var msg = $('setMsg'); msg.className = 'setmsg'; msg.textContent = '正在连接网关…'
+if (!cfg.key) { msg.className = 'setmsg err'; msg.textContent = '还没填密钥。'; return}
+try {
+var ids = await fetchModels()
+msg.className = 'setmsg ok'
+msg.textContent = '连接成功，网关上有 ' + (ids || []).length + ' 个模型。记得点「保存」。'
+var dl = $('modelList'); dl.innerHTML = ''
+;(ids || []).forEach(function (id) { var o = document.createElement('option'); o.value = id; dl.appendChild(o)})
+} catch (e) {
+msg.className = 'setmsg err'; msg.textContent = '连接失败（' + e.message + '）：检查地址和密钥。'
+}
+})
+$('modelInput').addEventListener('change', function () {
+cfg.model = $('modelInput').value.trim() || DEFAULT_MODEL
+saveCfg(); toast('模型已切到 ' + cfg.model)
+})
+
+/* ── 手机标签 ── */
+function syncTabs() {
+var v = document.body.getAttribute('data-view')
+document.querySelectorAll('.tabbar button').forEach(function (b) {
+b.classList.toggle('on', b.getAttribute('data-tab') === v)
+})
+}
+document.querySelectorAll('.tabbar button').forEach(function (b) {
+b.addEventListener('click', function () {
+document.body.setAttribute('data-view', b.getAttribute('data-tab')); syncTabs()
+})
+})
+
+/* ── 初始化 ── */
+$('modelInput').value = cfg.model
+refreshCounts(); refreshConn(); renderMs(); syncTabs()
+if (cfg.key) verifyConn(true)
+</script>
+</body>
+</html>
