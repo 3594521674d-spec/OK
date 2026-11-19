@@ -2,8 +2,14 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="AI写作" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f4ef" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#12100d" />
     <link rel="icon" href="data:," />
     <title>AI写作网站</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -54,6 +60,7 @@
         font-size: 15px;
         line-height: 1.55;
         -webkit-text-size-adjust: 100%;
+        touch-action: manipulation;
       }
       button, [role="button"], select, summary, input:not([type="checkbox"], [type="radio"]), textarea { min-height: 2.25rem; }
       button { font: inherit; cursor: pointer; }
@@ -469,6 +476,10 @@
     <div id="toast" role="status"></div>
 <script>
 'use strict'
+/* 像正常 App 一样：禁掉双指缩放和双击缩放，页面固定不许放大缩小 */
+document.addEventListener('gesturestart', function (e) { e.preventDefault() })
+document.addEventListener('gesturechange', function (e) { e.preventDefault() })
+document.addEventListener('gestureend', function (e) { e.preventDefault() })
 var $ = function (id) { return document.getElementById(id)}
 
 /* ── 配置：网关与模型内嵌，密钥只存本机浏览器（与面板同一套做法） ── */
