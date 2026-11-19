@@ -420,6 +420,7 @@
         <div class="nav-group-label">通用</div>
         <div class="nav-item active" data-page="overview" data-title="概览" data-desc="余额、密钥、请求、消费、Token 一眼看完"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>概览</div>
         <div class="nav-item" data-page="dashboard" data-title="仪表盘" data-desc="模型调用量、性能、延迟统计"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>仪表盘</div>
+        <div class="nav-item" data-page="btc" data-title="BTC 盯盘" data-desc="BTC 现价、提醒条件与历史记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M9.5 9.5h5"/><path d="M9.5 14.5h5"/></svg>BTC 盯盘</div>
         <div class="nav-item" data-page="keys" data-title="API 密钥" data-desc="创建、查看、停用自己的调用密钥"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m11 12 9-9"/><path d="m15.5 7.5 3 3"/><path d="m18.5 4.5 2 2"/></svg>API 密钥</div>
         <div class="nav-item" data-page="usage" data-title="使用日志" data-desc="每一次调用的记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>使用日志</div>
         <div class="nav-item" data-page="audit" data-title="审计日志" data-desc="登录、改配置等操作记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>审计日志</div>
@@ -556,6 +557,64 @@
           <div class="seg" id="db-model-seg"><span class="on" data-mode="trend">调用趋势</span><span data-mode="share">调用分布</span><span data-mode="rank">调用排行</span></div>
         </div>
         <div class="chart" id="db-model-chart">图表区 · 未接数据</div>
+      </div>
+    </section>
+
+    <!-- ===== BTC 盯盘 ===== -->
+    <section class="page" id="page-btc">
+      <p class="page-note" id="note-btc" hidden></p>
+      <div class="panel">
+        <div class="row space">
+          <h3>BTC / USDT 现价</h3>
+          <span class="chip" id="btc-source">每小时整点更新</span>
+        </div>
+        <div style="font-size:36px;font-weight:700;line-height:1.2;margin-top:6px" id="btc-price">—</div>
+        <div class="row" style="margin-top:6px">
+          <span id="btc-change" style="font-size:15px">24h 涨跌幅：—</span>
+          <span class="muted" id="btc-updated">更新时间：—</span>
+        </div>
+        <p class="muted" id="btc-err" hidden></p>
+        <p class="muted" style="margin-top:8px">只看不下单：每小时整点网关查一次公开行情（OKX 主用，CoinGecko 备用），价格与提醒都存在网关里；下单还是你自己手动下。</p>
+      </div>
+
+      <div class="panel">
+        <h3>提醒条件</h3>
+        <p class="muted">全留空 = 只显示价格、不提醒。价格穿过条件那一下记一条提醒，回来之后再穿过去才重新记，不会刷屏。</p>
+        <div class="row" style="margin-top:10px">
+          <label class="muted">高于价提醒（$）</label>
+          <input class="input" type="number" id="btc-above" placeholder="如 70000" step="1" min="0">
+          <label class="muted">低于价提醒（$）</label>
+          <input class="input" type="number" id="btc-below" placeholder="如 60000" step="1" min="0">
+          <label class="muted">24h 涨跌幅超过（%）</label>
+          <input class="input" type="number" id="btc-changepct" placeholder="如 3" step="0.1" min="0" max="100">
+        </div>
+        <div class="row" style="margin-top:10px">
+          <label><input type="checkbox" id="btc-enabled" checked> 启用提醒</label>
+          <button class="btn btn-primary" id="btc-save">保存提醒条件</button>
+          <span class="muted" id="btc-msg"></span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>价格历史（最近 48 条，两天）</h3>
+        <div class="tbl-wrap" style="margin-top:10px">
+          <table class="tbl">
+            <thead><tr><th>时间</th><th>价格（$）</th><th>24h 涨跌幅</th></tr></thead>
+            <tbody id="btc-history-tbody">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>提醒记录（最近 50 条）</h3>
+        <div class="tbl-wrap" style="margin-top:10px">
+          <table class="tbl">
+            <thead><tr><th>时间</th><th>触发时价格（$）</th><th>触发规则</th><th>内容</th></tr></thead>
+            <tbody id="btc-alerts-tbody">
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -2030,6 +2089,7 @@ function loadPage(page) {
   if (page === 'chat') return; /* 对话页不接真聊天：纯中转站，之前已去掉对话功能 */
   if (page === 'overview') loadOverview();
   else if (page === 'dashboard') loadDashboard();
+  else if (page === 'btc') loadBtc();
   else if (page === 'keys') loadKeys();
   else if (page === 'usage') loadUsage();
   else if (page === 'audit') loadAudit();
@@ -2207,6 +2267,92 @@ $('models-tabs').querySelectorAll('.tab').forEach(function (t) {
       setText('models-total', 'Total 0');
     }
   });
+});
+
+/* ===== BTC 盯盘（只看不下单） ===== */
+function fmtUsd(n) {
+  n = Number(n);
+  if (!isFinite(n)) return '—';
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtChg(n) {
+  n = Number(n);
+  if (!isFinite(n)) return '—';
+  return (n > 0 ? '+' : '') + n.toFixed(2) + '%';
+}
+function btcRuleLabel(rule) {
+  if (rule === 'above') return '高于价';
+  if (rule === 'below') return '低于价';
+  if (rule === 'changePct') return '涨跌幅';
+  return rule || '—';
+}
+async function loadBtc() {
+  if (!masterKey()) { showNote('note-btc', '请先在「概览」页设置主密钥，才能查看 BTC 盯盘。'); return; }
+  hideNote('note-btc');
+  setText('btc-price', '加载中…');
+  setText('btc-change', '24h 涨跌幅：—');
+  setText('btc-updated', '更新时间：—');
+  var r = await api('/admin/btc/watch');
+  if (!r.ok) {
+    setText('btc-price', '—');
+    if (r.status === 404) showNote('note-btc', '网关还没上线盯盘接口（HTTP 404）：网关需要重新部署后才能看 BTC 盯盘，页面不编假数字。');
+    else if (r.status === 401) showNote('note-btc', '密钥无效：网关返回 401。');
+    else if (r.status === 0) showNote('note-btc', '网络错误：没连上网关（' + r.body + '）。');
+    else showNote('note-btc', '加载失败（HTTP ' + r.status + '）。');
+    return;
+  }
+  var b = r.body || {};
+  setText('btc-price', b.price === null || b.price === undefined ? '—' : fmtUsd(b.price));
+  setText('btc-change', '24h 涨跌幅：' + fmtChg(b.change24h));
+  setText('btc-updated', '更新时间：' + (b.updatedAt ? fmtDateFull(b.updatedAt) : '网关还没查到过价格（每小时整点查一次）'));
+  var errEl = $('btc-err');
+  if (errEl) {
+    if (b.lastError) { errEl.textContent = '最近一次查价失败：' + b.lastError + '（等下个整点再试）。'; errEl.hidden = false; }
+    else errEl.hidden = true;
+  }
+  var cfg = b.config || {};
+  if ($('btc-above')) $('btc-above').value = cfg.above === null || cfg.above === undefined ? '' : cfg.above;
+  if ($('btc-below')) $('btc-below').value = cfg.below === null || cfg.below === undefined ? '' : cfg.below;
+  if ($('btc-changepct')) $('btc-changepct').value = cfg.changePct === null || cfg.changePct === undefined ? '' : cfg.changePct;
+  if ($('btc-enabled')) $('btc-enabled').checked = cfg.enabled !== false;
+  var hist = (b.history || []).slice().reverse();
+  var ht = $('btc-history-tbody');
+  if (ht) {
+    ht.innerHTML = hist.length === 0
+      ? '<tr><td colspan="3" style="text-align:center;color:#9ca3af">暂无历史：网关每小时整点查一次，下一整点后就有数据。</td></tr>'
+      : hist.map(function (p) {
+          return '<tr><td>' + esc(fmtDateFull(p.ts)) + '</td><td>' + esc(fmtUsd(p.price)) + '</td><td>' + esc(fmtChg(p.change24h)) + '</td></tr>';
+        }).join('');
+  }
+  var alerts = (b.alerts || []).slice().reverse();
+  var at = $('btc-alerts-tbody');
+  if (at) {
+    at.innerHTML = alerts.length === 0
+      ? '<tr><td colspan="4" style="text-align:center;color:#9ca3af">暂无提醒</td></tr>'
+      : alerts.map(function (a) {
+          return '<tr><td>' + esc(fmtDateFull(a.ts)) + '</td><td>' + esc(fmtUsd(a.price)) + '</td><td>' + esc(btcRuleLabel(a.rule)) + '</td><td>' + esc(a.text) + '</td></tr>';
+        }).join('');
+  }
+}
+$('btc-save').addEventListener('click', async function () {
+  if (!masterKey()) { alert('请先在「概览」页设置主密钥。'); return; }
+  var above = ($('btc-above').value || '').trim();
+  var below = ($('btc-below').value || '').trim();
+  var pct = ($('btc-changepct').value || '').trim();
+  var body = {
+    enabled: $('btc-enabled').checked,
+    above: above === '' ? null : Number(above),
+    below: below === '' ? null : Number(below),
+    changePct: pct === '' ? null : Number(pct),
+  };
+  var r = await api('/admin/btc/config', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  if (r.ok) {
+    setText('btc-msg', '已保存：提醒条件已更新。');
+    loadBtc();
+  } else {
+    var msg = (r.body && r.body.error && r.body.error.message) ? r.body.error.message : ('保存失败（HTTP ' + r.status + '）');
+    setText('btc-msg', msg);
+  }
 });
 
 /* 启动：先恢复密钥状态，再加载当前页 */
