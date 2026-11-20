@@ -89,7 +89,7 @@
       .pill button { border: 0; background: none; color: var(--accent); font-weight: 700; padding: 0 2px; min-height: 1.6rem; }
       .topbar .spacer { flex: 1; }
       .modelpick { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
-      .modelpick input {
+      .modelpick select {
         width: 190px; max-width: 44vw; padding: 4px 8px;
         border: 1px solid var(--line); border-radius: 8px;
         background: var(--surface); color: var(--ink); font: inherit; font-size: 13px;
@@ -309,8 +309,7 @@
       <span class="pill" id="connPill"><span class="led"></span><span id="connText">网关未连接</span><button id="connFix" type="button">去设置</button></span>
       <div class="spacer"></div>
       <label class="modelpick">模型
-        <input id="modelInput" list="modelList" value="buddy/deepseek-v4.1-flash" autocomplete="off" spellcheck="false" />
-        <datalist id="modelList"></datalist>
+        <select id="modelSelect"></select>
       </label>
       <button class="tbtn" id="btnSettings" type="button">网关设置</button>
       <button class="tbtn" id="btnExport" type="button">导出全文</button>
@@ -495,6 +494,14 @@ localStorage.setItem('wb_api_base', cfg.base)
 localStorage.setItem('wb_api_key', cfg.key)
 localStorage.setItem('wb_model', cfg.model)
 }
+var FALLBACK_MODELS = ['buddy/fast-model', 'buddy/glm-5.3', 'buddy/kimi-k2.5', 'buddy/deepseek-v4-flash', 'buddy/deepseek-v4.1-flash', 'buddy/deepseek-v4-pro', 'buddy/deepseek-v3-2-volc', 'buddy/space-bunny', 'buddy/step-5-preview', 'buddy/mimo-v2.6-pro', 'today/deepseek-v4.1-flash', 'today/glm-5.3', 'today/glm-5.3-flash']
+function fillModelSelect(ids) {
+var sel = $('modelSelect'); sel.innerHTML = ''
+var list = (ids && ids.length? ids: FALLBACK_MODELS).slice()
+if (list.indexOf(cfg.model) === -1) list.unshift(cfg.model)
+list.forEach(function (id) { var o = document.createElement('option'); o.value = id; o.textContent = id; sel.appendChild(o)})
+sel.value = cfg.model
+}
 
 var editor = $('editor'), titleInput = $('titleInput')
 var busy = false, abortCtl = null
@@ -536,8 +543,7 @@ async function verifyConn(silent) {
 if (!cfg.key) { refreshConn(); return false}
 try {
 var ids = await fetchModels()
-var dl = $('modelList'); dl.innerHTML = ''
-;(ids || []).forEach(function (id) { var o = document.createElement('option'); o.value = id; dl.appendChild(o)})
+fillModelSelect(ids)
 setConn('ok', '网关已连接 · ' + (ids? ids.length: 0) + ' 个模型')
 return true
 } catch (e) {
@@ -938,7 +944,7 @@ function readSettings() {
 cfg.base = $('setBase').value.trim().replace(/\/+$/, '') || DEFAULT_BASE
 cfg.key = $('setKey').value.trim()
 cfg.model = $('setModel').value.trim() || DEFAULT_MODEL
-$('modelInput').value = cfg.model
+fillModelSelect()
 }
 $('btnSaveSettings').addEventListener('click', async function () {
 readSettings(); saveCfg(); refreshConn()
@@ -953,14 +959,13 @@ try {
 var ids = await fetchModels()
 msg.className = 'setmsg ok'
 msg.textContent = '连接成功，网关上有 ' + (ids || []).length + ' 个模型。记得点「保存」。'
-var dl = $('modelList'); dl.innerHTML = ''
-;(ids || []).forEach(function (id) { var o = document.createElement('option'); o.value = id; dl.appendChild(o)})
+fillModelSelect(ids)
 } catch (e) {
 msg.className = 'setmsg err'; msg.textContent = '连接失败（' + e.message + '）：检查地址和密钥。'
 }
 })
-$('modelInput').addEventListener('change', function () {
-cfg.model = $('modelInput').value.trim() || DEFAULT_MODEL
+$('modelSelect').addEventListener('change', function () {
+cfg.model = $('modelSelect').value || DEFAULT_MODEL
 saveCfg(); toast('模型已切到 ' + cfg.model)
 })
 
@@ -978,7 +983,7 @@ document.body.setAttribute('data-view', b.getAttribute('data-tab')); syncTabs()
 })
 
 /* ── 初始化 ── */
-$('modelInput').value = cfg.model
+fillModelSelect(FALLBACK_MODELS)
 refreshCounts(); refreshConn(); renderMs(); syncTabs(); renderSkillToggle()
 if (cfg.key) verifyConn(true)
 </script>
