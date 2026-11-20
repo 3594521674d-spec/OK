@@ -507,6 +507,10 @@
               <input id="novelTitle" type="text" placeholder="给这部长篇起个名（可让 AI 起）" autocomplete="off" />
               <button class="stopbtn" id="btnNovelTitle" type="button">让 AI 起</button>
             </div>
+            <div class="field" style="margin-top:8px">
+              <textarea id="novelSynopsis" rows="3" placeholder="这本书讲了个什么故事（可让 AI 写简介）"></textarea>
+              <button class="stopbtn" id="btnNovelSynopsis" type="button" style="margin-top:6px">让 AI 写简介</button>
+            </div>
           </div>
           <div class="novel-progress">
             <div class="bar"><div class="fill" id="novelProgressFill"></div></div>
@@ -1169,7 +1173,7 @@ var NOVEL_KEY = 'wb_novel_v1'
 var MODE_KEY = 'wb_mode'
 var CHAPTER_TARGET = 10000
 var CHAPTER_DONE = 9500
-var novel = { title: '', outline: [], chapters: {} }
+var novel = { title: '', synopsis: '', outline: [], chapters: {} }
 var mode = 'short'
 var novelOpen = {}
 var chapterEls = {}
@@ -1195,6 +1199,7 @@ if (!raw) return
 var d = JSON.parse(raw)
 if (!d || !Array.isArray(d.outline)) return
 novel.title = typeof d.title === 'string' ? d.title : ''
+novel.synopsis = typeof d.synopsis === 'string' ? d.synopsis : ''
 novel.outline = d.outline.slice(0, 20).filter(function (c) { return c && typeof c.title === 'string' && typeof c.summary === 'string' })
 novel.chapters = {}
 if (d.chapters && typeof d.chapters === 'object') {
@@ -1203,7 +1208,7 @@ var n = parseInt(k, 10)
 if (n >= 1 && n <= 20 && typeof d.chapters[k] === 'string') novel.chapters[n] = d.chapters[k]
 }
 }
-} catch (e) { novel = { title: '', outline: [], chapters: {} } }
+} catch (e) { novel = { title: '', synopsis: '', outline: [], chapters: {} } }
 }
 
 /* 模式切换：短篇和长篇各存各的内容，切换不丢 */
@@ -1726,7 +1731,10 @@ ta.remove()
 function exportNovel() {
 if (!novel.outline.length) { toast('还没有大纲，先点「生成大纲」'); return }
 var bookTitle = ($('novelTitle').value || '').trim() || '未命名长篇'
-var lines = [bookTitle, '', '目录', '']
+var lines = [bookTitle, '']
+var syn = ($('novelSynopsis').value || '').trim()
+if (syn) { lines.push(syn, '') }
+lines.push('目录', '')
 novel.outline.forEach(function (c, i) { lines.push('第' + (i + 1) + '章 ' + c.title) })
 lines.push('')
 novel.outline.forEach(function (c, i) {
@@ -1746,20 +1754,60 @@ $('btnExportNovel').addEventListener('click', exportNovel)
 function newNovel() {
 if (novelGenN !== 0 || novelLock) return
 if (!novel.outline.length && !Object.keys(novel.chapters).length) { toast('还没有长篇内容'); return }
-if (!confirm('新建长篇会清空现在的大纲和全部已写章节，确定要新建吗？')) return
-novel = { title: '', outline: [], chapters: {} }
+if (!confirm('新建长篇会清空现在的书名、简介、大纲和全部已写章节，确定要新建吗？')) return
+novel = { title: '', synopsis: '', outline: [], chapters: {} }
 novelOpen = {}
 chapterEls = {}
 chapterCounts = {}
 chapterMsg = {}
 renderedOutlineSig = ''
 $('novelTitle').value = ''
+$('novelSynopsis').value = ''
 saveNovel(); renderOutline()
 setOutlineStatus('填好右边的故事设定，点「生成大纲」，AI 先搭 20 章目录，再逐章写，每章约一万字。')
 toast('已新建长篇')
 }
 $('btnNewNovel').addEventListener('click', newNovel)
 $('novelTitle').addEventListener('input', function () { novel.title = $('novelTitle').value; saveNovelSoon() })
+
+$('novelSynopsis').addEventListener('input', function () { novel.synopsis = $('novelSynopsis').value; saveNovelSoon() })
+
+async function genNovelSynopsis() {
+if (busy || novelGenN !== 0 || novelLock) return
+if (!ensureKey()) return
+var hasSetting = $('fHero').value.trim() || $('fPremise').value.trim() || $('fExtra').value.trim()
+var ch1 = novel.chapters[1] || ''
+if (!hasSetting && !novel.outline.length && !ch1.trim() && !novel.title.trim()) { toast('先填右边的故事设定，或先生成大纲'); return }
+var parts = []
+if (novel.title.trim()) parts.push('书名：' + novel.title.trim())
+parts.push('题材：' + $('fGenre').value)
+if ($('fHero').value.trim()) parts.push('主角：' + $('fHero').value.trim())
+if ($('fPremise').value.trim()) parts.push('一句话梗概：' + $('fPremise').value.trim())
+parts.push('文风：' + $('fStyle').value)
+parts.push('视角：' + $('fPov').value)
+if ($('fExtra').value.trim()) parts.push('补充要求：' + $('fExtra').value.trim())
+if (novel.outline.length) parts.push('大纲：\n' + outlineText())
+if (ch1.trim()) parts.push('第一章开头：\n' + ch1.slice(0, 1600))
+setBusy(true); setStatus('AI 正在写简介…')
+var acc = ''
+try {
+await streamChat([
+{ role: 'system', content: '你是一位懂网文市场的资深编辑，写的小说简介短、狠、有钩子。' },
+{ role: 'user', content: '下面是一部长篇小说的书名、设定和大纲，请给它写一段简介：150 到 300 字，开头就要有钩子，点出主角、困境和最大的看点，不要剧透结局，不要编号、不要解释，只输出简介本身。写法上照网文简介的路子：先抛反常或悬念，再点主角处境，最后留一个钩子：\n\n' + parts.join('\n') }
+], {
+temperature: 0.85,
+maxTokens: 4000,
+onDelta: function (d) { acc += d; $('novelSynopsis').value = acc }
+})
+acc = cleanGenText(acc)
+$('novelSynopsis').value = acc; novel.synopsis = acc; saveNovelSoon(); setStatus('处理完了')
+} catch (e) {
+if (e.name === 'AbortError') { setStatus('已停止') }
+else { setStatus('出错：' + e.message); toast(e.message) }
+}
+setBusy(false)
+}
+$('btnNovelSynopsis').addEventListener('click', genNovelSynopsis)
 
 async function genNovelTitle() {
 if (busy || novelGenN !== 0 || novelLock) return
@@ -2057,6 +2105,7 @@ fillModelSelect(FALLBACK_MODELS)
 refreshCounts(); refreshConn(); renderMs(); syncTabs(); renderSkillToggle()
 loadNovel()
 $('novelTitle').value = novel.title || ''
+$('novelSynopsis').value = novel.synopsis || ''
 setMode(localStorage.getItem('wb_mode') === 'long' ? 'long' : 'short')
 if (cfg.key) verifyConn(true)
 </script>
