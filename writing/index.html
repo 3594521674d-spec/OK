@@ -30,7 +30,9 @@
         --ok: #2e7d4f;
         --err: #b23a2e;
         --gold: #a97b1e;
-        --shadow: 0 10px 30px rgba(33, 29, 22, 0.14);
+        --edge-hi: rgba(255, 255, 255, 0.55);
+        --glow: rgba(169, 123, 30, 0.08);
+        --shadow: 0 1px 0 rgba(255, 255, 255, 0.6), 0 10px 24px rgba(33, 29, 22, 0.12), 0 28px 56px rgba(33, 29, 22, 0.10);
         --radius: 10px;
       }
       @media (prefers-color-scheme: dark) {
@@ -48,13 +50,17 @@
           --ok: #5cb887;
           --err: #e07a6a;
           --gold: #d9a441;
-          --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+          --edge-hi: rgba(255, 255, 255, 0.07);
+          --glow: rgba(217, 164, 65, 0.10);
+          --shadow: 0 1px 0 rgba(255, 255, 255, 0.07), 0 12px 28px rgba(0, 0, 0, 0.5), 0 32px 64px rgba(0, 0, 0, 0.45);
         }
       }
       html, body { height: 100%; }
       body {
         margin: 0;
-        background: var(--bg);
+        background:
+          radial-gradient(120% 42% at 50% -8%, var(--glow), transparent 70%),
+          var(--bg);
         color: var(--ink);
         font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
         font-size: 15px;
@@ -74,6 +80,7 @@
         padding: 8px 12px;
         background: var(--surface);
         border-bottom: 1px solid var(--line);
+        box-shadow: 0 1px 0 var(--edge-hi), 0 10px 28px rgba(0, 0, 0, 0.14);
       }
       .brand { font-family: "Noto Serif SC", serif; font-weight: 900; font-size: 17px; letter-spacing: 0.06em; margin-right: 2px; }
       .brand .dot { color: var(--accent); }
@@ -111,6 +118,7 @@
         border-radius: var(--radius); padding: 14px;
         position: sticky; top: 64px;
         max-height: calc(100vh - 84px); overflow: auto;
+        box-shadow: 0 1px 0 var(--edge-hi), 0 12px 28px rgba(0, 0, 0, 0.10), 0 28px 56px rgba(0, 0, 0, 0.07);
       }
       .rail h2 {
         font-family: "Noto Serif SC", serif; font-size: 15px; font-weight: 900;
@@ -125,8 +133,14 @@
         background: var(--accent); color: var(--accent-ink);
         font-size: 16.5px; font-weight: 700; letter-spacing: 0.05em;
         padding: 13px 10px; min-height: 3.2rem;
+        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.28), 0 8px 18px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
       }
-      .bigbtn:active { filter: brightness(0.92); }
+      .bigbtn:active {
+        filter: brightness(0.92);
+        transform: translateY(2px);
+        box-shadow: 0 0 0 rgba(0, 0, 0, 0.28), 0 2px 6px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      }
       .bigbtn.ghost {
         background: var(--surface); color: var(--accent);
         border: 1.5px solid var(--accent); font-size: 15px; padding: 10px;
@@ -218,7 +232,10 @@
       }
       #editor::placeholder { color: var(--ink-3); font-size: 16px; line-height: 1.8; }
       #editor:focus, #titleInput:focus { outline: none; }
-      .paper:focus-within { border-color: var(--accent); }
+      .paper:focus-within {
+        border-color: var(--accent);
+        box-shadow: 0 1px 0 var(--edge-hi), 0 18px 36px rgba(0, 0, 0, 0.16), 0 48px 96px rgba(0, 0, 0, 0.11);
+      }
       .editor-foot {
         display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center;
         border-top: 1px dashed var(--line); padding-top: 10px; margin-top: 4px;
@@ -300,6 +317,7 @@
       #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
       @media (prefers-reduced-motion: reduce) {
         .progress .fill, #toast { transition: none; }
+        .skilltoggle, .ch, .bigbtn, .modeseg button, .tool, .tbtn, .stopbtn, .ch-actions button { transition: none; }
       }
 
       /* ── 模式切换：短篇 / 长篇 ─────────────────── */
@@ -353,6 +371,51 @@
         background: var(--surface); color: var(--ink);
         font-family: "Noto Serif SC", "Songti SC", serif; font-size: 15.5px; line-height: 1.9;
         min-height: 16rem; resize: vertical; padding: 10px;
+      }
+
+      /* 3D 纵深 */
+      .skilltoggle {
+        position: relative;
+        transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+        transform-style: preserve-3d;
+        transition: transform 0.18s ease-out, box-shadow 0.3s ease;
+        box-shadow: 0 1px 0 var(--edge-hi), 0 8px 20px rgba(0, 0, 0, 0.12), 0 20px 40px rgba(0, 0, 0, 0.08);
+      }
+      .skilltoggle::after {
+        content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+        background: radial-gradient(circle at var(--gx, 50%) var(--gy, 50%), rgba(217, 164, 65, 0.22), transparent 55%);
+        opacity: 0; transition: opacity 0.3s ease;
+      }
+      .skilltoggle.tilt-on::after { opacity: 1; }
+      .skilltoggle-state { transform: translateZ(24px); }
+      .skilldot { transform: translateZ(16px); }
+      .ch {
+        position: relative;
+        transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+        transform-style: preserve-3d;
+        transition: transform 0.18s ease-out, box-shadow 0.3s ease;
+        box-shadow: 0 1px 0 var(--edge-hi), 0 8px 20px rgba(0, 0, 0, 0.10), 0 20px 40px rgba(0, 0, 0, 0.06);
+      }
+      .ch::after {
+        content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+        background: radial-gradient(circle at var(--gx, 50%) var(--gy, 50%), rgba(217, 164, 65, 0.20), transparent 55%);
+        opacity: 0; transition: opacity 0.3s ease;
+      }
+      .ch.tilt-on::after { opacity: 1; }
+      .ch-head { transform-style: preserve-3d; }
+      .ch-num { transform: translateZ(16px); }
+      .ch-state { transform: translateZ(28px); }
+      .modeseg button { transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease; }
+      .modeseg button.on {
+        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.28), 0 6px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+      }
+      .modeseg button:active { transform: translateY(1px); }
+      .tool, .tbtn, .stopbtn, .ch-actions button {
+        transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+      }
+      .tool:active, .tbtn:active, .stopbtn:active, .ch-actions button:active { transform: translateY(1px); }
+      .tabbar button.on {
+        box-shadow: inset 0 1px 0 var(--edge-hi), 0 4px 12px rgba(0, 0, 0, 0.12);
       }
     </style>
   </head>
@@ -1641,6 +1704,85 @@ toast('已新建长篇')
 }
 $('btnNewNovel').addEventListener('click', newNovel)
 $('novelTitle').addEventListener('input', function () { novel.title = $('novelTitle').value; saveNovelSoon() })
+
+/* 3D 轻倾斜 */
+(function () {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+  var MAX = 6
+  var rafId = 0
+  var curCard = null
+  function setTilt(el, px, py) {
+    el.style.setProperty("--rx", ((0.5 - py) * 2 * MAX).toFixed(2) + "deg")
+    el.style.setProperty("--ry", ((px - 0.5) * 2 * MAX).toFixed(2) + "deg")
+    el.style.setProperty("--gx", Math.round(px * 100) + "%")
+    el.style.setProperty("--gy", Math.round(py * 100) + "%")
+    el.classList.add("tilt-on")
+  }
+  function clearTilt(el) {
+    if (!el) return
+    el.style.setProperty("--rx", "0deg")
+    el.style.setProperty("--ry", "0deg")
+    el.classList.remove("tilt-on")
+  }
+  function tiltAt(el, x, y) {
+    var b = el.getBoundingClientRect()
+    if (!b.width || !b.height) return
+    setTilt(el, (x - b.left) / b.width, (y - b.top) / b.height)
+  }
+  function queueTilt(el, x, y) {
+    if (rafId) cancelAnimationFrame(rafId)
+    rafId = requestAnimationFrame(function () { tiltAt(el, x, y) })
+  }
+  function headCard(t) {
+    if (!t || !t.closest) return null
+    if (!t.closest(".ch-head")) return null
+    return t.closest(".ch")
+  }
+  var st = $("skillToggle")
+  if (st) {
+    st.addEventListener("pointermove", function (e) {
+      if (e.pointerType !== "mouse") return
+      queueTilt(st, e.clientX, e.clientY)
+    })
+    st.addEventListener("pointerleave", function () { clearTilt(st) })
+    st.addEventListener("pointerdown", function (e) {
+      if (e.pointerType !== "touch") return
+      tiltAt(st, e.clientX, e.clientY)
+    })
+    st.addEventListener("pointerup", function () { clearTilt(st) })
+    st.addEventListener("pointercancel", function () { clearTilt(st) })
+  }
+  var list = $("outlineList")
+  if (list) {
+    list.addEventListener("pointermove", function (e) {
+      if (e.pointerType !== "mouse") return
+      var card = headCard(e.target)
+      if (!card) {
+        if (curCard) { clearTilt(curCard); curCard = null }
+        return
+      }
+      if (curCard && curCard !== card) clearTilt(curCard)
+      curCard = card
+      queueTilt(card, e.clientX, e.clientY)
+    })
+    list.addEventListener("pointerleave", function () {
+      if (curCard) { clearTilt(curCard); curCard = null }
+    })
+    list.addEventListener("pointerdown", function (e) {
+      if (e.pointerType !== "touch") return
+      var card = headCard(e.target)
+      if (!card) return
+      curCard = card
+      tiltAt(card, e.clientX, e.clientY)
+    })
+    list.addEventListener("pointerup", function () {
+      if (curCard) { clearTilt(curCard); curCard = null }
+    })
+    list.addEventListener("pointercancel", function () {
+      if (curCard) { clearTilt(curCard); curCard = null }
+    })
+  }
+})()
 
 /* ── 初始化 ── */
 fillModelSelect(FALLBACK_MODELS)
