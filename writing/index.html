@@ -15,6 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@400;600;900&display=swap" rel="stylesheet" />
+    <script defer src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
     <style>
       :root {
         --bg: #f6f4ef;
@@ -321,7 +322,37 @@
       @media (prefers-reduced-motion: reduce) {
         .progress .fill, #toast { transition: none; }
         .skilltoggle, .ch, .bigbtn, .modeseg button, .tool, .tbtn, .stopbtn, .ch-actions button { transition: none; }
+        .ripple-ink, .skel::after { animation: none !important; }
       }
+
+      /* ── 交互动效：水波纹 / 骨架屏 ─────────────────── */
+      .bigbtn, .stopbtn, .tool, .tbtn, .mini, .tabbar button, .modeseg button,
+      .ch-actions button, .ch-head, .skilltoggle, .x, .sheetbtns button, .titlechips button {
+        position: relative; overflow: hidden;
+      }
+      .ripple-ink {
+        position: absolute; border-radius: 50%; pointer-events: none; z-index: 1;
+        background: radial-gradient(circle, rgba(169, 123, 30, 0.35) 0%, rgba(169, 123, 30, 0.12) 60%, rgba(169, 123, 30, 0) 72%);
+        transform: scale(0); opacity: 1;
+        animation: ripple-ink 0.34s ease-out forwards;
+      }
+      @keyframes ripple-ink { to { transform: scale(1); opacity: 0; } }
+      .skel { position: relative; overflow: hidden; background: var(--surface-2); border-radius: 8px; }
+      .skel::after {
+        content: ""; position: absolute; inset: 0; pointer-events: none;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+        transform: translateX(-100%); animation: skel-shimmer 1.2s ease-in-out infinite;
+      }
+      @media (prefers-color-scheme: dark) {
+        .skel::after { background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent); }
+      }
+      @keyframes skel-shimmer { to { transform: translateX(100%); } }
+      .skel-row { border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 8px; background: var(--surface); padding: 11px 10px; }
+      .skel-row .skel { height: 14px; margin-bottom: 8px; }
+      .skel-row .skel:last-child { margin-bottom: 0; }
+      .ch-skel { margin-top: 10px; }
+      .ch-skel .skel { height: 13px; margin-bottom: 9px; }
+      .ch-skel .skel:last-child { margin-bottom: 0; }
 
       /* ── 模式切换：短篇 / 长篇 ─────────────────── */
       .modeseg { display: flex; gap: 6px; margin-bottom: 12px; }
@@ -1128,9 +1159,7 @@ b.classList.toggle('on', b.getAttribute('data-tab') === v)
 })
 }
 document.querySelectorAll('.tabbar button').forEach(function (b) {
-b.addEventListener('click', function () {
-document.body.setAttribute('data-view', b.getAttribute('data-tab')); syncTabs()
-})
+b.addEventListener('click', function () { switchTab(b.getAttribute('data-tab')) })
 })
 
 /* ── 长篇模式：20 章，每章约一万字 ── */
@@ -1186,6 +1215,7 @@ $('secShort').hidden = (mode !== 'short')
 $('secTools').hidden = (mode !== 'short')
 $('secLong').hidden = (mode !== 'long')
 if (mode === 'long') renderOutline()
+fadeSection(mode === 'long' ? $('secLong') : $('secShort'))
 }
 $('modeShort').addEventListener('click', function () { setMode('short') })
 $('modeLong').addEventListener('click', function () { setMode('long') })
@@ -1351,7 +1381,10 @@ function updateBookProgress() {
 var total = novelTotal()
 var done = novelDoneCount()
 var el = $('novelProgressText')
-if (el) el.textContent = novel.outline.length ? '已写 ' + done + '／20 章 · 共 ' + (total / 10000).toFixed(1) + ' 万字' : '还没有大纲'
+if (el) {
+if (!novel.outline.length) el.textContent = '还没有大纲'
+else animBookText(el, done, total)
+}
 var fill = $('novelProgressFill')
 if (fill) fill.style.width = (novel.outline.length ? Math.min(100, Math.round(done / 20 * 100)) : 0) + '%'
 var b = $('btnOutline')
@@ -1368,7 +1401,7 @@ chapterCounts[n] = cnt
 var st = novelStatus(n)
 els.stateEl.textContent = st
 els.stateEl.className = 'ch-state' + (st === '写中' ? ' doing' : st === '已写完' ? ' done' : '')
-els.wcEl.textContent = cnt.toLocaleString('zh-CN') + ' 字'
+animCount(els.wcEl, cnt, '字')
 els.titleEl.textContent = novel.outline[n - 1] ? novel.outline[n - 1].title : ''
 els.fillEl.style.width = Math.min(100, Math.round(cnt / CHAPTER_TARGET * 100)) + '%'
 var base = '已写 ' + cnt.toLocaleString('zh-CN') + ' 字 ／ 目标约 ' + CHAPTER_TARGET.toLocaleString('zh-CN') + ' 字'
@@ -1473,9 +1506,12 @@ updateChapterRow(n)
 updateBookProgress()
 saveNovelSoon()
 })
-body.appendChild(labT); body.appendChild(labS); body.appendChild(acts); body.appendChild(prog); body.appendChild(textEl)
+var skelEl = document.createElement('div')
+skelEl.className = 'ch-skel'; skelEl.hidden = true
+skelEl.innerHTML = '<div class="skel" style="width:100%"></div><div class="skel" style="width:96%"></div><div class="skel" style="width:88%"></div><div class="skel" style="width:62%"></div>'
+body.appendChild(labT); body.appendChild(labS); body.appendChild(acts); body.appendChild(prog); body.appendChild(skelEl); body.appendChild(textEl)
 wrap.appendChild(head); wrap.appendChild(body)
-chapterEls[n] = { head: head, body: body, titleEl: titleEl, stateEl: stateEl, wcEl: wcEl, titleInput: titleInput, sumInput: sumInput, textEl: textEl, fillEl: fillEl, ptextEl: ptextEl, btnWrite: btnWrite, btnResume: btnResume, btnRetitle: btnRetitle, btnRewrite: btnRewrite, btnDel: btnDel, btnCopy: btnCopy, btnStop: btnStop }
+chapterEls[n] = { head: head, body: body, titleEl: titleEl, stateEl: stateEl, wcEl: wcEl, titleInput: titleInput, sumInput: sumInput, textEl: textEl, skelEl: skelEl, fillEl: fillEl, ptextEl: ptextEl, btnWrite: btnWrite, btnResume: btnResume, btnRetitle: btnRetitle, btnRewrite: btnRewrite, btnDel: btnDel, btnCopy: btnCopy, btnStop: btnStop }
 return wrap
 }
 function renderOutline() {
@@ -1493,6 +1529,7 @@ updateBookProgress()
 return
 }
 novel.outline.forEach(function (c, i) { box.appendChild(buildChapterRow(i + 1)) })
+staggerCards(box)
 for (var n = 1; n <= novel.outline.length; n++) updateChapterRow(n)
 updateBookProgress()
 }
@@ -1513,6 +1550,7 @@ if (!confirm(written ? '重新生成整份大纲会清空现在的大纲和全�
 }
 setBusy(true); novelLock = true; refreshAllRows(); updateBookProgress()
 setOutlineStatus('正在生成大纲…')
+showOutlineSkeleton()
 var acc = ''
 try {
 await streamChat(outlineMessages(), {
@@ -1528,6 +1566,7 @@ var res = parseOutline(acc)
 if (!res.ok) {
 toast('大纲只解析出 ' + res.got + ' 章，请点「生成大纲」重试')
 setOutlineStatus('大纲解析失败，已保留原来的大纲，请重试')
+renderedOutlineSig = ''; renderOutline()
 } else {
 novel.outline = res.chapters
 novel.chapters = {}
@@ -1542,6 +1581,7 @@ toast('大纲已生成，共 20 章')
 } catch (e) {
 if (e.name === 'AbortError') { setOutlineStatus('已停止，大纲没变'); toast('已停止') }
 else { setOutlineStatus('出错：' + e.message + '，请重试'); toast(e.message) }
+renderedOutlineSig = ''; renderOutline()
 }
 setBusy(false); novelLock = false; refreshAllRows(); updateBookProgress()
 }
@@ -1604,6 +1644,7 @@ if (els0) els0.textEl.value = ''
 openChapter(n)
 setBusy(true); novelGenN = n; refreshAllRows(); updateBookProgress()
 setChapterMsg(n, resume ? '正在接着写…' : '正在写…')
+showChapterSkel(n)
 var stalls = 0, rounds = 0, err = null, aborted = false
 try {
 while (rounds < 16) {
@@ -1614,6 +1655,7 @@ var before = cnt
 await streamChat(chapterMessages(n, rounds > 0 || resume, finishing), {
 temperature: 0.9,
 onDelta: function (d) {
+hideChapterSkel(n)
 d = cleanGenText(d)
 novel.chapters[n] = (novel.chapters[n] || '') + d
 var e2 = chapterEls[n]
@@ -1634,6 +1676,7 @@ saveNovel()
 } catch (e) {
 if (e.name === 'AbortError') aborted = true; else err = e
 }
+hideChapterSkel(n)
 setBusy(false); novelGenN = 0; refreshAllRows(); updateBookProgress()
 saveNovel()
 var final = countChars(novel.chapters[n] || '')
@@ -1832,6 +1875,180 @@ $('btnNovelTitle').addEventListener('click', genNovelTitle)
     })
   }
 })()
+
+/* ── 交互动效：水波纹 / Anime.js / 手势 / 骨架屏 ── */
+/* 全部动效统一降级：没加载到 anime.js 或开了减少动态时，直接显示，不报错 */
+var REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+function hasAnime() { return !REDUCED_MOTION && typeof window.anime === 'function' }
+
+/* 数字滚动：章节字数 */
+function animCount(el, target, suffix) {
+if (!el) return
+if (typeof el._cnt !== 'number') el._cnt = 0
+if (target === el._cnt) { el.textContent = target.toLocaleString('zh-CN') + ' ' + suffix; return }
+if (!hasAnime()) { el.textContent = target.toLocaleString('zh-CN') + ' ' + suffix; el._cnt = target; return }
+if (el._cntTween) el._cntTween.pause()
+var o = { v: el._cnt }
+el._cntTween = anime({
+targets: o, v: target, duration: 260, easing: 'easeOutQuad',
+update: function () { el._cnt = Math.round(o.v); el.textContent = el._cnt.toLocaleString('zh-CN') + ' ' + suffix },
+complete: function () { el._cnt = target; el.textContent = target.toLocaleString('zh-CN') + ' ' + suffix }
+})
+}
+
+/* 整本总字数滚动 */
+function animBookText(el, done, total) {
+if (!el) return
+var render = function (v) { el.textContent = '已写 ' + done + '／20 章 · 共 ' + (v / 10000).toFixed(1) + ' 万字' }
+if (typeof el._total !== 'number') el._total = 0
+if (total === el._total) { render(total); return }
+if (!hasAnime()) { render(total); el._total = total; return }
+if (el._totalTween) el._totalTween.pause()
+var o = { v: el._total }
+el._totalTween = anime({
+targets: o, v: total, duration: 300, easing: 'easeOutQuad',
+update: function () { el._total = Math.round(o.v); render(o.v) },
+complete: function () { el._total = total; render(total) }
+})
+}
+
+/* 模式切换淡入 */
+function fadeSection(el) {
+if (!el || el.hidden || !hasAnime()) return
+anime({ targets: el, opacity: [0, 1], translateY: [8, 0], duration: 240, easing: 'easeOutQuad' })
+}
+
+/* 页签切换加滑动 */
+var TAB_ORDER = ['write', 'edit', 'side']
+var TAB_COL = { write: '#railWrite', edit: '.editor-col', side: '#railSide' }
+function switchTab(v) {
+var cur = document.body.getAttribute('data-view') || 'edit'
+if (v === cur) return
+var ci = TAB_ORDER.indexOf(cur), ti = TAB_ORDER.indexOf(v)
+if (ti < 0) return
+var dir = ti > ci ? 1 : -1
+document.body.setAttribute('data-view', v); syncTabs()
+if (!hasAnime()) return
+var col = document.querySelector(TAB_COL[v])
+if (!col) return
+anime({ targets: col, opacity: [0, 1], translateX: [dir * 24, 0], duration: 220, easing: 'easeOutQuad' })
+}
+
+/* 大纲卡片依次淡入（只动透明度，不动 transform，不会压掉 3D 倾斜） */
+function staggerCards(box) {
+if (!box || !hasAnime()) return
+if ($('secLong').hidden) return
+var cards = box.querySelectorAll('.ch')
+if (!cards.length) return
+anime({ targets: cards, opacity: [0, 1], duration: 260, delay: anime.stagger(40), easing: 'easeOutQuad' })
+}
+
+/* 大纲骨架屏：20 行灰条 */
+function showOutlineSkeleton() {
+var box = $('outlineList')
+if (!box) return
+renderedOutlineSig = ''
+var s = ''
+for (var i = 0; i < 20; i++) s += '<div class="skel-row"><div class="skel" style="width:55%"></div><div class="skel" style="width:30%;height:11px"></div></div>'
+box.innerHTML = s
+}
+
+/* 章节正文骨架屏：没出字时显示，出了字就换回正文框 */
+function showChapterSkel(n) {
+var els = chapterEls[n]
+if (!els || !els.skelEl) return
+if ((novel.chapters[n] || '').trim()) return
+els.skelEl.hidden = false
+els.textEl.hidden = true
+}
+function hideChapterSkel(n) {
+var els = chapterEls[n]
+if (!els || !els.skelEl) return
+if (els.skelEl.hidden) return
+els.skelEl.hidden = true
+els.textEl.hidden = false
+}
+
+/* 按压水波纹：点哪个按钮，就从触点扩开一圈金色涟漪 */
+document.addEventListener('pointerdown', function (e) {
+if (REDUCED_MOTION) return
+var btn = e.target && e.target.closest ? e.target.closest('button') : null
+if (!btn || btn.disabled) return
+var r = btn.getBoundingClientRect()
+if (!r.width || !r.height) return
+var d = Math.max(r.width, r.height) * 2.2
+var s = document.createElement('span')
+s.className = 'ripple-ink'
+s.style.width = d + 'px'; s.style.height = d + 'px'
+s.style.left = (e.clientX - r.left - d / 2) + 'px'
+s.style.top = (e.clientY - r.top - d / 2) + 'px'
+btn.appendChild(s)
+setTimeout(function () { if (s.parentNode) s.parentNode.removeChild(s) }, 400)
+});
+
+/* 左右滑切页签：只在手机上认，横向滑动才切，上下滚动不动 */
+(function () {
+var layout = document.querySelector('.layout')
+if (!layout) return
+var x0 = 0, y0 = 0, t0 = 0, tracking = false
+layout.addEventListener('touchstart', function (e) {
+if (!window.matchMedia('(max-width: 1023px)').matches) return
+if (e.touches.length !== 1) { tracking = false; return }
+var t = e.target
+if (t && t.closest && t.closest('textarea, input, select')) return
+x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now(); tracking = true
+}, { passive: true })
+layout.addEventListener('touchend', function (e) {
+if (!tracking) return
+tracking = false
+var dx = e.changedTouches[0].clientX - x0
+var dy = e.changedTouches[0].clientY - y0
+if (Date.now() - t0 > 800) return
+if (Math.abs(dx) < 64) return
+if (Math.abs(dx) < Math.abs(dy) * 1.5) return
+var cur = document.body.getAttribute('data-view') || 'edit'
+var ci = TAB_ORDER.indexOf(cur)
+if (ci < 0) return
+var ni = ci + (dx < 0 ? 1 : -1)
+if (ni < 0 || ni >= TAB_ORDER.length) return
+switchTab(TAB_ORDER[ni])
+}, { passive: true })
+})();
+
+/* 弹层下滑关闭：工具弹层在顶部、没往上滚过时，下滑超过 90 像素就关掉 */
+(function () {
+var scrim = $('sheetScrim')
+if (!scrim) return
+var sheet = scrim.querySelector('.sheet')
+if (!sheet) return
+var y0 = 0, dy = 0, dragging = false
+sheet.addEventListener('touchstart', function (e) {
+if (e.touches.length !== 1) { dragging = false; return }
+var t = e.target
+if (t && t.closest && t.closest('textarea, input, select, button')) return
+y0 = e.touches[0].clientY; dy = 0; dragging = true
+}, { passive: true })
+sheet.addEventListener('touchmove', function (e) {
+if (!dragging) return
+dy = e.touches[0].clientY - y0
+if (dy <= 0 || sheet.scrollTop > 0) { dy = 0; return }
+e.preventDefault()
+if (!REDUCED_MOTION) sheet.style.transform = 'translateY(' + Math.min(dy, 140) + 'px)'
+}, { passive: false })
+sheet.addEventListener('touchend', function () {
+if (!dragging) return
+dragging = false
+var d = dy; dy = 0
+if (d > 90) {
+closeScrim('sheetScrim')
+sheet.style.transform = ''
+} else if (!REDUCED_MOTION) {
+sheet.style.transition = 'transform .18s ease-out'
+sheet.style.transform = ''
+setTimeout(function () { sheet.style.transition = '' }, 200)
+}
+})
+})();
 
 /* ── 初始化 ── */
 fillModelSelect(FALLBACK_MODELS)
