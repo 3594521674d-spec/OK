@@ -1320,8 +1320,9 @@ var RETITLE_SYSTEM = [
 '3. 不许用破折号，不许用单引号，不许用星号，对话和强调都用中文双引号。'
 ].join('\n')
 function effectiveLongSystem() { return skillOn ? LONG_SYSTEM + '\n\n' + WRITING_SKILL : LONG_SYSTEM }
-function effectiveOutlineSystem() { return skillOn ? OUTLINE_SYSTEM + '\n\n' + WRITING_SKILL : OUTLINE_SYSTEM }
-function effectiveRetitleSystem() { return skillOn ? RETITLE_SYSTEM + '\n\n' + WRITING_SKILL : RETITLE_SYSTEM }
+/* 大纲只搭结构，不带 23 万字 skill：带上它会把 GLM 这类模型压到直接拒绝回复，解析出来就是 0 章；写正文仍带 skill */
+function effectiveOutlineSystem() { return OUTLINE_SYSTEM }
+function effectiveRetitleSystem() { return RETITLE_SYSTEM }
 
 /* 完整大纲文本：20 章标题加梗概，写章节时每次都带上 */
 function outlineText() {
@@ -1572,7 +1573,7 @@ setOutlineStatus('正在生成大纲…已出 ' + got + ' 章')
 var res = parseOutline(acc)
 if (!res.ok) {
 toast('大纲只解析出 ' + res.got + ' 章，请点「生成大纲」重试')
-setOutlineStatus('大纲解析失败，已保留原来的大纲，请重试')
+setOutlineStatus(res.got === 0 && acc.trim() ? '大纲解析失败，模型原文：' + acc.trim().slice(0, 120) : '大纲解析失败，已保留原来的大纲，请重试')
 renderedOutlineSig = ''; renderOutline()
 } else {
 novel.outline = res.chapters
