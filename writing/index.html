@@ -907,7 +907,7 @@ var before = n
 await streamChat(storyMessages(rounds > 0 || resume, finishing), {
 temperature: 0.9,
 onDelta: function (d) {
-editor.value += d
+editor.value += cleanGenText(d)
 editor.scrollTop = editor.scrollHeight
 var c = countChars(editor.value)
 $('wcNow').textContent = c.toLocaleString('zh-CN')
@@ -1103,13 +1103,13 @@ refreshCounts(); renderMs(); setStatus('')
 /* ── 复制 / 导出 ── */
 $('btnCopy').addEventListener('click', async function () {
 if (!editor.value.trim()) { toast('正文是空的'); return}
-try { await navigator.clipboard.writeText(editor.value); toast('全文已复制')}
+try { await navigator.clipboard.writeText(cleanGenText(editor.value)); toast('全文已复制')}
 catch (e) { editor.select(); document.execCommand('copy'); toast('全文已复制')}
 })
 $('btnExport').addEventListener('click', function () {
 if (!editor.value.trim()) { toast('正文是空的，没什么可导出'); return}
 var name = (titleInput.value.trim() || '未命名短篇') + '.txt'
-var content = (titleInput.value.trim()? titleInput.value.trim() + '\n\n': '') + editor.value
+var content = (titleInput.value.trim()? titleInput.value.trim() + '\n\n': '') + cleanGenText(editor.value)
 var blob = new Blob([content], { type: 'text/plain;charset=utf-8'})
 var a = document.createElement('a')
 a.href = URL.createObjectURL(blob); a.download = name
@@ -1229,7 +1229,7 @@ $('modeLong').addEventListener('click', function () { setMode('long') })
 
 /* 生成内容清洗：模型万一写了破折号、单引号、星号，这里按硬规则清掉 */
 function cleanGenText(s) {
-return (s || '').replace(/[\u2014\u2013]+/g, '，').replace(/[\u2018\u2019']/g, '').replace(/\*/g, '')
+return (s || '').replace(/\.\.\./g, '……').replace(/[\u2014\u2013]+/g, '，').replace(/[\u2018\u2019']/g, '').replace(/\*/g, '').replace(/,/g, '，').replace(/;/g, '；').replace(/:/g, '：').replace(/\?/g, '？').replace(/!/g, '！').replace(/\(/g, '（').replace(/\)/g, '）')
 }
 
 /* 大纲解析：只认「第N章 标题」加下一行的梗概，也认「N. 标题」数字序号写法 */
@@ -1717,7 +1717,7 @@ toast('本章正文已删除')
 async function copyChapter(n) {
 var t = novel.chapters[n] || ''
 if (!t.trim()) { toast('本章正文是空的'); return }
-var full = '第' + n + '章 ' + novel.outline[n - 1].title + '\n\n' + t
+var full = '第' + n + '章 ' + novel.outline[n - 1].title + '\n\n' + cleanGenText(t)
 try { await navigator.clipboard.writeText(full); toast('本章已复制') }
 catch (e) {
 var ta = document.createElement('textarea')
@@ -1734,14 +1734,14 @@ if (!novel.outline.length) { toast('还没有大纲，先点「生成大纲」')
 var bookTitle = ($('novelTitle').value || '').trim() || '未命名长篇'
 var lines = [bookTitle, '']
 var syn = ($('novelSynopsis').value || '').trim()
-if (syn) { lines.push(syn, '') }
+if (syn) { lines.push(cleanGenText(syn), '') }
 lines.push('目录', '')
 novel.outline.forEach(function (c, i) { lines.push('第' + (i + 1) + '章 ' + c.title) })
 lines.push('')
 novel.outline.forEach(function (c, i) {
 lines.push('第' + (i + 1) + '章 ' + c.title, '')
 var t = novel.chapters[i + 1] || ''
-lines.push(t.trim() ? t : '（本章未写）', '')
+lines.push(t.trim() ? cleanGenText(t) : '（本章未写）', '')
 })
 var safeName = bookTitle.replace(/[\\/:*?"<>|]/g, '').trim() || '未命名长篇'
 var blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
