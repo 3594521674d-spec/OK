@@ -200,6 +200,9 @@
         font: inherit; font-size: 14px; padding: 7px 9px;
       }
       .field textarea { min-height: 4.2rem; resize: vertical; line-height: 1.5; }
+      .titlerow { display: flex; gap: 8px; align-items: center; }
+      .titlerow input { flex: 1; min-width: 0; }
+      .titlerow .stopbtn { flex: 0 0 auto; }
 
       .mscript { border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 11px; margin-bottom: 8px; background: var(--surface); }
       .mscript.cur { border-color: var(--accent); background: var(--accent-soft); }
@@ -469,7 +472,10 @@
           <h2>长篇小说 <span class="sub">20 章 · 每章约一万字</span></h2>
           <div class="field">
             <label for="novelTitle">书名</label>
-            <input id="novelTitle" type="text" placeholder="给这部长篇起个名" autocomplete="off" />
+            <div class="titlerow">
+              <input id="novelTitle" type="text" placeholder="给这部长篇起个名（可让 AI 起）" autocomplete="off" />
+              <button class="stopbtn" id="btnNovelTitle" type="button">让 AI 起</button>
+            </div>
           </div>
           <div class="novel-progress">
             <div class="bar"><div class="fill" id="novelProgressFill"></div></div>
@@ -966,11 +972,12 @@ else { setStatus('出错：' + e.message); toast(e.message)}
 }
 setBusy(false)
 }
-function renderTitleChips(text) {
+function renderTitleChips(text, target) {
 var box = $('titleChips'); box.innerHTML = ''
+var targetEl = target || titleInput
 text.split('\n').map(function (s) { return s.replace(/^[\d、.．·\-—\s"「『]+/, '').replace(/["」』]$/, '').trim()}).filter(Boolean).slice(0, 6).forEach(function (t) {
 var b = document.createElement('button'); b.type = 'button'; b.textContent = t
-b.addEventListener('click', function () { titleInput.value = t; closeScrim('sheetScrim'); toast('标题已填上')})
+b.addEventListener('click', function () { targetEl.value = t; if (targetEl === $('novelTitle')) { novel.title = t; saveNovelSoon() } closeScrim('sheetScrim'); toast('标题已填上')})
 box.appendChild(b)
 })
 }
@@ -1704,6 +1711,44 @@ toast('已新建长篇')
 }
 $('btnNewNovel').addEventListener('click', newNovel)
 $('novelTitle').addEventListener('input', function () { novel.title = $('novelTitle').value; saveNovelSoon() })
+
+async function genNovelTitle() {
+if (busy || novelGenN !== 0 || novelLock) return
+if (!ensureKey()) return
+var hasSetting = $('fHero').value.trim() || $('fPremise').value.trim() || $('fExtra').value.trim()
+var ch1 = novel.chapters[1] || ''
+if (!hasSetting && !novel.outline.length && !ch1.trim()) { toast('先填右边的故事设定，或先生成大纲'); return }
+var parts = []
+parts.push('题材：' + $('fGenre').value)
+if ($('fHero').value.trim()) parts.push('主角：' + $('fHero').value.trim())
+if ($('fPremise').value.trim()) parts.push('一句话梗概：' + $('fPremise').value.trim())
+parts.push('文风：' + $('fStyle').value)
+parts.push('视角：' + $('fPov').value)
+if ($('fExtra').value.trim()) parts.push('补充要求：' + $('fExtra').value.trim())
+if (novel.outline.length) parts.push('大纲：\n' + outlineText())
+if (ch1.trim()) parts.push('第一章开头：\n' + ch1.slice(0, 1600))
+sheetCtx = { mode: 'titles', start: 0, end: 0 }
+openSheet('标题候选', '点任意一个标题，就填到书名栏。', 'titles')
+setBusy(true); setStatus('AI 正在起标题…')
+var acc = ''
+try {
+await streamChat([
+{ role: 'system', content: '你是一位懂网文市场的资深编辑，起的标题短、狠、有钩子。' },
+{ role: 'user', content: '下面是一部长篇小说的设定和大纲，请给它拟 5 个书名，每个一行，不要编号、不要引号、不要解释，每个书名不超过 14 个字，要能勾起点击欲：\n\n' + parts.join('\n') }
+], {
+temperature: 0.85,
+maxTokens: 4000,
+onDelta: function (d) { acc += d; $('sheetText').value = acc; $('sheetText').scrollTop = $('sheetText').scrollHeight }
+})
+renderTitleChips(acc, $('novelTitle'))
+setStatus('处理完了')
+} catch (e) {
+if (e.name === 'AbortError') { setStatus('已停止') }
+else { setStatus('出错：' + e.message); toast(e.message) }
+}
+setBusy(false)
+}
+$('btnNovelTitle').addEventListener('click', genNovelTitle)
 
 /* 3D 轻倾斜 */
 (function () {
