@@ -416,6 +416,7 @@
         <div class="nav-item" data-page="chat" data-title="对话" data-desc="聊天会话列表"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>对话</div>
         <div class="nav-item" data-page="writing" data-title="写作" data-desc="写小说：短篇一键成篇，长篇 20 章大纲逐章写"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>写作</div>
         <div class="nav-item" data-page="skill" data-title="技能" data-desc="LibTV 画布提示词技能包：138 条能力，摘要与全文"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>技能</div>
+        <div class="nav-item" data-page="prompt" data-title="出提示词" data-desc="拿生成好的小说当底子，按 LibTV 技能出视频提示词"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8 5.8 1.9-5.8 1.9L12 18.4l-1.9-5.8L4.3 10.7l5.8-1.9z"/><path d="M19 15l.9 2.6 2.6.9-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9z"/></svg>出提示词</div>
       </div>
 
       <div class="nav-group">
@@ -703,6 +704,36 @@
         <div id="skill-body" style="padding:16px;max-height:calc(100dvh - 250px);min-height:480px;overflow-y:auto;line-height:1.8;font-size:14px">点开即加载…</div>
       </div>
       <p class="muted" style="font-size:13px;color:#6b7280">LibTV 画布提示词技能包 v3：138 条能力。摘要 4 千字，全文 11 万字。搜框输入编号或关键词，只显示含它的段落，清空恢复全文。</p>
+    </section>
+
+    <!-- ===== 出提示词 ===== -->
+    <section class="page" id="page-prompt">
+      <p class="page-note" id="note-prompt" hidden></p>
+      <div class="panel">
+        <div class="row" style="margin-bottom:10px">
+          <select class="select" id="prompt-chapter" style="max-width:280px"><option value="">先读小说…</option></select>
+          <select class="select" id="prompt-model" style="max-width:280px"><option value="">加载模型…</option></select>
+          <span style="flex:1"></span>
+          <span class="chip" id="prompt-novel-info">未读到小说</span>
+        </div>
+        <div class="row" style="margin-bottom:10px">
+          <div class="tabs" style="margin-bottom:0;border-bottom:0" id="prompt-tabs">
+            <div class="tab active" data-scope="digest">参考摘要</div>
+            <div class="tab" data-scope="full">参考全文</div>
+          </div>
+        </div>
+        <textarea class="input" id="prompt-scene" rows="3" style="width:100%;resize:vertical" placeholder="想要什么画面？比如：第 3 章，豆奶在老周炒粉铺躲钱哥，钱哥带人走进巷子"></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="btn btn-primary" id="prompt-go">出提示词</button>
+          <button class="btn" id="prompt-copy" disabled>复制结果</button>
+          <span class="muted" id="prompt-status" style="font-size:13px;color:#6b7280"></span>
+        </div>
+      </div>
+      <div class="panel" id="prompt-result-wrap" hidden>
+        <h3>提示词</h3>
+        <pre id="prompt-result" style="white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.8;margin:0"></pre>
+      </div>
+      <p class="muted" style="font-size:13px;color:#6b7280">小说不用粘贴：直接读写作页存在手机本地的那本（标题、大纲和已写好的章节）。参考摘要 4 千字，又便宜又快；参考全文 11 万字，更准但一次花得多。出的提示词按 30 秒幸运7模板：6 段，每段 5 秒。</p>
     </section>
 
     <!-- ===== API 密钥 ===== -->
@@ -2164,6 +2195,7 @@ function loadPage(page) {
   else if (page === 'btc') loadBtc();
   else if (page === 'writing') loadWriting();
   else if (page === 'skill') loadSkill();
+  else if (page === 'prompt') loadPrompt();
   else if (page === 'keys') loadKeys();
   else if (page === 'usage') loadUsage();
   else if (page === 'audit') loadAudit();
@@ -2264,6 +2296,191 @@ document.querySelectorAll('#skill-tabs .tab').forEach(function (t) {
   });
 });
 document.getElementById('skill-search').addEventListener('input', renderSkill);
+
+/* 出提示词：读本地小说 + LibTV 技能，走网关出视频提示词 */
+var promptSending = false;
+var promptScope = 'digest';
+var promptResultText = '';
+function readLocalNovel() {
+  try {
+    var raw = localStorage.getItem('wb_novel_v1');
+    if (!raw) return null;
+    var d = JSON.parse(raw);
+    if (!d || !Array.isArray(d.outline)) return null;
+    var ch = {};
+    if (d.chapters && typeof d.chapters === 'object') {
+      for (var k in d.chapters) {
+        var n = parseInt(k, 10);
+        if (n >= 1 && n <= 20 && typeof d.chapters[k] === 'string' && d.chapters[k].trim()) ch[n] = d.chapters[k];
+      }
+    }
+    return { title: d.title || '', synopsis: d.synopsis || '', outline: d.outline.slice(0, 20), chapters: ch };
+  } catch (e) { return null; }
+}
+function promptNovelText(novel, chapN) {
+  var parts = [];
+  parts.push('小说标题：' + (novel.title || '未命名'));
+  if (novel.synopsis) parts.push('简介：' + novel.synopsis);
+  if (novel.outline.length) {
+    parts.push('大纲：');
+    novel.outline.forEach(function (c, i) {
+      parts.push((i + 1) + '. ' + c.title + '：' + c.summary);
+    });
+  }
+  if (chapN && novel.chapters[chapN]) {
+    parts.push('第 ' + chapN + ' 章正文：\n' + novel.chapters[chapN]);
+  }
+  return parts.join('\n');
+}
+async function getPromptSkillText() {
+  if (skillDocs[promptScope]) return skillDocs[promptScope];
+  var url = promptScope === 'full' ? '../skills/libtv/SKILL.md' : '../skills/libtv/DIGEST.md';
+  var r = await fetch(url);
+  if (!r.ok) throw new Error('技能文件加载失败（HTTP ' + r.status + '）');
+  var t = await r.text();
+  skillDocs[promptScope] = t;
+  return t;
+}
+async function loadPromptModels() {
+  var sel = $('prompt-model');
+  if (!sel) return;
+  if (!masterKey()) {
+    sel.innerHTML = '<option value="">请先在「概览」页设置主密钥</option>';
+    return;
+  }
+  var rm = await cachedApi('models', 300000, '/v1/models');
+  if (!rm.ok || !rm.body || !(rm.body.data || []).length) {
+    sel.innerHTML = '<option value="">模型加载失败（HTTP ' + rm.status + '）</option>';
+    return;
+  }
+  var models = rm.body.data;
+  var saved = '';
+  try { saved = localStorage.getItem('prompt_model') || localStorage.getItem('wb_model') || ''; } catch (e) {}
+  var def = 'buddy/deepseek-v4.1-flash';
+  var picked = models.some(function (m) { return m.id === def; }) ? def : models[0].id;
+  if (saved && models.some(function (m) { return m.id === saved; })) picked = saved;
+  sel.innerHTML = models.map(function (m) {
+    return '<option value="' + esc(m.id) + '"' + (m.id === picked ? ' selected' : '') + '>' + esc(m.id) + '</option>';
+  }).join('');
+  sel.addEventListener('change', function () {
+    try { localStorage.setItem('prompt_model', sel.value); } catch (e) {}
+  });
+}
+function loadPrompt() {
+  loadPromptModels();
+  var novel = readLocalNovel();
+  var info = $('prompt-novel-info');
+  var sel = $('prompt-chapter');
+  if (!novel || (!novel.title && !novel.outline.length && !Object.keys(novel.chapters).length)) {
+    if (info) info.textContent = '未读到小说';
+    if (sel) sel.innerHTML = '<option value="0">不指定小说</option>';
+    showNote('note-prompt', '没读到小说：先去「写作」页生成一本长篇，小说存在手机本地，这里直接读，不用粘贴。这次也可以只按画面和技能出。');
+    return;
+  }
+  hideNote('note-prompt');
+  var written = Object.keys(novel.chapters).map(function (k) { return parseInt(k, 10); }).sort(function (a, b) { return a - b; });
+  if (info) info.textContent = '小说：' + (novel.title || '未命名') + '（已写 ' + written.length + ' 章）';
+  if (sel) {
+    var opts = ['<option value="0">整本大纲（不指定章节）</option>'];
+    written.forEach(function (n) {
+      var t = (novel.outline[n - 1] && novel.outline[n - 1].title) || ('第 ' + n + ' 章');
+      opts.push('<option value="' + n + '"' + (n === written[written.length - 1] ? ' selected' : '') + '>第 ' + n + ' 章：' + esc(t) + '（' + novel.chapters[n].length + ' 字）</option>');
+    });
+    sel.innerHTML = opts.join('');
+  }
+}
+async function sendPrompt() {
+  if (promptSending) return;
+  var scene = ($('prompt-scene').value || '').trim();
+  if (!scene) { showNote('note-prompt', '先写一句想要什么画面。'); return; }
+  if (!masterKey()) { showNote('note-prompt', '请先在「概览」页设置主密钥。'); return; }
+  var model = $('prompt-model') ? $('prompt-model').value : '';
+  if (!model) { showNote('note-prompt', '请先选一个模型（模型列表还没加载出来）。'); return; }
+  hideNote('note-prompt');
+  var novel = readLocalNovel();
+  var chapN = parseInt(($('prompt-chapter').value || '0'), 10) || 0;
+  var status = $('prompt-status');
+  var wrap = $('prompt-result-wrap');
+  var out = $('prompt-result');
+  var copyBtn = $('prompt-copy');
+  promptSending = true;
+  $('prompt-go').disabled = true;
+  if (status) status.textContent = '正在按技能出提示词…';
+  if (wrap) wrap.hidden = false;
+  if (out) out.textContent = '…';
+  promptResultText = '';
+  try {
+    var skill = await getPromptSkillText();
+    var sys = '你是视频提示词专家。按下面 LibTV 画布提示词技能包的写法出提示词，只蒸写法套路，不搬整条提示词原文，每处引用不超 50 字。\n\n硬规则：每段开头写“输出 1280×720”；画面里不出现可读的文字、字幕和水印；不要背景音乐；人物外形和衣服按小说原文锁定，每段逐字复用，不改长相；台词用小说原句。\n\n技能参考：\n' + skill;
+    var novelPart = novel ? promptNovelText(novel, chapN) + '\n\n' : '';
+    var user = novelPart + '想要的画面：' + scene + '\n\n请按 30 秒幸运7模板出提示词：6 段，每段 5 秒，每段给中文画面描述、一段英文视频生成提示词、台词。揭示点放在 7.4 到 9.6 秒。';
+    var res = await fetch(API_BASE + '/v1/chat/completions', {
+      method: 'POST',
+      headers: { authorization: 'Bearer ' + masterKey(), 'content-type': 'application/json' },
+      body: JSON.stringify({ model: model, messages: [{ role: 'system', content: sys }, { role: 'user', content: user }], stream: true })
+    });
+    if (!res.ok) {
+      var msg = '请求失败（HTTP ' + res.status + '）';
+      try {
+        var ej = JSON.parse(await res.text());
+        if (ej.error && ej.error.message) msg = ej.error.message;
+      } catch (e) {}
+      throw new Error(msg);
+    }
+    var contentType = res.headers.get('content-type') || '';
+    if (contentType.indexOf('application/json') !== -1 && contentType.indexOf('text/event-stream') === -1) {
+      var jj = JSON.parse(await res.text());
+      var content = jj.choices && jj.choices[0] && jj.choices[0].message && jj.choices[0].message.content;
+      promptResultText = content || '';
+      if (out) out.textContent = promptResultText || '（上游没有返回内容）';
+    } else {
+      var reader = res.body.getReader();
+      var decoder = new TextDecoder();
+      var buf = '';
+      if (out) out.textContent = '';
+      while (true) {
+        var chunk = await reader.read();
+        if (chunk.done) break;
+        buf += decoder.decode(chunk.value, { stream: true });
+        var lines = buf.split('\n');
+        buf = lines.pop();
+        for (var i = 0; i < lines.length; i += 1) {
+          var line = lines[i].trim();
+          if (!line || line.indexOf('data:') !== 0) continue;
+          var data = line.slice(5).trim();
+          if (data === '[DONE]') continue;
+          try {
+            var j = JSON.parse(data);
+            var delta = j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content;
+            if (delta) {
+              promptResultText += delta;
+              if (out) out.textContent = promptResultText;
+            }
+          } catch (e) {}
+        }
+      }
+      if (!promptResultText && out) out.textContent = '（上游没有返回内容）';
+    }
+    if (status) status.textContent = promptScope === 'full' ? '已出（参考全文）' : '已出（参考摘要）';
+    if (copyBtn) copyBtn.disabled = !promptResultText;
+  } catch (e) {
+    if (out) out.textContent = '出错了：' + e.message;
+    if (status) status.textContent = '';
+  }
+  promptSending = false;
+  $('prompt-go').disabled = false;
+}
+$('prompt-go').addEventListener('click', sendPrompt);
+$('prompt-copy').addEventListener('click', function (e) {
+  if (promptResultText) copyText(promptResultText, e.target);
+});
+document.querySelectorAll('#prompt-tabs .tab').forEach(function (t) {
+  t.addEventListener('click', function () {
+    document.querySelectorAll('#prompt-tabs .tab').forEach(function (x) { x.classList.remove('active'); });
+    t.classList.add('active');
+    promptScope = t.dataset.scope;
+  });
+});
 
 /* 密钥面板 */
 $('gw-save').addEventListener('click', async function () {
