@@ -3,17 +3,52 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="page工作台：中转站控制台，管渠道、模型、密钥、用量与 BTC 盯盘。">
 <title>page工作台 · 控制台</title>
 <meta name="theme-color" content="#070b16" id="meta-theme-color">
 <script>
   try { if (localStorage.getItem('page-theme') !== 'light') { document.documentElement.classList.add('dark'); } } catch (e) {}
 </script>
 <style>
+  /* ===== 统一颜色 token（网站开发技能包 col.01：颜色只在 :root 定义一次，其余地方只引用变量；
+     配色沿用郝爷定的深色金色皮肤：底色 #070b16，金色强调色；浅色版用同一套 token 名换值。
+     例外（不在 token 内，有原因）：二维码 svg 背白（扫码要白底）、mask 里的 #fff（遮罩透明度不是颜色）、
+     box-shadow 里的黑色 rgba（阴影不是主题色）、meta theme-color（meta 不能用 var）。
+     token 共 12 个：col.01 要求少于 12 个，.code 与提示词输出框在浅色深色下都要保持深底，
+     所以多了一个 --color-ink（不随主题变的深底），其余 11 个都随主题换值。 ===== */
+  :root {
+    --color-bg: #f9fafb; /* 主地面：页面底色 */
+    --color-surface: #ffffff; /* 表面：卡片、面板、输入框 */
+    --color-text: #1f2937; /* 正文 */
+    --color-muted: #6b7280; /* 弱化文字：标签、日期、次要说明，不用于正文 */
+    --color-border: #e5e7eb; /* 边框与分隔线 */
+    --color-accent: #c9a227; /* 强调色：金色，全站唯一 */
+    --color-accent-deep: #cf9c31; /* 强调色深：渐变第二档 */
+    --color-on-accent: #1a1405; /* 强调色上文字 */
+    --color-accent-soft: rgba(201, 162, 39, 0.14); /* 强调色淡 tint：悬停、选中、徽章 */
+    --color-danger: #dc2626; /* 危险 */
+    --color-success: #16a34a; /* 成功 */
+    --color-ink: #111827; /* 深底：代码块与提示词输出框，不随主题变 */
+  }
+  html.dark {
+    --color-bg: #070b16;
+    --color-surface: rgba(255, 255, 255, 0.06);
+    --color-text: rgba(233, 237, 245, 0.92);
+    --color-muted: rgba(139, 148, 169, 0.9);
+    --color-border: rgba(255, 255, 255, 0.08);
+    --color-accent: #e8c268;
+    --color-accent-deep: #cf9c31;
+    --color-on-accent: #1a1405;
+    --color-accent-soft: rgba(217, 164, 65, 0.14);
+    --color-danger: #f87171;
+    --color-success: #34d399;
+    --color-ink: #111827;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-    font-size: 14px; color: #1f2937; background: #fff;
+    font-size: 14px; color: var(--color-text, #1f2937); background: var(--color-surface, #ffffff);
     overflow: hidden;
   }
   a { text-decoration: none; color: inherit; }
@@ -22,48 +57,48 @@
   header {
     position: fixed; top: 0; left: 0; right: 0; height: 48px; z-index: 40;
     display: flex; align-items: center; gap: 8px;
-    padding: 0 12px; background: #fff; border-bottom: 1px solid #e5e7eb;
+    padding: 0 12px; background: var(--color-surface, #ffffff); border-bottom: 1px solid var(--color-border, #e5e7eb);
   }
   .hamburger {
-    display: none; width: 32px; height: 32px; border: 0; background: none;
-    border-radius: 6px; cursor: pointer; color: #4b5563; font-size: 18px; line-height: 1;
+    display: none; width: 44px; height: 44px; border: 0; background: none;
+    border-radius: 6px; cursor: pointer; color: var(--color-text, #1f2937); font-size: 18px; line-height: 1;
   }
-  .hamburger:hover { background: #f3f4f6; }
+  .hamburger:hover { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); }
   .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .brand-mark {
     width: 28px; height: 28px; flex: none; border-radius: 7px;
-    background: linear-gradient(135deg, #2563eb, #7c3aed);
-    color: #fff; font-weight: 700; font-size: 15px;
+    background: linear-gradient(135deg, var(--color-accent, #c9a227), var(--color-accent-deep, #cf9c31));
+    color: var(--color-on-accent, #1a1405); font-weight: 700; font-size: 15px;
     display: flex; align-items: center; justify-content: center;
   }
   .brand-name { font-size: 15px; font-weight: 650; white-space: nowrap; }
   .brand-ver {
-    font-size: 11px; color: #6b7280; background: #f3f4f6;
+    font-size: 11px; color: var(--color-muted, #6b7280); background: var(--color-accent-soft, rgba(201, 162, 39, 0.14));
     border-radius: 999px; padding: 2px 7px; white-space: nowrap;
   }
   .header-search {
     flex: 1; max-width: 380px; margin-left: 16px;
     display: flex; align-items: center; gap: 6px;
-    border: 1px solid #e5e7eb; border-radius: 8px;
-    padding: 5px 10px; color: #9ca3af; font-size: 13px; background: #f9fafb;
+    border: 1px solid var(--color-border, #e5e7eb); border-radius: 8px;
+    padding: 5px 10px; color: var(--color-muted, #6b7280); font-size: 13px; background: var(--color-bg, #f9fafb);
   }
   .header-search kbd {
     margin-left: auto; font-family: inherit; font-size: 11px;
-    border: 1px solid #e5e7eb; border-bottom-width: 2px; border-radius: 4px;
-    padding: 0 4px; background: #fff; color: #6b7280;
+    border: 1px solid var(--color-border, #e5e7eb); border-bottom-width: 2px; border-radius: 4px;
+    padding: 0 4px; background: var(--color-surface, #ffffff); color: var(--color-muted, #6b7280);
   }
   .header-right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
   .icon-btn {
-    width: 32px; height: 32px; border: 0; background: none; border-radius: 6px;
-    cursor: pointer; color: #4b5563; display: flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; border: 0; background: none; border-radius: 6px;
+    cursor: pointer; color: var(--color-text, #1f2937); display: flex; align-items: center; justify-content: center;
   }
-  .icon-btn:hover { background: #f3f4f6; }
+  .icon-btn:hover { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); }
   .icon-btn svg { width: 18px; height: 18px; }
-  .lang { font-size: 13px; color: #4b5563; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
-  .lang:hover { background: #f3f4f6; }
+  .lang { font-size: 13px; color: var(--color-text, #1f2937); padding: 4px 8px; border-radius: 6px; cursor: pointer; }
+  .lang:hover { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); }
   .avatar {
     width: 28px; height: 28px; border-radius: 50%; margin-left: 4px;
-    background: #2563eb; color: #fff; font-size: 13px; font-weight: 600;
+    background: var(--color-accent, #c9a227); color: var(--color-on-accent, #1a1405); font-size: 13px; font-weight: 600;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
   }
 
@@ -73,28 +108,28 @@
   /* ===== 侧边栏 ===== */
   aside {
     width: 248px; flex: none; height: 100%; overflow-y: auto;
-    background: #fff; border-right: 1px solid #e5e7eb; padding: 8px;
+    background: var(--color-surface, #ffffff); border-right: 1px solid var(--color-border, #e5e7eb); padding: 8px;
   }
   .nav-group { margin-bottom: 14px; }
   .nav-group-label {
     font-size: 11px; font-weight: 600; letter-spacing: .06em;
-    text-transform: uppercase; color: #9ca3af; padding: 6px 10px 4px;
+    text-transform: uppercase; color: var(--color-muted, #6b7280); padding: 6px 10px 4px;
   }
   .nav-item {
-    display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; gap: 10px; background: none; border: 0; font: inherit; text-align: left; width: 100%;
     padding: 7px 10px; margin: 1px 0; border-radius: 7px;
-    color: #374151; font-size: 13.5px; cursor: pointer; white-space: nowrap;
+    color: var(--color-text, #1f2937); font-size: 13.5px; cursor: pointer; white-space: nowrap;
   }
-  .nav-item:hover { background: #f3f4f6; }
-  .nav-item.active { background: #eff6ff; color: #1d4ed8; font-weight: 550; }
+  .nav-item:hover { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); }
+  .nav-item.active { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); color: var(--color-accent, #c9a227); font-weight: 550; }
   .nav-item svg { width: 16px; height: 16px; flex: none; }
   .nav-item .badge {
-    margin-left: auto; font-size: 10px; background: #dbeafe; color: #1d4ed8;
+    margin-left: auto; font-size: 10px; background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); color: var(--color-accent, #c9a227);
     border-radius: 999px; padding: 1px 6px;
   }
   .sidebar-foot {
-    margin-top: 8px; padding: 10px; border-top: 1px solid #f3f4f6;
-    font-size: 12px; color: #9ca3af; line-height: 1.7;
+    margin-top: 8px; padding: 10px; border-top: 1px solid var(--color-border, #e5e7eb);
+    font-size: 12px; color: var(--color-muted, #6b7280); line-height: 1.7;
   }
   .overlay {
     display: none; position: fixed; inset: 48px 0 0 0; z-index: 30;
@@ -105,16 +140,16 @@
   /* ===== 内容区 ===== */
   main {
     flex: 1; min-width: 0; height: 100%; overflow-y: auto;
-    background: #f9fafb; padding: 20px 24px 40px;
+    background: var(--color-bg, #f9fafb); padding: 20px 24px 40px;
   }
   .page-title { font-size: 20px; font-weight: 650; margin-bottom: 4px; }
-  .page-sub { font-size: 13px; color: #6b7280; margin-bottom: 20px; }
+  .page-sub { font-size: 13px; color: var(--color-muted, #6b7280); margin-bottom: 20px; }
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
   .mini-card {
-    background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px;
+    background: var(--color-surface, #ffffff); border: 1px solid var(--color-border, #e5e7eb); border-radius: 10px; padding: 14px;
   }
-  .mini-card .k { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
-  .mini-card .v { font-size: 18px; font-weight: 650; color: #d1d5db; }
+  .mini-card .k { font-size: 12px; color: var(--color-muted, #6b7280); margin-bottom: 6px; }
+  .mini-card .v { font-size: 18px; font-weight: 650; color: var(--color-text, #1f2937); }
 
   /* ===== 内壳通用 ===== */
   .page { display: none; }
@@ -123,66 +158,66 @@
   .row.space { justify-content: space-between; }
   .row.mb { margin-bottom: 14px; }
   .btn {
-    border: 1px solid #e5e7eb; background: #fff; border-radius: 8px;
-    padding: 6px 12px; font-size: 13px; cursor: pointer; color: #374151; white-space: nowrap;
+    border: 1px solid var(--color-border, #e5e7eb); background: var(--color-surface, #ffffff); border-radius: 8px;
+    padding: 6px 12px; font-size: 13px; cursor: pointer; color: var(--color-text, #1f2937); white-space: nowrap;
   }
-  .btn-primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .btn-primary { background: var(--color-accent, #c9a227); border-color: var(--color-accent, #c9a227); color: var(--color-on-accent, #1a1405); }
   .input, .select {
-    border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px 10px;
-    font-size: 13px; background: #fff; color: #374151; min-width: 0;
+    border: 1px solid var(--color-border, #e5e7eb); border-radius: 8px; padding: 6px 10px;
+    font-size: 13px; background: var(--color-surface, #ffffff); color: var(--color-text, #1f2937); min-width: 0;
   }
   .input { width: 180px; }
   .input.wide { width: 240px; }
-  .panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-  .panel h3 { font-size: 14px; font-weight: 650; margin-bottom: 10px; }
-  .panel .muted { font-size: 13px; color: #6b7280; line-height: 1.8; }
-  .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #e5e7eb; overflow-x: auto; }
+  .panel { background: var(--color-surface, #ffffff); border: 1px solid var(--color-border, #e5e7eb); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .panel h2 { font-size: 14px; font-weight: 650; margin-bottom: 10px; }
+  .panel .muted { font-size: 13px; color: var(--color-muted, #6b7280); line-height: 1.8; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--color-border, #e5e7eb); overflow-x: auto; }
   .tab {
-    padding: 8px 12px; font-size: 13.5px; color: #6b7280; cursor: pointer;
-    border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
+    padding: 8px 12px; font-size: 13.5px; color: var(--color-muted, #6b7280); cursor: pointer;
+    background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; font: inherit;
   }
-  .tab.active { color: #1d4ed8; border-bottom-color: #2563eb; font-weight: 600; }
-  .tbl-wrap { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow-x: auto; }
+  .tab.active { color: var(--color-accent, #c9a227); border-bottom-color: var(--color-accent, #c9a227); font-weight: 600; }
+  .tbl-wrap { background: var(--color-surface, #ffffff); border: 1px solid var(--color-border, #e5e7eb); border-radius: 12px; overflow-x: auto; }
   table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px; }
   .tbl th {
-    text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600;
-    border-bottom: 1px solid #e5e7eb; white-space: nowrap; background: #f9fafb;
+    text-align: left; padding: 10px 12px; color: var(--color-muted, #6b7280); font-weight: 600;
+    border-bottom: 1px solid var(--color-border, #e5e7eb); white-space: nowrap; background: var(--color-bg, #f9fafb);
   }
-  .tbl td { padding: 12px; border-bottom: 1px solid #f3f4f6; color: #d1d5db; white-space: nowrap; }
+  .tbl td { padding: 12px; border-bottom: 1px solid var(--color-border, #e5e7eb); color: var(--color-text, #1f2937); white-space: nowrap; }
   .tbl tr:last-child td { border-bottom: 0; }
   .pager {
     display: flex; align-items: center; gap: 10px; justify-content: flex-end;
-    padding: 12px; font-size: 12.5px; color: #6b7280; background: #fff;
-    border: 1px solid #e5e7eb; border-top: 0; border-radius: 0 0 12px 12px;
+    padding: 12px; font-size: 12.5px; color: var(--color-muted, #6b7280); background: var(--color-surface, #ffffff);
+    border: 1px solid var(--color-border, #e5e7eb); border-top: 0; border-radius: 0 0 12px 12px;
   }
   .pager .select { padding: 3px 6px; font-size: 12.5px; }
   .chart {
-    border: 1px dashed #d1d5db; border-radius: 10px; height: 170px;
+    border: 1px dashed var(--color-border, #e5e7eb); border-radius: 10px; height: 170px;
     display: flex; align-items: center; justify-content: center;
-    color: #9ca3af; font-size: 13px; background: #f9fafb; text-align: center; padding: 12px;
+    color: var(--color-muted, #6b7280); font-size: 13px; background: var(--color-bg, #f9fafb); text-align: center; padding: 12px;
   }
   .chip {
-    display: inline-block; font-size: 12px; background: #f3f4f6; color: #4b5563;
+    display: inline-block; font-size: 12px; background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); color: var(--color-text, #1f2937);
     border-radius: 999px; padding: 3px 9px; white-space: nowrap;
   }
-  .chip.green { background: #dcfce7; color: #166534; }
-  .chip.blue { background: #dbeafe; color: #1d4ed8; }
+  .chip.green { background: var(--color-surface, #ffffff); color: var(--color-success, #16a34a); }
+  .chip.blue { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); color: var(--color-accent, #c9a227); }
   .kv { display: flex; gap: 28px; flex-wrap: wrap; }
-  .kv .k { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
-  .kv .v { font-size: 16px; font-weight: 650; color: #d1d5db; }
+  .kv .k { font-size: 12px; color: var(--color-muted, #6b7280); margin-bottom: 4px; }
+  .kv .v { font-size: 16px; font-weight: 650; color: var(--color-text, #1f2937); }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .chan-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  .chan-card { background: var(--color-surface, #ffffff); border: 1px solid var(--color-border, #e5e7eb); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
   .code {
-    background: #111827; color: #9ca3af; border-radius: 10px; padding: 12px 14px;
+    background: var(--color-ink, #111827); color: var(--color-muted, #6b7280); border-radius: 10px; padding: 12px 14px;
     font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     overflow-x: auto; white-space: nowrap;
   }
   .steps { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
-  .step { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; font-size: 13px; color: #6b7280; }
-  .seg { display: inline-flex; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
-  .seg span { padding: 6px 12px; font-size: 13px; color: #4b5563; cursor: pointer; background: #fff; }
-  .seg span.on { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
-  .tagline { font-size: 12px; color: #92400e; background: #fef3c7; border-radius: 999px; padding: 3px 10px; }
+  .step { border: 1px solid var(--color-border, #e5e7eb); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--color-muted, #6b7280); }
+  .seg { display: inline-flex; border: 1px solid var(--color-border, #e5e7eb); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; font: inherit; padding: 6px 12px; font-size: 13px; color: var(--color-text, #1f2937); cursor: pointer; background: var(--color-surface, #ffffff); }
+  .seg button.on { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); color: var(--color-accent, #c9a227); font-weight: 600; }
+  .tagline { font-size: 12px; color: var(--color-accent, #c9a227); background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); border-radius: 999px; padding: 3px 10px; }
 
   @media (max-width: 768px) {
     .hamburger { display: block; }
@@ -203,61 +238,61 @@
   html.dark { color-scheme: dark; }
   html.dark body {
     background:
-      radial-gradient(600px 420px at 85% -5%, rgba(217, 164, 65, 0.16), transparent 70%),
-      radial-gradient(500px 500px at -10% 30%, rgba(56, 89, 199, 0.16), transparent 70%),
-      radial-gradient(700px 500px at 110% 75%, rgba(34, 211, 238, 0.10), transparent 70%),
-      radial-gradient(400px 300px at 20% 100%, rgba(124, 58, 237, 0.10), transparent 70%),
-      #070b16;
-    color: rgba(233, 237, 245, 0.92);
+      radial-gradient(600px 420px at 85% -5%, var(--color-accent-soft, rgba(201, 162, 39, 0.14)), transparent 70%),
+      radial-gradient(500px 500px at -10% 30%, var(--color-accent-soft, rgba(201, 162, 39, 0.14)), transparent 70%),
+      radial-gradient(700px 500px at 110% 75%, var(--color-accent-soft, rgba(201, 162, 39, 0.14)), transparent 70%),
+      radial-gradient(400px 300px at 20% 100%, var(--color-accent-soft, rgba(201, 162, 39, 0.14)), transparent 70%),
+      var(--color-bg, #f9fafb);
+    color: var(--color-text, #1f2937);
   }
   html.dark header {
-    background: rgba(13, 20, 36, 0.55);
+    background: var(--color-surface, #ffffff);
     backdrop-filter: blur(18px) saturate(1.6);
     -webkit-backdrop-filter: blur(18px) saturate(1.6);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
   }
   html.dark .brand-mark {
-    background: linear-gradient(180deg, #e8bd60, #cf9c31);
-    color: #1a1405;
-    box-shadow: 0 2px 8px rgba(217, 164, 65, 0.4);
+    background: linear-gradient(180deg, var(--color-accent, #c9a227), var(--color-accent-deep, #cf9c31));
+    color: var(--color-on-accent, #1a1405);
+    box-shadow: 0 2px 8px var(--color-accent-soft, rgba(201, 162, 39, 0.14));
   }
-  html.dark .brand-name { color: #e8c268; }
-  html.dark .brand-ver { background: rgba(255, 255, 255, 0.06); color: rgba(139, 148, 169, 0.9); }
-  html.dark .hamburger, html.dark .icon-btn, html.dark .lang { color: rgba(233, 237, 245, 0.92); }
-  html.dark .hamburger:hover, html.dark .icon-btn:hover, html.dark .lang:hover { background: rgba(255, 255, 255, 0.06); }
+  html.dark .brand-name { color: var(--color-accent, #c9a227); }
+  html.dark .brand-ver { background: var(--color-surface, #ffffff); color: var(--color-muted, #6b7280); }
+  html.dark .hamburger, html.dark .icon-btn, html.dark .lang { color: var(--color-text, #1f2937); }
+  html.dark .hamburger:hover, html.dark .icon-btn:hover, html.dark .lang:hover { background: var(--color-surface, #ffffff); }
   html.dark .icon-moon { display: none; }
   html.dark .icon-sun { display: block; }
-  html.dark .header-search { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.08); color: rgba(139, 148, 169, 0.9); }
-  html.dark .header-search kbd { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.08); color: rgba(139, 148, 169, 0.9); }
+  html.dark .header-search { background: var(--color-surface, #ffffff); border-color: var(--color-border, #e5e7eb); color: var(--color-muted, #6b7280); }
+  html.dark .header-search kbd { background: var(--color-surface, #ffffff); border-color: var(--color-border, #e5e7eb); color: var(--color-muted, #6b7280); }
   html.dark .avatar {
-    background: linear-gradient(180deg, #e8bd60, #cf9c31);
-    color: #1a1405;
-    box-shadow: 0 2px 8px rgba(217, 164, 65, 0.4);
+    background: linear-gradient(180deg, var(--color-accent, #c9a227), var(--color-accent-deep, #cf9c31));
+    color: var(--color-on-accent, #1a1405);
+    box-shadow: 0 2px 8px var(--color-accent-soft, rgba(201, 162, 39, 0.14));
   }
   html.dark aside {
-    background: rgba(13, 20, 36, 0.55);
+    background: var(--color-surface, #ffffff);
     backdrop-filter: blur(18px) saturate(1.6);
     -webkit-backdrop-filter: blur(18px) saturate(1.6);
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    border-right: 1px solid var(--color-border, #e5e7eb);
   }
-  html.dark .nav-group-label { color: rgba(139, 148, 169, 0.9); }
-  html.dark .nav-item { color: rgba(233, 237, 245, 0.92); }
-  html.dark .nav-item:hover { background: rgba(255, 255, 255, 0.06); }
-  html.dark .nav-item.active { background: rgba(217, 164, 65, 0.14); color: #e8c268; }
-  html.dark .nav-item .badge { background: rgba(217, 164, 65, 0.14); color: #e8c268; }
-  html.dark .sidebar-foot { border-top-color: rgba(255, 255, 255, 0.08); color: rgba(139, 148, 169, 0.9); }
+  html.dark .nav-group-label { color: var(--color-muted, #6b7280); }
+  html.dark .nav-item { color: var(--color-text, #1f2937); }
+  html.dark .nav-item:hover { background: var(--color-surface, #ffffff); }
+  html.dark .nav-item.active { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); color: var(--color-accent, #c9a227); }
+  html.dark .nav-item .badge { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); color: var(--color-accent, #c9a227); }
+  html.dark .sidebar-foot { border-top-color: var(--color-border, #e5e7eb); color: var(--color-muted, #6b7280); }
   html.dark main { background: transparent; }
-  html.dark .page-title { color: #e8c268; }
+  html.dark .page-title { color: var(--color-accent, #c9a227); }
   html.dark .page-sub, html.dark .mini-card .k, html.dark .panel .muted,
-  html.dark .kv .k, html.dark .step { color: rgba(139, 148, 169, 0.9); }
-  html.dark .mini-card .v, html.dark .kv .v { color: #e8c268; }
+  html.dark .kv .k, html.dark .step { color: var(--color-muted, #6b7280); }
+  html.dark .mini-card .v, html.dark .kv .v { color: var(--color-accent, #c9a227); }
   /* 玻璃卡片：半透明 + 毛玻璃 + 顶部亮边 + 底部深影 + 色散金边 */
   html.dark .mini-card, html.dark .panel, html.dark .chan-card, html.dark .tbl-wrap {
     position: relative;
-    background: rgba(255, 255, 255, 0.045);
+    background: var(--color-surface, #ffffff);
     backdrop-filter: blur(18px) saturate(1.6) brightness(1.05);
     -webkit-backdrop-filter: blur(18px) saturate(1.6) brightness(1.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--color-border, #e5e7eb);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09), inset 0 -1px 0 rgba(0, 0, 0, .25),
       0 1px 2px rgba(0, 0, 0, .5), 0 8px 24px rgba(0, 0, 0, .45),
       0 16px 48px -12px rgba(0, 0, 0, .5);
@@ -267,11 +302,11 @@
     content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
     background: conic-gradient(from 210deg,
       transparent 0deg,
-      rgba(255, 255, 255, 0.65) 45deg,
-      rgba(232, 194, 104, 0.9) 90deg,
-      rgba(34, 211, 238, 0.55) 135deg,
+      var(--color-text, #1f2937) 45deg,
+      var(--color-accent, #c9a227) 90deg,
+      var(--color-accent-soft, rgba(201, 162, 39, 0.14)) 135deg,
       transparent 190deg,
-      rgba(255, 255, 255, 0.5) 260deg,
+      var(--color-text, #1f2937) 260deg,
       transparent 320deg);
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
@@ -282,41 +317,43 @@
   html.dark .mini-card::after, html.dark .panel::after, html.dark .chan-card::after {
     content: ""; position: absolute; inset: 0; border-radius: inherit;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03) 32%, transparent 55%),
-      radial-gradient(120% 60% at 50% 118%, rgba(217, 164, 65, 0.14), transparent 60%);
+      linear-gradient(180deg, var(--color-surface, #ffffff), var(--color-surface, #ffffff) 32%, transparent 55%),
+      radial-gradient(120% 60% at 50% 118%, var(--color-accent-soft, rgba(201, 162, 39, 0.14)), transparent 60%);
     mix-blend-mode: screen; pointer-events: none; z-index: 1;
   }
   html.dark .mini-card > *, html.dark .panel > *, html.dark .chan-card > * { position: relative; z-index: 2; }
-  html.dark .btn { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.08); color: rgba(233, 237, 245, 0.92); }
-  html.dark .btn:hover { background: rgba(255, 255, 255, 0.10); }
+  html.dark .btn { background: var(--color-surface, #ffffff); border-color: var(--color-border, #e5e7eb); color: var(--color-text, #1f2937); }
+  html.dark .btn:hover { background: var(--color-surface, #ffffff); }
   html.dark .btn-primary {
-    background: linear-gradient(180deg, #e8bd60, #cf9c31);
-    border-color: transparent; color: #1a1405; font-weight: 600;
-    box-shadow: 0 2px 8px rgba(217, 164, 65, 0.4);
+    background: linear-gradient(180deg, var(--color-accent, #c9a227), var(--color-accent-deep, #cf9c31));
+    border-color: transparent; color: var(--color-on-accent, #1a1405); font-weight: 600;
+    box-shadow: 0 2px 8px var(--color-accent-soft, rgba(201, 162, 39, 0.14));
   }
-  html.dark .btn-primary:hover { background: linear-gradient(180deg, #f0c96e, #d9a441); }
-  html.dark .input, html.dark .select { background: rgba(255, 255, 255, 0.06); border-color: rgba(148, 163, 184, 0.22); color: rgba(233, 237, 245, 0.92); }
-  html.dark .input::placeholder { color: rgba(139, 148, 169, 0.9); }
-  html.dark .input:focus, html.dark .select:focus { outline: none; border-color: #d9a441; box-shadow: 0 0 0 3px rgba(217, 164, 65, 0.15); }
-  html.dark .tabs { border-bottom-color: rgba(255, 255, 255, 0.08); }
-  html.dark .tab { color: rgba(139, 148, 169, 0.9); }
-  html.dark .tab.active { color: #e8c268; border-bottom-color: #d9a441; }
-  html.dark .tbl th { background: rgba(255, 255, 255, 0.04); color: rgba(139, 148, 169, 0.9); border-bottom-color: rgba(255, 255, 255, 0.08); }
-  html.dark .tbl td { border-bottom-color: rgba(255, 255, 255, 0.06); color: #94a3b8; }
-  html.dark .pager { background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.08) !important; color: rgba(139, 148, 169, 0.9); }
-  html.dark .chart { background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.08); color: rgba(139, 148, 169, 0.9); }
-  html.dark .chip { background: rgba(255, 255, 255, 0.06); color: rgba(233, 237, 245, 0.92); }
-  html.dark .chip.green { background: rgba(52, 211, 153, 0.12); color: #34d399; }
-  html.dark .chip.blue { background: rgba(34, 211, 238, 0.12); color: #22d3ee; }
-  html.dark .seg { border-color: rgba(255, 255, 255, 0.08); }
-  html.dark .seg span { background: transparent; color: rgba(233, 237, 245, 0.92); }
-  html.dark .seg span.on { background: rgba(217, 164, 65, 0.14); color: #e8c268; }
-  html.dark .tagline { background: rgba(217, 164, 65, 0.14); color: #e8c268; }
-  html.dark .step { border-color: rgba(255, 255, 255, 0.08); }
-  html.dark .code { border: 1px solid rgba(255, 255, 255, 0.08); }
-  html.dark #page-chat [style*="border-bottom"] { border-bottom-color: rgba(255, 255, 255, 0.08) !important; }
-  html.dark #page-chat [style*="border-top"] { border-top-color: rgba(255, 255, 255, 0.08) !important; }
-  html.dark #page-chat p[style] { color: rgba(139, 148, 169, 0.9) !important; }
+  html.dark .btn-primary:hover { background: linear-gradient(180deg, var(--color-accent, #c9a227), var(--color-accent, #c9a227)); }
+  html.dark .input, html.dark .select { background: var(--color-surface, #ffffff); border-color: var(--color-border, #e5e7eb); color: var(--color-text, #1f2937); }
+  html.dark .input::placeholder { color: var(--color-muted, #6b7280); }
+  html.dark .input:focus, html.dark .select:focus { outline: none; border-color: var(--color-accent, #c9a227); box-shadow: 0 0 0 3px var(--color-accent-soft, rgba(201, 162, 39, 0.14)); }
+  .input:focus, .select:focus { outline: none; border-color: var(--color-accent, #c9a227); box-shadow: 0 0 0 3px var(--color-accent-soft, rgba(201, 162, 39, 0.14)); }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--color-accent, #c9a227); outline-offset: 2px; }
+  html.dark .tabs { border-bottom-color: var(--color-border, #e5e7eb); }
+  html.dark .tab { color: var(--color-muted, #6b7280); }
+  html.dark .tab.active { color: var(--color-accent, #c9a227); border-bottom-color: var(--color-accent, #c9a227); }
+  html.dark .tbl th { background: var(--color-surface, #ffffff); color: var(--color-muted, #6b7280); border-bottom-color: var(--color-border, #e5e7eb); }
+  html.dark .tbl td { border-bottom-color: var(--color-surface, #ffffff); color: var(--color-muted, #6b7280); }
+  html.dark .pager { background: var(--color-surface, #ffffff); border-color: var(--color-border, #e5e7eb) !important; color: var(--color-muted, #6b7280); }
+  html.dark .chart { background: var(--color-surface, #ffffff); border-color: var(--color-border, #e5e7eb); color: var(--color-muted, #6b7280); }
+  html.dark .chip { background: var(--color-surface, #ffffff); color: var(--color-text, #1f2937); }
+  html.dark .chip.green { background: var(--color-surface, #ffffff); color: var(--color-success, #16a34a); }
+  html.dark .chip.blue { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); color: var(--color-accent, #c9a227); }
+  html.dark .seg { border-color: var(--color-border, #e5e7eb); }
+  html.dark .seg button { background: transparent; color: var(--color-text, #1f2937); }
+  html.dark .seg button.on { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); color: var(--color-accent, #c9a227); }
+  html.dark .tagline { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); color: var(--color-accent, #c9a227); }
+  html.dark .step { border-color: var(--color-border, #e5e7eb); }
+  html.dark .code { border: 1px solid var(--color-border, #e5e7eb); }
+  html.dark #page-chat [style*="border-bottom"] { border-bottom-color: var(--color-border, #e5e7eb) !important; }
+  html.dark #page-chat [style*="border-top"] { border-top-color: var(--color-border, #e5e7eb) !important; }
+  html.dark #page-chat p[style] { color: var(--color-muted, #6b7280) !important; }
   .icon-sun { display: none; }
 
   /* ===== 接线新增：弹窗 / 条形图 / 小按钮 / 提示行 ===== */
@@ -326,16 +363,16 @@
   }
   .modal[hidden] { display: none; }
   .modal-box {
-    width: 100%; max-width: 460px; background: #fff; color: #1f2937;
-    border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;
+    width: 100%; max-width: 460px; background: var(--color-surface, #ffffff); color: var(--color-text, #1f2937);
+    border: 1px solid var(--color-border, #e5e7eb); border-radius: 12px; padding: 16px;
     box-shadow: 0 8px 24px rgba(0,0,0,.45);
   }
-  .modal-box h3 { font-size: 15px; font-weight: 650; }
+  .modal-box h2 { font-size: 15px; font-weight: 650; }
   .modal-box .field { margin: 10px 0; }
-  .modal-box .field label { display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+  .modal-box .field label { display: block; font-size: 12px; color: var(--color-muted, #6b7280); margin-bottom: 4px; }
   .modal-box .input, .modal-box .select { width: 100%; }
   .modal-box .key-out {
-    background: #111827; color: #e8c268; border-radius: 8px; padding: 10px 12px;
+    background: var(--color-ink, #111827); color: var(--color-accent, #c9a227); border-radius: 8px; padding: 10px 12px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px;
     word-break: break-all; margin: 10px 0;
   }
@@ -343,38 +380,38 @@
   .modal-box .qr-box { display: flex; justify-content: center; padding: 12px 0; }
   .modal-box .qr-box img, .modal-box .qr-box svg { width: 180px; height: 180px; }
   .modal-box .user-code {
-    background: #111827; color: #e8c268; border-radius: 8px; padding: 10px 12px;
+    background: var(--color-ink, #111827); color: var(--color-accent, #c9a227); border-radius: 8px; padding: 10px 12px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px;
     font-weight: 700; text-align: center; letter-spacing: 2px; margin: 10px 0;
     word-break: break-all;
   }
   html.dark .modal-box .qr-box svg { background: #fff; border-radius: 8px; }
-  html.dark .modal-box { background: rgba(13, 20, 36, 0.97); color: rgba(233, 237, 245, 0.92); border-color: rgba(255, 255, 255, 0.08); }
-  html.dark .modal-box .field label { color: rgba(139, 148, 169, 0.9); }
+  html.dark .modal-box { background: var(--color-surface, #ffffff); color: var(--color-text, #1f2937); border-color: var(--color-border, #e5e7eb); }
+  html.dark .modal-box .field label { color: var(--color-muted, #6b7280); }
   .bar-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 5px 0; }
-  .bar-row .bar-label { width: 170px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #4b5563; }
-  .bar-track { flex: 1; height: 8px; border-radius: 4px; background: #f3f4f6; overflow: hidden; }
-  .bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #2563eb, #7c3aed); }
-  .bar-val { width: 90px; flex: none; text-align: right; color: #374151; font-variant-numeric: tabular-nums; }
-  html.dark .bar-row .bar-label { color: rgba(139, 148, 169, 0.9); }
-  html.dark .bar-track { background: rgba(255, 255, 255, 0.08); }
-  html.dark .bar-fill { background: linear-gradient(90deg, #d9a441, #f0c96e); }
-  html.dark .bar-val { color: rgba(233, 237, 245, 0.92); }
+  .bar-row .bar-label { width: 170px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text, #1f2937); }
+  .bar-track { flex: 1; height: 8px; border-radius: 4px; background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--color-accent, #c9a227), var(--color-accent-deep, #cf9c31)); }
+  .bar-val { width: 90px; flex: none; text-align: right; color: var(--color-text, #1f2937); font-variant-numeric: tabular-nums; }
+  html.dark .bar-row .bar-label { color: var(--color-muted, #6b7280); }
+  html.dark .bar-track { background: var(--color-border, #e5e7eb); }
+  html.dark .bar-fill { background: linear-gradient(90deg, var(--color-accent, #c9a227), var(--color-accent, #c9a227)); }
+  html.dark .bar-val { color: var(--color-text, #1f2937); }
   .mini-btn {
     border: 0; background: none; cursor: pointer; font-size: 12.5px; padding: 2px 6px;
-    color: #1d4ed8; border-radius: 6px; white-space: nowrap;
+    color: var(--color-accent, #c9a227); border-radius: 6px; white-space: nowrap;
   }
-  .mini-btn:hover { background: #eff6ff; }
-  .mini-btn.danger { color: #dc2626; }
-  .mini-btn.danger:hover { background: #fef2f2; }
-  html.dark .mini-btn { color: #e8c268; }
-  html.dark .mini-btn:hover { background: rgba(217, 164, 65, 0.14); }
-  html.dark .mini-btn.danger { color: #f87171; }
-  html.dark .mini-btn.danger:hover { background: rgba(248, 113, 113, 0.12); }
-  .page-note { font-size: 12.5px; color: #92400e; background: #fef3c7; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; line-height: 1.7; }
-  html.dark .page-note { background: rgba(217, 164, 65, 0.14); color: #e8c268; }
-  .acct-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; padding: 7px 0; border-top: 1px solid #f3f4f6; }
-  html.dark .acct-row { border-top-color: rgba(255, 255, 255, 0.08); }
+  .mini-btn:hover { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); }
+  .mini-btn.danger { color: var(--color-danger, #dc2626); }
+  .mini-btn.danger:hover { background: var(--color-surface, #ffffff); }
+  html.dark .mini-btn { color: var(--color-accent, #c9a227); }
+  html.dark .mini-btn:hover { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); }
+  html.dark .mini-btn.danger { color: var(--color-danger, #dc2626); }
+  html.dark .mini-btn.danger:hover { background: var(--color-surface, #ffffff); }
+  .page-note { font-size: 12.5px; color: var(--color-accent, #c9a227); background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; line-height: 1.7; }
+  html.dark .page-note { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); color: var(--color-accent, #c9a227); }
+  .acct-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; padding: 7px 0; border-top: 1px solid var(--color-border, #e5e7eb); }
+  html.dark .acct-row { border-top-color: var(--color-border, #e5e7eb); }
   .acct-row .uid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 </style>
 </head>
@@ -413,27 +450,27 @@
     <nav id="nav">
       <div class="nav-group">
         <div class="nav-group-label">对话</div>
-        <div class="nav-item" data-page="chat" data-title="对话" data-desc="聊天会话列表"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>对话</div>
-        <div class="nav-item" data-page="writing" data-title="写作" data-desc="写小说：短篇一键成篇，长篇 20 章大纲逐章写"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>写作</div>
-        <div class="nav-item" data-page="skill" data-title="技能" data-desc="LibTV 画布提示词技能包：138 条能力，摘要与全文"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>技能</div>
-        <div class="nav-item" data-page="prompt" data-title="出提示词" data-desc="拿生成好的小说当底子，按 LibTV 技能出视频提示词"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8 5.8 1.9-5.8 1.9L12 18.4l-1.9-5.8L4.3 10.7l5.8-1.9z"/><path d="M19 15l.9 2.6 2.6.9-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9z"/></svg>出提示词</div>
+        <button type="button" class="nav-item" data-page="chat" data-title="对话" data-desc="聊天会话列表"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>对话</button>
+        <button type="button" class="nav-item" data-page="writing" data-title="写作" data-desc="写小说：短篇一键成篇，长篇 20 章大纲逐章写"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>写作</button>
+        <button type="button" class="nav-item" data-page="skill" data-title="技能" data-desc="LibTV 画布提示词技能包：138 条能力，摘要与全文"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>技能</button>
+        <button type="button" class="nav-item" data-page="prompt" data-title="出提示词" data-desc="拿生成好的小说当底子，按 LibTV 技能出视频提示词"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8 5.8 1.9-5.8 1.9L12 18.4l-1.9-5.8L4.3 10.7l5.8-1.9z"/><path d="M19 15l.9 2.6 2.6.9-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9z"/></svg>出提示词</button>
       </div>
 
       <div class="nav-group">
         <div class="nav-group-label">通用</div>
-        <div class="nav-item active" data-page="overview" data-title="概览" data-desc="余额、密钥、请求、消费、Token 一眼看完"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>概览</div>
-        <div class="nav-item" data-page="dashboard" data-title="仪表盘" data-desc="模型调用量、性能、延迟统计"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>仪表盘</div>
-        <div class="nav-item" data-page="btc" data-title="BTC 盯盘" data-desc="BTC 现价、提醒条件与历史记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M9.5 9.5h5"/><path d="M9.5 14.5h5"/></svg>BTC 盯盘</div>
-        <div class="nav-item" data-page="keys" data-title="API 密钥" data-desc="创建、查看、停用自己的调用密钥"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m11 12 9-9"/><path d="m15.5 7.5 3 3"/><path d="m18.5 4.5 2 2"/></svg>API 密钥</div>
-        <div class="nav-item" data-page="usage" data-title="使用日志" data-desc="每一次调用的记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>使用日志</div>
-        <div class="nav-item" data-page="audit" data-title="审计日志" data-desc="登录、改配置等操作记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>审计日志</div>
-        <div class="nav-item" data-page="task" data-title="任务日志" data-desc="生图、生视频等异步任务的记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>任务日志</div>
+        <button type="button" class="nav-item active" data-page="overview" data-title="概览" data-desc="余额、密钥、请求、消费、Token 一眼看完"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>概览</button>
+        <button type="button" class="nav-item" data-page="dashboard" data-title="仪表盘" data-desc="模型调用量、性能、延迟统计"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>仪表盘</button>
+        <button type="button" class="nav-item" data-page="btc" data-title="BTC 盯盘" data-desc="BTC 现价、提醒条件与历史记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M9.5 9.5h5"/><path d="M9.5 14.5h5"/></svg>BTC 盯盘</button>
+        <button type="button" class="nav-item" data-page="keys" data-title="API 密钥" data-desc="创建、查看、停用自己的调用密钥"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m11 12 9-9"/><path d="m15.5 7.5 3 3"/><path d="m18.5 4.5 2 2"/></svg>API 密钥</button>
+        <button type="button" class="nav-item" data-page="usage" data-title="使用日志" data-desc="每一次调用的记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>使用日志</button>
+        <button type="button" class="nav-item" data-page="audit" data-title="审计日志" data-desc="登录、改配置等操作记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>审计日志</button>
+        <button type="button" class="nav-item" data-page="task" data-title="任务日志" data-desc="生图、生视频等异步任务的记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>任务日志</button>
       </div>
 
       <div class="nav-group">
         <div class="nav-group-label">管理</div>
-        <div class="nav-item" data-page="channels" data-title="渠道" data-desc="接上游的地方：每个渠道就是一家上游 + 一把 KEY"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></svg>渠道</div>
-        <div class="nav-item" data-page="models" data-title="模型" data-desc="对外提供的模型列表和倍率"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/></svg>模型</div>
+        <button type="button" class="nav-item" data-page="channels" data-title="渠道" data-desc="接上游的地方：每个渠道就是一家上游 + 一把 KEY"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></svg>渠道</button>
+        <button type="button" class="nav-item" data-page="models" data-title="模型" data-desc="对外提供的模型列表和倍率"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/></svg>模型</button>
       </div>
     </nav>
     <div class="sidebar-foot">已接 FC 网关。<br><span id="side-key-status">主密钥：未设置</span></div>
@@ -447,12 +484,12 @@
     <section class="page active" id="page-overview">
       <div class="panel" id="gw-panel">
         <div class="row space">
-          <h3>网关连接</h3>
+          <h2>网关连接</h2>
           <span class="chip" id="gw-status">主密钥：未设置</span>
         </div>
         <p class="muted">网关地址：https://free-ll-gateway-ilghvenboz.cn-hangzhou.fcapp.run（阿里云 FC）<br>主密钥只存在你自己手机的浏览器里（localStorage），不会发给别人；不填只能看空壳。</p>
         <div class="row" style="margin-top:10px">
-          <input class="input wide" type="password" id="gw-key" placeholder="粘贴主密钥（API_KEY）" autocomplete="off">
+          <input class="input wide" type="password" id="gw-key" placeholder="粘贴主密钥（API_KEY）" autocomplete="off" aria-label="主密钥">
           <button class="btn btn-primary" id="gw-save">保存密钥</button>
           <button class="btn" id="gw-clear">清除</button>
           <button class="btn" id="gw-test">测试连接</button>
@@ -471,7 +508,7 @@
 
       <div class="panel">
         <div class="row space">
-          <h3>新手引导 · 几分钟接好你的中转站</h3>
+          <h2>新手引导 · 几分钟接好你的中转站</h2>
           <span class="tagline">空壳预览 · 未接后端</span>
         </div>
         <div class="steps">
@@ -488,7 +525,7 @@
 
       <div class="grid2">
         <div class="panel">
-          <h3>性能健康</h3>
+          <h2>性能健康</h2>
           <div class="kv">
             <div><div class="k">成功率</div><div class="v" id="ov-rate">—</div></div>
             <div><div class="k">平均延迟</div><div class="v" id="ov-lat">—</div></div>
@@ -497,15 +534,15 @@
           <p class="muted" style="margin-top:10px" id="ov-top-model">调用最多的模型：—</p>
         </div>
         <div class="panel">
-          <h3>API 信息</h3>
+          <h2>API 信息</h2>
           <p class="muted" id="ov-apiinfo">网关地址：—<br>支持的协议：—</p>
         </div>
         <div class="panel">
-          <h3>公告</h3>
+          <h2>公告</h2>
           <p class="muted">网关不提供公告。</p>
         </div>
         <div class="panel">
-          <h3>运行状态</h3>
+          <h2>运行状态</h2>
           <p class="muted" id="ov-run">—</p>
         </div>
       </div>
@@ -515,10 +552,10 @@
     <section class="page" id="page-dashboard">
       <p class="page-note" id="note-dashboard" hidden></p>
       <div class="tabs" id="dash-tabs">
-        <span class="tab active" data-tab="overview">概览</span>
-        <span class="tab" data-tab="models">模型调用</span>
-        <span class="tab" data-tab="traffic">流量</span>
-        <span class="tab" data-tab="users">用户</span>
+        <button type="button" class="tab active" data-tab="overview">概览</button>
+        <button type="button" class="tab" data-tab="models">模型调用</button>
+        <button type="button" class="tab" data-tab="traffic">流量</button>
+        <button type="button" class="tab" data-tab="users">用户</button>
       </div>
       <div class="row space mb">
         <div class="row">
@@ -540,7 +577,7 @@
         <div class="mini-card"><div class="k">平均 TPM</div><div class="v" id="db-tpm">—</div></div>
       </div>
       <div class="panel">
-        <h3>性能健康</h3>
+        <h2>性能健康</h2>
         <div class="kv">
           <div><div class="k">成功率</div><div class="v" id="db-rate">—</div></div>
           <div><div class="k">平均延迟</div><div class="v" id="db-lat">—</div></div>
@@ -549,15 +586,15 @@
       </div>
       <div class="panel">
         <div class="row space">
-          <h3>额度分布</h3>
-          <div class="seg" id="db-quota-seg"><span class="on" data-mode="bar">柱状图</span><span data-mode="area">面积图</span></div>
+          <h2>额度分布</h2>
+          <div class="seg" id="db-quota-seg"><button type="button" class="on" data-mode="bar">柱状图</button><button type="button" data-mode="area">面积图</button></div>
         </div>
         <div class="chart" id="db-quota-chart">图表区 · 未接数据</div>
       </div>
       <div class="panel">
         <div class="row space">
-          <h3 id="db-model-title">模型调用分析</h3>
-          <div class="seg" id="db-model-seg"><span class="on" data-mode="trend">调用趋势</span><span data-mode="share">调用分布</span><span data-mode="rank">调用排行</span></div>
+          <h2 id="db-model-title">模型调用分析</h2>
+          <div class="seg" id="db-model-seg"><button type="button" class="on" data-mode="trend">调用趋势</button><button type="button" data-mode="share">调用分布</button><button type="button" data-mode="rank">调用排行</button></div>
         </div>
         <div class="chart" id="db-model-chart">图表区 · 未接数据</div>
       </div>
@@ -568,7 +605,7 @@
       <p class="page-note" id="note-btc" hidden></p>
       <div class="panel">
         <div class="row space">
-          <h3>BTC / USDT 现价</h3>
+          <h2>BTC / USDT 现价</h2>
           <span class="chip" id="btc-source">每 5 分钟更新</span>
           <span class="muted" style="font-size:12px">自动刷新：每 60 秒</span>
         </div>
@@ -582,7 +619,7 @@
       </div>
 
       <div class="panel">
-        <h3>策略信号（5m K 线，每 5 分钟算一次）</h3>
+        <h2>策略信号（5m K 线，每 5 分钟算一次）</h2>
         <p class="muted">只看不下单：三个策略各自独立给信号，不合成总信号；信号只供你手动下单参考，不保证赚钱。</p>
         <p class="muted" id="btc-strat-err" hidden></p>
         <div class="row" style="margin-top:10px;align-items:stretch">
@@ -611,7 +648,7 @@
       </div>
 
       <div class="panel">
-        <h3>信号变化（最近 20 条）</h3>
+        <h2>信号变化（最近 20 条）</h2>
         <div class="tbl-wrap" style="margin-top:10px">
           <table class="tbl">
             <thead><tr><th>时间</th><th>策略</th><th>信号变化</th><th>当时价格（$）</th></tr></thead>
@@ -622,14 +659,14 @@
       </div>
 
       <div class="panel">
-        <h3>提醒条件</h3>
+        <h2>提醒条件</h2>
         <p class="muted">全留空 = 只显示价格、不提醒。价格穿过条件那一下记一条提醒，回来之后再穿过去才重新记，不会刷屏。</p>
         <div class="row" style="margin-top:10px">
-          <label class="muted">高于价提醒（$）</label>
+          <label class="muted" for="btc-above">高于价提醒（$）</label>
           <input class="input" type="number" id="btc-above" placeholder="如 70000" step="1" min="0">
-          <label class="muted">低于价提醒（$）</label>
+          <label class="muted" for="btc-below">低于价提醒（$）</label>
           <input class="input" type="number" id="btc-below" placeholder="如 60000" step="1" min="0">
-          <label class="muted">24h 涨跌幅超过（%）</label>
+          <label class="muted" for="btc-changepct">24h 涨跌幅超过（%）</label>
           <input class="input" type="number" id="btc-changepct" placeholder="如 3" step="0.1" min="0" max="100">
         </div>
         <div class="row" style="margin-top:10px">
@@ -640,7 +677,7 @@
       </div>
 
       <div class="panel">
-        <h3>价格历史（最近 288 条，24 小时）</h3>
+        <h2>价格历史（最近 288 条，24 小时）</h2>
         <div class="tbl-wrap" style="margin-top:10px">
           <table class="tbl">
             <thead><tr><th>时间</th><th>价格（$）</th><th>24h 涨跌幅</th></tr></thead>
@@ -651,7 +688,7 @@
       </div>
 
       <div class="panel">
-        <h3>提醒记录（最近 50 条）</h3>
+        <h2>提醒记录（最近 50 条）</h2>
         <div class="tbl-wrap" style="margin-top:10px">
           <table class="tbl">
             <thead><tr><th>时间</th><th>触发时价格（$）</th><th>触发规则</th><th>内容</th></tr></thead>
@@ -666,44 +703,44 @@
     <section class="page" id="page-chat">
       <p class="page-note" id="note-chat" hidden></p>
       <div class="panel" style="padding:0;overflow:hidden">
-        <div class="row" style="padding:10px 14px;border-bottom:1px solid #e5e7eb">
-          <select class="select" id="chat-model" style="max-width:280px"><option value="">加载模型…</option></select>
+        <div class="row" style="padding:10px 14px;border-bottom:1px solid var(--color-border, #e5e7eb)">
+          <select class="select" id="chat-model" style="max-width:280px" aria-label="聊天模型"><option value="">加载模型…</option></select>
           <span style="flex:1"></span>
           <button class="btn" id="chat-new">新对话</button>
         </div>
         <div id="chat-list" style="height:340px;overflow-y:auto;padding:14px"></div>
-        <div class="row" style="padding:12px 14px;border-top:1px solid #e5e7eb">
-          <input class="input" style="flex:1" id="chat-input" placeholder="输入消息…">
+        <div class="row" style="padding:12px 14px;border-top:1px solid var(--color-border, #e5e7eb)">
+          <input class="input" style="flex:1" id="chat-input" placeholder="输入消息…" aria-label="输入消息">
           <button class="btn btn-primary" id="chat-send">发送</button>
         </div>
       </div>
-      <p class="muted" style="font-size:13px;color:#6b7280">走网关的 /v1/chat/completions（OpenAI 兼容），流式逐字显示；消息只放内存里，刷新页面就没了。</p>
+      <p class="muted" style="font-size:13px;color:var(--color-muted, #6b7280)">走网关的 /v1/chat/completions（OpenAI 兼容），流式逐字显示；消息只放内存里，刷新页面就没了。</p>
     </section>
 
     <!-- ===== 写作 ===== -->
     <section class="page" id="page-writing">
       <p class="page-note" id="note-writing" hidden></p>
       <div class="panel" style="padding:0;overflow:hidden">
-        <iframe id="writing-frame" title="AI 写作网站" style="display:block;width:100%;height:calc(100dvh - 200px);min-height:480px;border:0;background:#fff"></iframe>
+        <iframe id="writing-frame" title="AI 写作网站" style="display:block;width:100%;height:calc(100dvh - 200px);min-height:480px;border:0;background:var(--color-surface, #ffffff)"></iframe>
       </div>
-      <p class="muted" style="font-size:13px;color:#6b7280">写作站和面板在同一个站上，密钥、模型、小说草稿都共用，不用重新填。<a href="../writing/" target="_blank" rel="noopener">在新标签页打开写作站</a></p>
+      <p class="muted" style="font-size:13px;color:var(--color-muted, #6b7280)">写作站和面板在同一个站上，密钥、模型、小说草稿都共用，不用重新填。<a href="../writing/" target="_blank" rel="noopener">在新标签页打开写作站</a></p>
     </section>
 
     <!-- ===== 技能 ===== -->
     <section class="page" id="page-skill">
       <p class="page-note" id="note-skill" hidden></p>
       <div class="panel" style="padding:0;overflow:hidden">
-        <div class="row" style="padding:10px 14px;border-bottom:1px solid #e5e7eb">
+        <div class="row" style="padding:10px 14px;border-bottom:1px solid var(--color-border, #e5e7eb)">
           <div class="tabs" style="margin-bottom:0;border-bottom:0" id="skill-tabs">
-            <div class="tab active" data-skill="digest">摘要</div>
-            <div class="tab" data-skill="full">全文</div>
+            <button type="button" class="tab active" data-skill="digest">摘要</button>
+            <button type="button" class="tab" data-skill="full">全文</button>
           </div>
           <span style="flex:1"></span>
-          <input class="input" id="skill-search" placeholder="搜编号或关键词，比如 dsx" style="width:180px">
+          <input class="input" id="skill-search" placeholder="搜编号或关键词，比如 dsx" style="width:180px" aria-label="搜技能编号或关键词">
         </div>
         <div id="skill-body" style="padding:16px;max-height:calc(100dvh - 250px);min-height:480px;overflow-y:auto;line-height:1.8;font-size:14px">点开即加载…</div>
       </div>
-      <p class="muted" style="font-size:13px;color:#6b7280">LibTV 画布提示词技能包 v3：138 条能力。摘要 4 千字，全文 11 万字。搜框输入编号或关键词，只显示含它的段落，清空恢复全文。</p>
+      <p class="muted" style="font-size:13px;color:var(--color-muted, #6b7280)">LibTV 画布提示词技能包 v3：138 条能力。摘要 4 千字，全文 11 万字。搜框输入编号或关键词，只显示含它的段落，清空恢复全文。</p>
     </section>
 
     <!-- ===== 出提示词 ===== -->
@@ -711,29 +748,29 @@
       <p class="page-note" id="note-prompt" hidden></p>
       <div class="panel">
         <div class="row" style="margin-bottom:10px">
-          <select class="select" id="prompt-chapter" style="max-width:280px"><option value="">先读小说…</option></select>
-          <select class="select" id="prompt-model" style="max-width:280px"><option value="">加载模型…</option></select>
+          <select class="select" id="prompt-chapter" style="max-width:280px" aria-label="小说章节"><option value="">先读小说…</option></select>
+          <select class="select" id="prompt-model" style="max-width:280px" aria-label="出提示词模型"><option value="">加载模型…</option></select>
           <span style="flex:1"></span>
           <span class="chip" id="prompt-novel-info">未读到小说</span>
         </div>
         <div class="row" style="margin-bottom:10px">
           <div class="tabs" style="margin-bottom:0;border-bottom:0" id="prompt-tabs">
-            <div class="tab active" data-scope="digest">参考摘要</div>
-            <div class="tab" data-scope="full">参考全文</div>
+            <button type="button" class="tab active" data-scope="digest">参考摘要</button>
+            <button type="button" class="tab" data-scope="full">参考全文</button>
           </div>
         </div>
         <textarea class="input" id="prompt-scene" rows="3" style="width:100%;resize:vertical" placeholder="想要什么画面？比如：第 3 章，豆奶在老周炒粉铺躲钱哥，钱哥带人走进巷子"></textarea>
         <div class="row" style="margin-top:10px">
           <button class="btn btn-primary" id="prompt-go">出提示词</button>
           <button class="btn" id="prompt-copy" disabled>复制结果</button>
-          <span class="muted" id="prompt-status" style="font-size:13px;color:#6b7280"></span>
+          <span class="muted" id="prompt-status" style="font-size:13px;color:var(--color-muted, #6b7280)"></span>
         </div>
       </div>
       <div class="panel" id="prompt-result-wrap" hidden>
-        <h3>提示词</h3>
+        <h2>提示词</h2>
         <pre id="prompt-result" style="white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.8;margin:0"></pre>
       </div>
-      <p class="muted" style="font-size:13px;color:#6b7280">小说不用粘贴：直接读写作页存在手机本地的那本（标题、大纲和已写好的章节）。参考摘要 4 千字，又便宜又快；参考全文 11 万字，更准但一次花得多。出的提示词按 30 秒幸运7模板：6 段，每段 5 秒。</p>
+      <p class="muted" style="font-size:13px;color:var(--color-muted, #6b7280)">小说不用粘贴：直接读写作页存在手机本地的那本（标题、大纲和已写好的章节）。参考摘要 4 千字，又便宜又快；参考全文 11 万字，更准但一次花得多。出的提示词按 30 秒幸运7模板：6 段，每段 5 秒。</p>
     </section>
 
     <!-- ===== API 密钥 ===== -->
@@ -747,18 +784,18 @@
         </div>
       </div>
       <div class="row mb">
-        <input class="input" id="keys-filter-name" placeholder="Filter by name…">
-        <input class="input" id="keys-filter-key" placeholder="Filter by API key…">
-        <select class="select" id="keys-filter-status"><option value="">状态：全部</option><option value="1">启用</option><option value="0">禁用</option></select>
+        <input class="input" id="keys-filter-name" placeholder="Filter by name…" aria-label="按名称筛选密钥">
+        <input class="input" id="keys-filter-key" placeholder="Filter by API key…" aria-label="按密钥筛选">
+        <select class="select" id="keys-filter-status" aria-label="密钥状态筛选"><option value="">状态：全部</option><option value="1">启用</option><option value="0">禁用</option></select>
       </div>
       <div class="tbl-wrap" style="border-radius:12px 12px 0 0">
         <table class="tbl">
-          <thead><tr><th><input type="checkbox"></th><th>Name</th><th>Status</th><th>API Key</th><th>Quota</th><th>Group</th><th>Models</th><th>IP Restriction</th><th>Time</th><th>Expires</th><th>Actions</th></tr></thead>
+          <thead><tr><th><input type="checkbox" aria-label="全选"></th><th>Name</th><th>Status</th><th>API Key</th><th>Quota</th><th>Group</th><th>Models</th><th>IP Restriction</th><th>Time</th><th>Expires</th><th>Actions</th></tr></thead>
           <tbody id="keys-tbody">
           </tbody>
         </table>
       </div>
-      <div class="pager"><span id="keys-total">Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager"><span id="keys-total">Total 0</span><span>Rows per page</span><select class="select" aria-label="每页行数"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
     </section>
 
     <!-- ===== 使用日志 ===== -->
@@ -766,16 +803,16 @@
       <p class="page-note" id="note-usage" hidden></p>
       <div class="row space mb">
         <div></div>
-        <div class="seg" id="usage-scope"><span class="on" data-scope="all">全部</span><span data-scope="mine">仅我的</span></div>
+        <div class="seg" id="usage-scope"><button type="button" class="on" data-scope="all">全部</button><button type="button" data-scope="mine">仅我的</button></div>
       </div>
       <div class="panel">
         <div class="row mb">
-          <input class="input" type="datetime-local" id="usage-from">
-          <span style="color:#9ca3af">至</span>
-          <input class="input" type="datetime-local" id="usage-to">
-          <input class="input" placeholder="Model Name" id="usage-model">
-          <select class="select"><option>分组：全部</option></select>
-          <select class="select"><option>类型：全部</option></select>
+          <input class="input" type="datetime-local" id="usage-from" aria-label="用量开始时间">
+          <span style="color:var(--color-muted, #6b7280)">至</span>
+          <input class="input" type="datetime-local" id="usage-to" aria-label="用量结束时间">
+          <input class="input" placeholder="Model Name" id="usage-model" aria-label="按模型筛选用量">
+          <select class="select" aria-label="用量分组"><option>分组：全部</option></select>
+          <select class="select" aria-label="用量类型"><option>类型：全部</option></select>
           <button class="btn" id="usage-expand">展开</button>
           <button class="btn" id="usage-eye">👁</button>
           <button class="btn" id="usage-export">导出</button>
@@ -800,7 +837,7 @@
           </tbody>
         </table>
       </div>
-      <div class="pager"><span id="usage-total">Total 0</span><span>Rows per page</span><select class="select"><option>100</option><option>20</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager"><span id="usage-total">Total 0</span><span>Rows per page</span><select class="select" aria-label="每页行数"><option>100</option><option>20</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
     </section>
 
     <!-- ===== 审计日志 ===== -->
@@ -808,15 +845,15 @@
       <p class="page-note" id="note-audit" hidden></p>
       <div class="row space mb">
         <div></div>
-        <div class="seg" id="audit-scope"><span class="on" data-scope="all">全部</span><span data-scope="mine">仅我的</span></div>
+        <div class="seg" id="audit-scope"><button type="button" class="on" data-scope="all">全部</button><button type="button" data-scope="mine">仅我的</button></div>
       </div>
       <div class="panel">
         <div class="row mb">
-          <input class="input" type="datetime-local" id="audit-from">
-          <span style="color:#9ca3af">至</span>
-          <input class="input" type="datetime-local" id="audit-to">
-          <select class="select" id="audit-result"><option value="">结果：全部</option><option value="ok">成功</option><option value="fail">失败</option></select>
-          <select class="select" id="audit-cat"><option value="">分类：全部</option><option value="login">登录</option><option value="security">账号安全</option><option value="ops">操作审计</option><option value="token">访问令牌</option></select>
+          <input class="input" type="datetime-local" id="audit-from" aria-label="审计开始时间">
+          <span style="color:var(--color-muted, #6b7280)">至</span>
+          <input class="input" type="datetime-local" id="audit-to" aria-label="审计结束时间">
+          <select class="select" id="audit-result" aria-label="审计结果筛选"><option value="">结果：全部</option><option value="ok">成功</option><option value="fail">失败</option></select>
+          <select class="select" id="audit-cat" aria-label="审计分类筛选"><option value="">分类：全部</option><option value="login">登录</option><option value="security">账号安全</option><option value="ops">操作审计</option><option value="token">访问令牌</option></select>
           <button class="btn" id="audit-expand">展开</button>
         </div>
         <div class="row" style="justify-content:flex-end">
@@ -832,7 +869,7 @@
           </tbody>
         </table>
       </div>
-      <div class="pager"><span id="audit-total">Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager"><span id="audit-total">Total 0</span><span>Rows per page</span><select class="select" aria-label="每页行数"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
     </section>
 
     <!-- ===== 任务日志 ===== -->
@@ -840,19 +877,19 @@
       <p class="page-note" id="note-task" hidden></p>
       <div class="row space mb">
         <div></div>
-        <div class="seg" id="task-scope"><span class="on" data-scope="all">全部</span><span data-scope="mine">仅我的</span></div>
+        <div class="seg" id="task-scope"><button type="button" class="on" data-scope="all">全部</button><button type="button" data-scope="mine">仅我的</button></div>
       </div>
       <div class="tabs">
-        <span class="tab" data-ttab="drawing">Drawing Logs</span>
-        <span class="tab active" data-ttab="task">Task Logs</span>
+        <button type="button" class="tab" data-ttab="drawing">Drawing Logs</button>
+        <button type="button" class="tab active" data-ttab="task">Task Logs</button>
       </div>
       <div class="panel">
         <div class="row">
-          <input class="input" type="datetime-local" id="task-from">
-          <span style="color:#9ca3af">至</span>
-          <input class="input" type="datetime-local" id="task-to">
-          <input class="input" placeholder="Filter by task ID" id="task-id">
-          <input class="input" placeholder="Channel ID" id="task-channel">
+          <input class="input" type="datetime-local" id="task-from" aria-label="任务开始时间">
+          <span style="color:var(--color-muted, #6b7280)">至</span>
+          <input class="input" type="datetime-local" id="task-to" aria-label="任务结束时间">
+          <input class="input" placeholder="Filter by task ID" id="task-id" aria-label="按任务 ID 筛选">
+          <input class="input" placeholder="Channel ID" id="task-channel" aria-label="按渠道筛选">
           <button class="btn btn-primary" id="task-search">搜索</button>
           <button class="btn" id="task-reset">重置</button>
         </div>
@@ -864,7 +901,7 @@
           </tbody>
         </table>
       </div>
-      <div class="pager"><span id="task-total">Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager"><span id="task-total">Total 0</span><span>Rows per page</span><select class="select" aria-label="每页行数"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
     </section>
 
     <!-- ===== 渠道 ===== -->
@@ -882,26 +919,26 @@
         </div>
       </div>
       <div class="row mb">
-        <input class="input wide" id="chan-filter-name" placeholder="Filter by name, ID, or key...">
-        <input class="input" id="chan-filter-model" placeholder="Filter by model...">
+        <input class="input wide" id="chan-filter-name" placeholder="Filter by name, ID, or key..." aria-label="按名称、ID 或密钥筛选渠道">
+        <input class="input" id="chan-filter-model" placeholder="Filter by model..." aria-label="按模型筛选渠道">
         <select class="select" id="chan-filter-status"><option value="">状态：全部</option><option value="ok">正常</option><option value="off">已关闭</option></select>
         <select class="select" id="chan-filter-type"><option value="">类型：全部</option></select>
         <select class="select" id="chan-filter-group"><option value="">分组：全部</option></select>
         <button class="btn" id="chan-eye">👁</button>
         <button class="btn" id="chan-refresh">刷新</button>
-        <div class="seg" id="chan-view"><span class="on" data-view="card">卡片</span><span data-view="table">表格</span></div>
+        <div class="seg" id="chan-view"><button type="button" class="on" data-view="card">卡片</button><button type="button" data-view="table">表格</button></div>
       </div>
       <div id="channels-list"></div>
-      <div class="pager" style="border:1px solid #e5e7eb;border-radius:12px"><span id="chan-total">Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager" style="border:1px solid var(--color-border, #e5e7eb);border-radius:12px"><span id="chan-total">Total 0</span><span>Rows per page</span><select class="select" aria-label="每页行数"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
     </section>
 
     <!-- ===== 模型 ===== -->
     <section class="page" id="page-models">
       <p class="page-note" id="note-models" hidden></p>
       <div class="tabs" id="models-tabs">
-        <span class="tab active" data-mtab="models">Models</span>
-        <span class="tab" data-mtab="vendors">Vendors</span>
-        <span class="tab" data-mtab="deploy">Deployments</span>
+        <button type="button" class="tab active" data-mtab="models">Models</button>
+        <button type="button" class="tab" data-mtab="vendors">Vendors</button>
+        <button type="button" class="tab" data-mtab="deploy">Deployments</button>
       </div>
       <div class="row space mb">
         <div></div>
@@ -913,7 +950,7 @@
         </div>
       </div>
       <div class="row mb">
-        <input class="input wide" id="models-filter-name" placeholder="Filter by model name...">
+        <input class="input wide" id="models-filter-name" placeholder="Filter by model name..." aria-label="按模型名称筛选">
         <select class="select"><option>展示策略：全部</option></select>
         <select class="select"><option>模型广场：全部</option></select>
         <select class="select" id="models-filter-vendor"><option value="">厂商：全部</option></select>
@@ -921,12 +958,12 @@
       </div>
       <div class="tbl-wrap" style="border-radius:12px 12px 0 0">
         <table class="tbl">
-          <thead><tr><th><input type="checkbox"></th><th>Model</th><th>Pricing</th><th>模型广场</th><th>渠道与分组</th><th>Tags</th><th>同步策略</th><th>Actions</th></tr></thead>
+          <thead><tr><th><input type="checkbox" aria-label="全选"></th><th>Model</th><th>Pricing</th><th>模型广场</th><th>渠道与分组</th><th>Tags</th><th>同步策略</th><th>Actions</th></tr></thead>
           <tbody id="models-tbody">
           </tbody>
         </table>
       </div>
-      <div class="pager"><span id="models-total">Total 0</span><span>Rows per page</span><select class="select"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager"><span id="models-total">Total 0</span><span>Rows per page</span><select class="select" aria-label="每页行数"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
     </section>
   </main>
 </div>
@@ -934,7 +971,7 @@
 <!-- 通用弹窗（创建密钥 / 创建渠道 / 显示新建密钥） -->
 <div class="modal" id="modal" hidden>
   <div class="modal-box">
-    <div class="row space"><h3 id="modal-title"></h3><button class="btn" id="modal-close">✕</button></div>
+    <div class="row space"><h2 id="modal-title"></h2><button class="btn" id="modal-close">✕</button></div>
     <div id="modal-body"></div>
   </div>
 </div>
@@ -1096,12 +1133,17 @@ async function testConnection(msgEl) {
 }
 
 /* 通用弹窗 */
+var lastFocusedBeforeModal = null;
 function openModal(title, bodyHtml) {
+  lastFocusedBeforeModal = document.activeElement;
   $('modal-title').textContent = title;
   $('modal-body').innerHTML = bodyHtml;
   $('modal').hidden = false;
+  var f = $('modal-body').querySelector('input, select, button') || $('modal-close');
+  if (f) f.focus();
 }
-function closeModal() { stopLoginPoll(); $('modal').hidden = true; }
+function closeModal() { stopLoginPoll(); $('modal').hidden = true; if (lastFocusedBeforeModal && lastFocusedBeforeModal.focus) lastFocusedBeforeModal.focus(); }
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('modal').hidden) closeModal(); });
 $('modal-close').addEventListener('click', closeModal);
 $('modal').addEventListener('click', function (e) { if (e.target === $('modal')) closeModal(); });
 function copyText(text, btn) {
@@ -1115,7 +1157,7 @@ function copyText(text, btn) {
 function renderBars(el, items, valueFmt) {
   if (!el) return;
   var rows = (items || []).filter(function (x) { return (Number(x.value) || 0) > 0; }).slice(0, 8);
-  if (rows.length === 0) { el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af">暂无数据</div>'; return; }
+  if (rows.length === 0) { el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--color-muted, #6b7280)">暂无数据</div>'; return; }
   var max = Math.max.apply(null, rows.map(function (x) { return Number(x.value) || 0; }));
   el.style.height = 'auto';
   el.style.display = 'block';
@@ -1281,11 +1323,11 @@ function renderKeys() {
     return true;
   });
   if (rows.length === 0) {
-    tb.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#9ca3af">没有符合条件的密钥</td></tr>';
+    tb.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--color-muted, #6b7280)">没有符合条件的密钥</td></tr>';
   } else {
     tb.innerHTML = rows.map(function (k) {
       var lim = k.limits || {};
-      return '<tr><td><input type="checkbox"></td>' +
+      return '<tr><td><input type="checkbox" aria-label="选择此行"></td>' +
         '<td>' + esc(k.name) + '</td>' +
         '<td>' + (k.enabled ? '<span class="chip green">启用</span>' : '<span class="chip">禁用</span>') + '</td>' +
         '<td style="font-family:ui-monospace,Menlo,monospace">' + esc(k.prefix || '') + '…</td>' +
@@ -1349,12 +1391,12 @@ async function keyAction(act, id) {
 function openCreateKey() {
   if (!masterKey()) { alert('请先在「概览」页设置主密钥。'); return; }
   openModal('创建 API Key',
-    '<div class="field"><label>名称</label><input class="input" id="ck-name" placeholder="比如：给小爱用" value="未命名"></div>' +
-    '<div class="field"><label>请求上限（0 = 不限）</label><input class="input" id="ck-req" type="number" min="0" value="0"></div>' +
-    '<div class="field"><label>Token 上限（0 = 不限）</label><input class="input" id="ck-tok" type="number" min="0" value="0"></div>' +
-    '<div class="field"><label>窗口（小时，默认 24，0 = 不重置）</label><input class="input" id="ck-win" type="number" min="0" value="24"></div>' +
-    '<div class="field"><label>允许的模型（逗号分隔，空 = 全部）</label><input class="input" id="ck-models" placeholder="buddy/glm-5.3-flash, openai/gpt-5"></div>' +
-    '<div class="field"><label>有效期（天，空 = 永不过期）</label><input class="input" id="ck-days" type="number" min="0" placeholder="留空永不过期"></div>' +
+    '<div class="field"><label for="ck-name">名称</label><input class="input" id="ck-name" placeholder="比如：给小爱用" value="未命名"></div>' +
+    '<div class="field"><label for="ck-req">请求上限（0 = 不限）</label><input class="input" id="ck-req" type="number" min="0" value="0"></div>' +
+    '<div class="field"><label for="ck-tok">Token 上限（0 = 不限）</label><input class="input" id="ck-tok" type="number" min="0" value="0"></div>' +
+    '<div class="field"><label for="ck-win">窗口（小时，默认 24，0 = 不重置）</label><input class="input" id="ck-win" type="number" min="0" value="24"></div>' +
+    '<div class="field"><label for="ck-models">允许的模型（逗号分隔，空 = 全部）</label><input class="input" id="ck-models" placeholder="buddy/glm-5.3-flash, openai/gpt-5"></div>' +
+    '<div class="field"><label for="ck-days">有效期（天，空 = 永不过期）</label><input class="input" id="ck-days" type="number" min="0" placeholder="留空永不过期"></div>' +
     '<div class="row"><button class="btn btn-primary" id="ck-submit">创建</button><button class="btn" id="ck-cancel">取消</button></div>' +
     '<p class="muted" id="ck-msg" style="margin-top:8px"></p>');
   $('ck-cancel').addEventListener('click', closeModal);
@@ -1428,7 +1470,7 @@ function renderUsageRows() {
   var mf = (($('usage-model') || {}).value || '').trim();
   var rows = (lastUsage.byModel || []).filter(function (m) { return !mf || m.model.indexOf(mf) !== -1; });
   if (rows.length === 0) {
-    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#9ca3af">该窗口内暂无用量记录</td></tr>';
+    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--color-muted, #6b7280)">该窗口内暂无用量记录</td></tr>';
   } else {
     tb.innerHTML = rows.map(function (m) {
       return '<tr><td>—</td><td>—</td><td>—</td><td>—</td><td>' + esc(m.model) + '</td><td>—</td>' +
@@ -1481,7 +1523,7 @@ function renderAuditRows() {
     return true;
   });
   if (rows.length === 0) {
-    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#9ca3af">没有符合条件的日志</td></tr>';
+    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--color-muted, #6b7280)">没有符合条件的日志</td></tr>';
   } else {
     tb.innerHTML = rows.map(function (l) {
       return '<tr><td>' + esc(fmtDateFull(l.at)) + '</td><td>—</td><td>' + esc(l.kind || '—') + '</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>' +
@@ -1527,7 +1569,7 @@ async function loadTask() {
     return;
   }
   hideNote('note-task');
-  if (tb) tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#9ca3af">查询中…</td></tr>';
+  if (tb) tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--color-muted, #6b7280)">查询中…</td></tr>';
   var found = await lookupTask(id);
   if (!found) {
     showNote('note-task', '没找到 Task ID 为「' + id + '」的任务（三个任务接口都查过了；任务记录只保留 24 小时）。');
@@ -1746,11 +1788,11 @@ function openCreateChannel() {
   if (!masterKey()) { alert('请先在「概览」页设置主密钥。'); return; }
   var opts = Object.keys(KEY_PROVIDERS).map(function (id) { return '<option value="' + id + '">' + esc(KEY_PROVIDERS[id].label) + '</option>'; }).join('');
   openModal('创建渠道（导入上游 KEY）',
-    '<div class="field"><label>供应商</label><select class="select" id="cc-prov">' + opts + '</select></div>' +
-    '<div class="field"><label>API KEY（必填）</label><input class="input" id="cc-key" type="password" placeholder="sk-..." autocomplete="off"></div>' +
-    '<div class="field"><label>Base URL（MJ / Suno / 兼容上游必填；官方四家留空用默认）</label><input class="input" id="cc-base" placeholder="https://..."></div>' +
-    '<div class="field"><label>备注</label><input class="input" id="cc-nick" placeholder="可选"></div>' +
-    '<div class="field"><label>模型（逗号分隔，空 = 上游自动拉取）</label><input class="input" id="cc-models" placeholder="可选"></div>' +
+    '<div class="field"><label for="cc-prov">供应商</label><select class="select" id="cc-prov">' + opts + '</select></div>' +
+    '<div class="field"><label for="cc-key">API KEY（必填）</label><input class="input" id="cc-key" type="password" placeholder="sk-..." autocomplete="off"></div>' +
+    '<div class="field"><label for="cc-base">Base URL（MJ / Suno / 兼容上游必填；官方四家留空用默认）</label><input class="input" id="cc-base" placeholder="https://..."></div>' +
+    '<div class="field"><label for="cc-nick">备注</label><input class="input" id="cc-nick" placeholder="可选"></div>' +
+    '<div class="field"><label for="cc-models">模型（逗号分隔，空 = 上游自动拉取）</label><input class="input" id="cc-models" placeholder="可选"></div>' +
     '<p class="muted" id="cc-hint" style="margin-top:4px">' + esc(KEY_PROVIDERS['openai'].hint) + '</p>' +
     '<div class="row" style="margin-top:10px"><button class="btn btn-primary" id="cc-submit">导入</button><button class="btn" id="cc-cancel">取消</button></div>' +
     '<p class="muted" id="cc-msg" style="margin-top:8px"></p>');
@@ -1822,7 +1864,7 @@ function openAddAccount(retry) {
     return '<option value="' + esc(p.id) + '">' + esc(p.name || p.id) + '（' + esc(LOGIN_KIND_LABEL[p.id] || '设备码登录') + '）</option>';
   }).join('');
   openModal('添加账号',
-    '<div class="field"><label>供应商（只列支持登录的）</label><select class="select" id="aa-prov">' + opts + '</select></div>' +
+    '<div class="field"><label for="aa-prov">供应商（只列支持登录的）</label><select class="select" id="aa-prov">' + opts + '</select></div>' +
     '<p class="muted">KEY 直连的供应商（OpenAI、DeepSeek、Gemini、Claude、MJ、Suno、兼容上游等）没有登录流程，请用「创建渠道」导入 KEY。</p>' +
     '<div class="row" style="margin-top:10px"><button class="btn btn-primary" id="aa-next">下一步</button><button class="btn" id="aa-cancel">取消</button></div>' +
     '<div id="aa-body" style="margin-top:10px"></div>');
@@ -2119,7 +2161,7 @@ function renderModels() {
     return true;
   });
   if (rows.length === 0) {
-    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#9ca3af">没有符合条件的模型</td></tr>';
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--color-muted, #6b7280)">没有符合条件的模型</td></tr>';
   } else {
     tb.innerHTML = rows.map(function (m) {
       var id = String(m.id || '');
@@ -2128,12 +2170,12 @@ function renderModels() {
       var bare = slash > 0 ? id.slice(slash + 1) : id;
       var agg = prov === 'aggregate';
       var off = false;
-      return '<tr><td><input type="checkbox"></td>' +
+      return '<tr><td><input type="checkbox" aria-label="选择此行"></td>' +
         '<td style="font-family:ui-monospace,Menlo,monospace">' + esc(id) + '</td>' +
         '<td>' + esc(priceText(m.priceFactor)) + '</td><td>—</td>' +
         '<td>' + esc((m.providerName || prov) + (m.realm ? ' · ' + m.realm : '')) + '</td>' +
         '<td>' + esc(m.kind || '—') + '</td><td>—</td>' +
-        '<td>' + (agg ? '<span style="color:#9ca3af;font-size:12.5px">聚合模型</span>' :
+        '<td>' + (agg ? '<span style="color:var(--color-muted, #6b7280);font-size:12.5px">聚合模型</span>' :
           '<button class="mini-btn" data-mtoggle="' + esc(prov) + '|' + esc(bare) + '" data-off="' + (off ? '1' : '0') + '">停用</button>') + '</td></tr>';
     }).join('');
   }
@@ -2173,14 +2215,14 @@ function renderVendors() {
   var tb = $('models-tbody');
   if (!tb) return;
   if (modelsProviders.length === 0) {
-    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#9ca3af">暂无供应商数据</td></tr>';
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--color-muted, #6b7280)">暂无供应商数据</td></tr>';
     return;
   }
   tb.innerHTML = modelsProviders.map(function (p) {
     var n = chanAccountsOf(p.id).length;
     var caps = p.capabilities || {};
     var capText = ['login', 'balance', 'checkin', 'listModels'].filter(function (k) { return caps[k]; }).join(' · ') || '—';
-    return '<tr><td><input type="checkbox"></td><td>' + esc(p.name || p.id) + '</td><td>—</td><td>—</td>' +
+    return '<tr><td><input type="checkbox" aria-label="选择此行"></td><td>' + esc(p.name || p.id) + '</td><td>—</td><td>—</td>' +
       '<td>账号 ' + n + ' 个</td><td>' + esc(capText) + '</td><td>—</td><td>—</td></tr>';
   }).join('');
   setText('models-total', 'Total ' + modelsProviders.length);
@@ -2523,17 +2565,17 @@ $('dash-tabs').querySelectorAll('.tab').forEach(function (t) {
     else loadDashboard();
   });
 });
-$('db-model-seg').querySelectorAll('span').forEach(function (s) {
+$('db-model-seg').querySelectorAll('button').forEach(function (s) {
   s.addEventListener('click', function () {
-    $('db-model-seg').querySelectorAll('span').forEach(function (x) { x.classList.remove('on'); });
+    $('db-model-seg').querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
     s.classList.add('on');
     dashMode = s.dataset.mode;
     if (lastUsage) renderDashModel(lastUsage);
   });
 });
-$('db-quota-seg').querySelectorAll('span').forEach(function (s) {
+$('db-quota-seg').querySelectorAll('button').forEach(function (s) {
   s.addEventListener('click', function () {
-    $('db-quota-seg').querySelectorAll('span').forEach(function (x) { x.classList.remove('on'); });
+    $('db-quota-seg').querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
     s.classList.add('on');
     dashQuotaMode = s.dataset.mode;
     loadDashboard();
@@ -2553,9 +2595,9 @@ $('usage-export').addEventListener('click', exportUsageCsv);
 $('usage-expand').addEventListener('click', function () { showNote('note-usage', '没有更多可展开的筛选（网关只支持按天窗口查用量）。'); });
 $('usage-eye').addEventListener('click', function () { showNote('note-usage', '列显示：网关的用量只有按模型汇总这一组列。'); });
 $('usage-cols').addEventListener('click', function () { showNote('note-usage', '列显示：网关的用量只有按模型汇总这一组列。'); });
-$('usage-scope').querySelectorAll('span').forEach(function (s) {
+$('usage-scope').querySelectorAll('button').forEach(function (s) {
   s.addEventListener('click', function () {
-    $('usage-scope').querySelectorAll('span').forEach(function (x) { x.classList.remove('on'); });
+    $('usage-scope').querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
     s.classList.add('on');
     if (s.dataset.scope === 'mine') showNote('note-usage', '网关用量不分用户，都是全站合计；「仅我的」没有单独的数据。');
     else hideNote('note-usage');
@@ -2573,9 +2615,9 @@ $('audit-result').addEventListener('change', renderAuditRows);
 $('audit-cat').addEventListener('change', renderAuditRows);
 $('audit-expand').addEventListener('click', function () { showNote('note-audit', '没有更多可展开的筛选。'); });
 $('audit-cols').addEventListener('click', function () { showNote('note-audit', '列显示：网关的日志只有这几列。'); });
-$('audit-scope').querySelectorAll('span').forEach(function (s) {
+$('audit-scope').querySelectorAll('button').forEach(function (s) {
   s.addEventListener('click', function () {
-    $('audit-scope').querySelectorAll('span').forEach(function (x) { x.classList.remove('on'); });
+    $('audit-scope').querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
     s.classList.add('on');
     if (s.dataset.scope === 'mine') showNote('note-audit', '日志不分用户。');
     else hideNote('note-audit');
@@ -2594,9 +2636,9 @@ document.querySelectorAll('#page-task .tab').forEach(function (t) {
     t.classList.add('active');
   });
 });
-$('task-scope').querySelectorAll('span').forEach(function (s) {
+$('task-scope').querySelectorAll('button').forEach(function (s) {
   s.addEventListener('click', function () {
-    $('task-scope').querySelectorAll('span').forEach(function (x) { x.classList.remove('on'); });
+    $('task-scope').querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
     s.classList.add('on');
   });
 });
@@ -2613,9 +2655,9 @@ $('chan-bulk').addEventListener('click', function () { showNote('note-channels',
 $('chan-tags').addEventListener('click', function () { showNote('note-channels', '网关没有标签模式接口。'); });
 $('chan-more').addEventListener('click', function () { showNote('note-channels', '没有更多操作。'); });
 $('chan-eye').addEventListener('click', function () { showNote('note-channels', '列显示：渠道卡片只有这些字段。'); });
-$('chan-view').querySelectorAll('span').forEach(function (s) {
+$('chan-view').querySelectorAll('button').forEach(function (s) {
   s.addEventListener('click', function () {
-    $('chan-view').querySelectorAll('span').forEach(function (x) { x.classList.remove('on'); });
+    $('chan-view').querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
     s.classList.add('on');
     chanView = s.dataset.view;
     renderChannels();
@@ -2647,7 +2689,7 @@ $('models-tabs').querySelectorAll('.tab').forEach(function (t) {
     else {
       showNote('note-models', '网关没有部署（deployments）概念。');
       var tb = $('models-tbody');
-      if (tb) tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#9ca3af">网关没有部署（deployments）概念</td></tr>';
+      if (tb) tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--color-muted, #6b7280)">网关没有部署（deployments）概念</td></tr>';
       setText('models-total', 'Total 0');
     }
   });
@@ -2679,9 +2721,9 @@ function btcSignalText(sig) {
   return '持有';
 }
 function btcSignalColor(sig) {
-  if (sig === 'buy') return '#16a34a';
-  if (sig === 'sell') return '#dc2626';
-  return '#9ca3af';
+  if (sig === 'buy') return 'var(--color-success, #16a34a)';
+  if (sig === 'sell') return 'var(--color-danger, #dc2626)';
+  return 'var(--color-muted, #6b7280)';
 }
 function btcAgeText(updatedAt) {
   if (!updatedAt) return '还没算出过';
@@ -2696,7 +2738,7 @@ function renderBtcStrategy(key, s) {
   if (!sigEl) return;
   if (!s) {
     sigEl.textContent = '—';
-    sigEl.style.color = '#9ca3af';
+    sigEl.style.color = 'var(--color-muted, #6b7280)';
     if (valEl) valEl.textContent = '网关还没上线策略信号';
     if (ageEl) ageEl.textContent = '';
     return;
@@ -2768,7 +2810,7 @@ async function loadBtc(quiet) {
   var ht = $('btc-history-tbody');
   if (ht) {
     ht.innerHTML = hist.length === 0
-      ? '<tr><td colspan="3" style="text-align:center;color:#9ca3af">暂无历史：网关每 5 分钟查一次，下个 5 分钟后就有数据。</td></tr>'
+      ? '<tr><td colspan="3" style="text-align:center;color:var(--color-muted, #6b7280)">暂无历史：网关每 5 分钟查一次，下个 5 分钟后就有数据。</td></tr>'
       : hist.map(function (p) {
           return '<tr><td>' + esc(fmtDateFull(p.ts)) + '</td><td>' + esc(fmtUsd(p.price)) + '</td><td>' + esc(fmtChg(p.change24h)) + '</td></tr>';
         }).join('');
@@ -2777,7 +2819,7 @@ async function loadBtc(quiet) {
   var at = $('btc-alerts-tbody');
   if (at) {
     at.innerHTML = alerts.length === 0
-      ? '<tr><td colspan="4" style="text-align:center;color:#9ca3af">暂无提醒</td></tr>'
+      ? '<tr><td colspan="4" style="text-align:center;color:var(--color-muted, #6b7280)">暂无提醒</td></tr>'
       : alerts.map(function (a) {
           return '<tr><td>' + esc(fmtDateFull(a.ts)) + '</td><td>' + esc(fmtUsd(a.price)) + '</td><td>' + esc(btcRuleLabel(a.rule)) + '</td><td>' + esc(a.text) + '</td></tr>';
         }).join('');
@@ -2800,7 +2842,7 @@ async function loadBtc(quiet) {
   var sht = $('btc-signal-tbody');
   if (sht) {
     sht.innerHTML = sh.length === 0
-      ? '<tr><td colspan="4" style="text-align:center;color:#9ca3af">暂无信号变化</td></tr>'
+      ? '<tr><td colspan="4" style="text-align:center;color:var(--color-muted, #6b7280)">暂无信号变化</td></tr>'
       : sh.map(function (s) {
           return '<tr><td>' + esc(fmtDateFull(s.ts)) + '</td><td>' + esc(btcRuleLabel(s.strategy)) + '</td><td>' + esc(btcSignalText(s.from)) + ' → ' + esc(btcSignalText(s.to)) + '</td><td>' + esc(fmtUsd(s.price)) + '</td></tr>';
         }).join('');
@@ -2840,7 +2882,7 @@ function chatAddBubble(role, text) {
   wrap.style.cssText = 'margin-bottom:10px;display:flex;' + (role === 'user' ? 'justify-content:flex-end' : 'justify-content:flex-start');
   var b = document.createElement('div');
   b.style.cssText = 'max-width:85%;padding:9px 12px;border-radius:12px;white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.6;' +
-    (role === 'user' ? 'background:linear-gradient(180deg,#e8bd60,#cf9c31);color:#1a1405' : 'background:rgba(128,128,128,0.15)');
+    (role === 'user' ? 'background:linear-gradient(180deg,var(--color-accent, #c9a227),var(--color-accent-deep, #cf9c31));color:var(--color-on-accent, #1a1405)' : 'background:var(--color-surface, #ffffff)');
   b.textContent = text;
   wrap.appendChild(b);
   list.appendChild(wrap);
