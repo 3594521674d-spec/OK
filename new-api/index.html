@@ -241,6 +241,23 @@
     table.tbl-cards td::before { content: attr(data-label); display: block; font-size: 11.5px; color: var(--color-muted, #6b7280); }
     table.tbl-cards td[colspan]::before { display: none; }
     table.tbl-cards td:first-child { display: none; }
+    #page-usage .tbl th:nth-child(1), #page-usage .tbl td:nth-child(1):not([colspan]),
+    #page-usage .tbl th:nth-child(2), #page-usage .tbl td:nth-child(2):not([colspan]),
+    #page-usage .tbl th:nth-child(3), #page-usage .tbl td:nth-child(3):not([colspan]),
+    #page-usage .tbl th:nth-child(4), #page-usage .tbl td:nth-child(4):not([colspan]),
+    #page-usage .tbl th:nth-child(6), #page-usage .tbl td:nth-child(6):not([colspan]),
+    #page-usage .tbl th:nth-child(8), #page-usage .tbl td:nth-child(8):not([colspan]),
+    #page-usage .tbl th:nth-child(9), #page-usage .tbl td:nth-child(9):not([colspan]) { display: none; }
+    #page-audit .tbl th:nth-child(2), #page-audit .tbl td:nth-child(2):not([colspan]),
+    #page-audit .tbl th:nth-child(4), #page-audit .tbl td:nth-child(4):not([colspan]),
+    #page-audit .tbl th:nth-child(5), #page-audit .tbl td:nth-child(5):not([colspan]),
+    #page-audit .tbl th:nth-child(6), #page-audit .tbl td:nth-child(6):not([colspan]),
+    #page-audit .tbl th:nth-child(7), #page-audit .tbl td:nth-child(7):not([colspan]),
+    #page-audit .tbl th:nth-child(8), #page-audit .tbl td:nth-child(8):not([colspan]) { display: none; }
+    #page-task .tbl th:nth-child(1), #page-task .tbl td:nth-child(1):not([colspan]),
+    #page-task .tbl th:nth-child(2), #page-task .tbl td:nth-child(2):not([colspan]),
+    #page-task .tbl th:nth-child(3), #page-task .tbl td:nth-child(3):not([colspan]),
+    #page-task .tbl th:nth-child(6), #page-task .tbl td:nth-child(6):not([colspan]) { display: none; }
   }
 
   /* ===== 深色金色皮肤（默认就是原来 page工作台那套：深蓝黑底 + 极光 + 玻璃卡片 + 金色；
@@ -1009,8 +1026,8 @@
       </div>
       <div class="panel">
         <h2>兑换码列表</h2>
-        <div class="tbl-wrap" style="margin-top:10px">
-          <table class="tbl">
+        <div class="tbl-wrap tbl-cards-wrap" style="margin-top:10px">
+          <table class="tbl tbl-cards">
             <thead><tr><th>名称</th><th>面值</th><th>剩余 / 总次数</th><th>状态</th><th>创建时间</th><th>过期</th><th>操作</th></tr></thead>
             <tbody id="redeem-tbody">
             </tbody>
@@ -1744,16 +1761,16 @@ function renderChannels() {
   setText('chan-total', 'Total ' + list.length);
   if (list.length === 0) { box.innerHTML = '<div class="panel"><p class="muted">没有符合条件的渠道。</p></div>'; return; }
   if (chanView === 'table') {
-    box.innerHTML = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>供应商</th><th>状态</th><th>账号</th><th>权重</th><th>分组</th><th>余额</th><th>响应</th></tr></thead><tbody>' +
+    box.innerHTML = '<div class="tbl-wrap tbl-cards-wrap"><table class="tbl tbl-cards"><thead><tr><th>供应商</th><th>状态</th><th>账号</th><th>权重</th><th>分组</th><th>余额</th><th>响应</th></tr></thead><tbody>' +
       list.map(function (p) {
         var off = chanDisabled.indexOf(p.id) !== -1;
         var accts = chanAccountsOf(p.id);
         var healthy = accts.filter(function (a) { return !a.disabled && !(a.until > Date.now()); }).length;
         var h = chanHealth[p.id];
-        return '<tr><td>' + esc(p.name || p.id) + '（' + esc(p.id) + '）</td><td>' + (off ? '已关闭' : '正常') + '</td>' +
-          '<td>' + healthy + '/' + accts.length + '</td><td>' + esc(weights[p.id] !== undefined ? String(weights[p.id]) : '—') + '</td>' +
-          '<td>' + esc(groups[p.id] || '默认') + '</td><td>' + (p._credits !== undefined ? fmtNum(p._credits) : '—') + '</td>' +
-          '<td>' + esc(h ? h.ok + '/' + h.total + ' 正常' : '—') + '</td></tr>';
+        return '<tr><td data-label="供应商">' + esc(p.name || p.id) + '（' + esc(p.id) + '）</td><td data-label="状态">' + (off ? '已关闭' : '正常') + '</td>' +
+          '<td data-label="账号">' + healthy + '/' + accts.length + '</td><td data-label="权重">' + esc(weights[p.id] !== undefined ? String(weights[p.id]) : '—') + '</td>' +
+          '<td data-label="分组">' + esc(groups[p.id] || '默认') + '</td><td data-label="余额">' + (p._credits !== undefined ? fmtNum(p._credits) : '—') + '</td>' +
+          '<td data-label="响应">' + esc(h ? h.ok + '/' + h.total + ' 正常' : '—') + '</td></tr>';
       }).join('') + '</tbody></table></div>';
     return;
   }
@@ -2287,7 +2304,6 @@ function renderVendors() {
 
 /* ===== 调度与启动 ===== */
 function redeemStatusText(s) { return s === 'active' ? '可用' : s === 'disabled' ? '已禁用' : s === 'used' ? '已兑完' : (s || '—'); }
-var redeemKeysLoaded = false;
 async function loadRedeem() {
   if (!masterKey()) { showNote('note-redeem', '请先在「概览」页设置主密钥，才能管理兑换码。'); return; }
   hideNote('note-redeem');
@@ -2299,7 +2315,7 @@ async function loadRedeem() {
     tb.innerHTML = codes.length === 0
       ? '<tr><td colspan="7" style="text-align:center;color:var(--color-muted, #6b7280)">还没有兑换码</td></tr>'
       : codes.map(function (c) {
-          return '<tr><td>' + esc(c.name || '') + '</td><td>' + esc(String(c.quota)) + '</td><td>' + esc(c.usesLeft + ' / ' + c.usesTotal) + '</td><td>' + redeemStatusText(c.status) + '</td><td>' + esc(fmtDateFull(c.createdAt)) + '</td><td>' + esc(c.expiresAt > 0 ? fmtDateFull(c.expiresAt) : '永不过期') + '</td><td>' + (c.status === 'disabled' ? '<button class="mini-btn" data-redisable="' + esc(c.id) + '" data-on="1">启用</button>' : '<button class="mini-btn danger" data-redisable="' + esc(c.id) + '" data-on="0">禁用</button>') + '</td></tr>';
+          return '<tr><td data-label="名称">' + esc(c.name || '') + '</td><td data-label="面值">' + esc(String(c.quota)) + '</td><td data-label="剩余 / 总次数">' + esc(c.usesLeft + ' / ' + c.usesTotal) + '</td><td data-label="状态">' + redeemStatusText(c.status) + '</td><td data-label="创建时间">' + esc(fmtDateFull(c.createdAt)) + '</td><td data-label="过期">' + esc(c.expiresAt > 0 ? fmtDateFull(c.expiresAt) : '永不过期') + '</td><td data-label="操作">' + (c.status === 'disabled' ? '<button class="mini-btn" data-redisable="' + esc(c.id) + '" data-on="1">启用</button>' : '<button class="mini-btn danger" data-redisable="' + esc(c.id) + '" data-on="0">禁用</button>') + '</td></tr>';
         }).join('');
     tb.querySelectorAll('[data-redisable]').forEach(function (btn) {
       btn.addEventListener('click', async function () {
@@ -2309,13 +2325,12 @@ async function loadRedeem() {
       });
     });
   }
-  if (!redeemKeysLoaded) {
-    redeemKeysLoaded = true;
-    var rk = await api('/admin/apikeys');
-    var sel = $('redeem-key');
-    if (sel && rk.ok && rk.body && rk.body.keys) {
-      sel.innerHTML = '<option value="">选子密钥…</option>' + rk.body.keys.map(function (k) { return '<option value="' + esc(k.id) + '">' + esc(k.name || k.id) + '</option>'; }).join('');
-    }
+  var rk = await api('/admin/apikeys');
+  var sel = $('redeem-key');
+  if (sel && rk.ok && rk.body && rk.body.keys) {
+    var curKey = sel.value;
+    sel.innerHTML = '<option value="">选子密钥…</option>' + rk.body.keys.map(function (k) { return '<option value="' + esc(k.id) + '">' + esc(k.name || k.id) + '</option>'; }).join('');
+    sel.value = curKey;
   }
 }
 $('redeem-create').addEventListener('click', async function () {
