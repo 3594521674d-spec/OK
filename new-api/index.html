@@ -414,6 +414,8 @@
       <div class="nav-group">
         <div class="nav-group-label">对话</div>
         <div class="nav-item" data-page="chat" data-title="对话" data-desc="聊天会话列表"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>对话</div>
+        <div class="nav-item" data-page="writing" data-title="写作" data-desc="写小说：短篇一键成篇，长篇 20 章大纲逐章写"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>写作</div>
+        <div class="nav-item" data-page="skill" data-title="技能" data-desc="LibTV 画布提示词技能包：138 条能力，摘要与全文"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>技能</div>
       </div>
 
       <div class="nav-group">
@@ -675,6 +677,32 @@
         </div>
       </div>
       <p class="muted" style="font-size:13px;color:#6b7280">走网关的 /v1/chat/completions（OpenAI 兼容），流式逐字显示；消息只放内存里，刷新页面就没了。</p>
+    </section>
+
+    <!-- ===== 写作 ===== -->
+    <section class="page" id="page-writing">
+      <p class="page-note" id="note-writing" hidden></p>
+      <div class="panel" style="padding:0;overflow:hidden">
+        <iframe id="writing-frame" title="AI 写作网站" style="display:block;width:100%;height:calc(100dvh - 200px);min-height:480px;border:0;background:#fff"></iframe>
+      </div>
+      <p class="muted" style="font-size:13px;color:#6b7280">写作站和面板在同一个站上，密钥、模型、小说草稿都共用，不用重新填。<a href="../writing/" target="_blank" rel="noopener">在新标签页打开写作站</a></p>
+    </section>
+
+    <!-- ===== 技能 ===== -->
+    <section class="page" id="page-skill">
+      <p class="page-note" id="note-skill" hidden></p>
+      <div class="panel" style="padding:0;overflow:hidden">
+        <div class="row" style="padding:10px 14px;border-bottom:1px solid #e5e7eb">
+          <div class="tabs" style="margin-bottom:0;border-bottom:0" id="skill-tabs">
+            <div class="tab active" data-skill="digest">摘要</div>
+            <div class="tab" data-skill="full">全文</div>
+          </div>
+          <span style="flex:1"></span>
+          <input class="input" id="skill-search" placeholder="搜编号或关键词，比如 dsx" style="width:180px">
+        </div>
+        <div id="skill-body" style="padding:16px;max-height:calc(100dvh - 250px);min-height:480px;overflow-y:auto;line-height:1.8;font-size:14px">点开即加载…</div>
+      </div>
+      <p class="muted" style="font-size:13px;color:#6b7280">LibTV 画布提示词技能包 v3：138 条能力。摘要 4 千字，全文 11 万字。搜框输入编号或关键词，只显示含它的段落，清空恢复全文。</p>
     </section>
 
     <!-- ===== API 密钥 ===== -->
@@ -1501,6 +1529,7 @@ var KEY_PROVIDERS = {
   'midjourney': { label: 'Midjourney（第三方中转）', base: '', baseRequired: true, hint: 'MJ 没有官方 API，去第三方中转复制地址 + KEY', ph: '中转站给你的 KEY' },
   'suno': { label: 'Suno（第三方中转）', base: '', baseRequired: true, hint: 'Suno 没有官方开放 API，去第三方中转复制地址 + KEY', ph: '中转站给你的 KEY' },
   'openai-compatible': { label: 'OpenAI 兼容上游', base: '', baseRequired: true, hint: '填别家中转站 / 兼容上游的地址 + KEY', ph: '上游给你的 KEY' },
+  '78ai': { label: '78AI', base: 'https://api.image2pro.top/v1', baseRequired: false, hint: '去 image2pro.top 注册后在控制台建 API KEY', ph: 'sk-...' },
 };
 async function loadChannels() {
   if (!masterKey()) { showNote('note-channels', '请先在「概览」页设置主密钥，才能查看渠道。'); return; }
@@ -2133,6 +2162,8 @@ function loadPage(page) {
   if (page === 'overview') loadOverview();
   else if (page === 'dashboard') loadDashboard();
   else if (page === 'btc') loadBtc();
+  else if (page === 'writing') loadWriting();
+  else if (page === 'skill') loadSkill();
   else if (page === 'keys') loadKeys();
   else if (page === 'usage') loadUsage();
   else if (page === 'audit') loadAudit();
@@ -2140,6 +2171,99 @@ function loadPage(page) {
   else if (page === 'channels') loadChannels();
   else if (page === 'models') loadModels();
 }
+
+/* 写作：第一次点开才加载写作站，避免每次打开面板都多加载 700KB */
+var writingLoaded = false;
+function loadWriting() {
+  if (writingLoaded) return;
+  writingLoaded = true;
+  var f = document.getElementById('writing-frame');
+  if (f) f.src = '../writing/';
+}
+
+/* 技能：第一次点开才取文件，摘要/全文切换，搜框按段落筛选 */
+var skillLoaded = false;
+var skillDocs = {};
+var skillTab = 'digest';
+function escHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function mdToHtml(md) {
+  var lines = md.split('\n');
+  var out = [];
+  var inList = false;
+  function inline(s) {
+    s = escHtml(s);
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    return s;
+  }
+  lines.forEach(function (line) {
+    var m;
+    if ((m = line.match(/^(#{1,3})\s+(.*)$/))) {
+      if (inList) { out.push('</ul>'); inList = false; }
+      var lv = m[1].length;
+      var fs = lv === 1 ? 18 : lv === 2 ? 16 : 15;
+      out.push('<h' + (lv + 1) + ' style="font-size:' + fs + 'px;margin:18px 0 8px">' + inline(m[2]) + '</h' + (lv + 1) + '>');
+    } else if ((m = line.match(/^\s*[-*]\s+(.*)$/))) {
+      if (!inList) { out.push('<ul style="padding-left:20px;margin:6px 0">'); inList = true; }
+      out.push('<li>' + inline(m[1]) + '</li>');
+    } else if ((m = line.match(/^\s*\d+[.、]\s+(.*)$/))) {
+      if (!inList) { out.push('<ul style="padding-left:20px;margin:6px 0">'); inList = true; }
+      out.push('<li>' + inline(m[1]) + '</li>');
+    } else if (line.trim() === '') {
+      if (inList) { out.push('</ul>'); inList = false; }
+    } else {
+      if (inList) { out.push('</ul>'); inList = false; }
+      out.push('<p style="margin:6px 0">' + inline(line) + '</p>');
+    }
+  });
+  if (inList) { out.push('</ul>'); }
+  return out.join('\n');
+}
+function renderSkill() {
+  var body = document.getElementById('skill-body');
+  if (!body) return;
+  var md = skillDocs[skillTab] || '';
+  var q = (document.getElementById('skill-search').value || '').trim();
+  if (!q) {
+    body.innerHTML = mdToHtml(md);
+    return;
+  }
+  var blocks = md.split(/(?=^## )/m);
+  var kept = blocks.filter(function (b) { return b.indexOf(q) !== -1; });
+  if (!kept.length) {
+    body.innerHTML = '<p class="muted">没找到含“' + escHtml(q) + '”的段落。</p>';
+    return;
+  }
+  body.innerHTML = '<p class="muted">找到 ' + kept.length + ' 段含“' + escHtml(q) + '”。</p>' + mdToHtml(kept.join('\n'));
+}
+function loadSkill() {
+  if (!skillLoaded) {
+    skillLoaded = true;
+    var body = document.getElementById('skill-body');
+    Promise.all([
+      fetch('../skills/libtv/DIGEST.md').then(function (r) { return r.text(); }),
+      fetch('../skills/libtv/SKILL.md').then(function (r) { return r.text(); })
+    ]).then(function (texts) {
+      skillDocs.digest = texts[0];
+      skillDocs.full = texts[1];
+      renderSkill();
+    }).catch(function () {
+      if (body) { body.textContent = '技能文件还没推上线，或加载失败。'; }
+    });
+  } else {
+    renderSkill();
+  }
+}
+document.querySelectorAll('#skill-tabs .tab').forEach(function (t) {
+  t.addEventListener('click', function () {
+    document.querySelectorAll('#skill-tabs .tab').forEach(function (x) { x.classList.remove('active'); });
+    t.classList.add('active');
+    skillTab = t.dataset.skill;
+    renderSkill();
+  });
+});
+document.getElementById('skill-search').addEventListener('input', renderSkill);
 
 /* 密钥面板 */
 $('gw-save').addEventListener('click', async function () {
