@@ -524,6 +524,12 @@ input:focus, select:focus, textarea:focus {
   border-color: rgba(217, 164, 65, 0.6);
   box-shadow: 0 0 0 3px rgba(217, 164, 65, 0.15);
 }
+/* 键盘焦点可见：所有可交互元素统一金色焦点环，鼠标与触屏点按不触发，只在键盘导航时显示 */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible,
+textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
 textarea { resize: vertical; }
 input::placeholder, textarea::placeholder { color: rgba(139, 148, 169, 0.7); }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
