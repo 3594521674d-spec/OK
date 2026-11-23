@@ -274,6 +274,18 @@ function animateView(el, cls) {
   el.classList.add(cls)
   el.addEventListener('animationend', () => el.classList.remove(cls), { once: true })
 }
+/**
+ * ao.169：内容变化时移动焦点。
+ * 视图切换后把焦点移到新视图的标题上，键盘与读屏器用户能立刻知道到了哪里。
+ * 标题带 tabindex="-1"，只接受程序焦点，不进 Tab 顺序；鼠标点按不触发
+ * :focus-visible，不出焦点环。
+ */
+function focusViewHeading(name) {
+  const sec = $('view-' + name)
+  if (!sec) return
+  const h = sec.querySelector('h2')
+  if (h) h.focus()
+}
 function switchView(name) {
   if (!TOP_VIEWS.includes(name)) {
     name = 'settings'
@@ -295,6 +307,7 @@ function switchView(name) {
   }
   localStorage.setItem('wb_view', name)
   animateView($('view-' + name), fromSubView && name === 'settings' ? 'f7-push-back' : 'f7-tab-in')
+  focusViewHeading(name)
   const loader = VIEW_LOADERS[name]
   if (loader && apiKey() !== '') loader()
 }
@@ -321,6 +334,7 @@ function openSettingsSection(name) {
   }
   localStorage.setItem('wb_view', 'settings')
   animateView($('view-' + name), 'f7-push-in')
+  focusViewHeading(name)
   const loader = VIEW_LOADERS[name]
   if (loader && apiKey() !== '') loader()
 }
