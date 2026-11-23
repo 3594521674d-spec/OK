@@ -1516,7 +1516,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
       </div>
       <div class="tbl-wrap tbl-cards-wrap" style="border-radius:12px 12px 0 0">
         <table class="tbl tbl-cards">
-          <thead><tr><th>Name</th><th>Status</th><th>API Key</th><th>Quota</th><th>Group</th><th>Models</th><th>IP Restriction</th><th>Time</th><th>Expires</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Status</th><th>API Key</th><th>Quota</th><th>Group</th><th>直连账号</th><th>Models</th><th>IP Restriction</th><th>Time</th><th>Expires</th><th>Actions</th></tr></thead>
           <tbody id="keys-tbody">
           </tbody>
         </table>
@@ -2081,7 +2081,7 @@ function renderKeys() {
     return true;
   });
   if (rows.length === 0) {
-    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--color-muted, #6b7280)">没有符合条件的密钥</td></tr>';
+    tb.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--color-muted, #6b7280)">没有符合条件的密钥</td></tr>';
   } else {
     tb.innerHTML = rows.map(function (k) {
       var lim = k.limits || {};
@@ -2091,6 +2091,7 @@ function renderKeys() {
         '<td data-label="密钥" style="font-family:ui-monospace,Menlo,monospace">' + esc(k.prefix || '') + '…</td>' +
         '<td data-label="额度">' + esc(keyQuotaText(k)) + '</td>' +
         '<td data-label="分组">' + esc((lim.group || '') === '' ? '—' : lim.group) + '</td>' +
+        '<td data-label="直连账号">' + esc((lim.accounts || []).length === 0 ? '—' : (lim.accounts || []).length + ' 个') + '</td>' +
         '<td data-label="模型">' + esc((lim.models || []).length === 0 ? '全部' : lim.models.join(', ')) + '</td>' +
         '<td data-label="IP 限制">' + esc((lim.allowedIps || []).length === 0 ? '全部' : lim.allowedIps.join(', ')) + '</td>' +
         '<td data-label="创建时间">' + esc(fmtDateFull(k.createdAt)) + '</td>' +
@@ -2148,6 +2149,36 @@ async function keyAction(act, id) {
     loadKeys();
   }
 }
+/* ===== key 直连账号：新建/编辑表单共用账号勾选区 ===== */
+/* 账号列表每次打开表单都现拉（cn + global 两边），不缓存：刚加的账号马上能勾。 */
+async function loadKeyAccounts() {
+  var list = [];
+  try {
+    var r2 = await api('/admin/accounts?realm=cn');
+    var r3 = await api('/admin/accounts?realm=global');
+    if (r2.ok && r2.body) (r2.body.accounts || []).forEach(function (a) { list.push(a); });
+    if (r3.ok && r3.body) (r3.body.accounts || []).forEach(function (a) { list.push(a); });
+  } catch (e) {}
+  return list;
+}
+function keyAccountRowHtml(a, checked) {
+  var label = (a.provider || 'buddy') + ' · ' + (a.nickname || a.uid || '') + ' · ' + (a.uid || '') + ' · 分组：' + ((a.group || '') === '' ? '未分组' : a.group);
+  return '<label style="display:block;padding:5px 0"><input type="checkbox" value="' + esc(a.uid || '') + '"' + (checked ? ' checked' : '') + '> ' + esc(label) + '</label>';
+}
+async function fillKeyAccountCheckboxes(boxId, selected) {
+  var box = $(boxId);
+  if (!box) return;
+  var list = await loadKeyAccounts();
+  if (!list.length) { box.innerHTML = '<span class="muted">没有账号：先去「渠道」页登录或导入账号。</span>'; return; }
+  var sel = {};
+  (selected || []).forEach(function (u) { sel[u] = true; });
+  box.innerHTML = list.map(function (a) { return keyAccountRowHtml(a, !!sel[a.uid]); }).join('');
+}
+function checkedKeyAccounts(boxId) {
+  var box = $(boxId);
+  if (!box) return [];
+  return Array.prototype.slice.call(box.querySelectorAll('input[type=checkbox]:checked')).map(function (c) { return c.value; }).filter(Boolean);
+}
 function openCreateKey() {
   if (!masterKey()) { showToast('请先在「概览」页设置主密钥。'); return; }
   openModal('创建 API Key',
@@ -2157,10 +2188,12 @@ function openCreateKey() {
     '<div class="field"><label for="ck-win">窗口（小时，默认 24，0 = 不重置）</label><input class="input" id="ck-win" type="number" min="0" value="24"></div>' +
     '<div class="field"><label for="ck-models">允许的模型（逗号分隔，空 = 全部）</label><input class="input" id="ck-models" placeholder="buddy/glm-5.3-flash, openai/gpt-5"></div>' +
     '<div class="field"><label for="ck-group">分组（空 = 不分组）</label><input class="input" id="ck-group" placeholder="比如：郝爷；1 到 32 个字母、数字、下划线、中划线，可中文"></div>' +
+    '<div class="field"><label>直连账号（勾了只用勾的账号，不勾走分组）</label><div id="ck-accounts" style="max-height:180px;overflow:auto;border:1px solid var(--color-line, #e5e7eb);border-radius:8px;padding:4px 10px"><span class="muted">加载账号中…</span></div></div>' +
     '<div class="field"><label for="ck-days">有效期（天，空 = 永不过期）</label><input class="input" id="ck-days" type="number" min="0" placeholder="留空永不过期"></div>' +
     '<div class="row"><button class="btn btn-primary" id="ck-submit">创建</button><button class="btn" id="ck-cancel">取消</button></div>' +
     '<p class="muted" id="ck-msg" style="margin-top:8px"></p>');
   $('ck-cancel').addEventListener('click', closeModal);
+  fillKeyAccountCheckboxes('ck-accounts', []);
   $('ck-submit').addEventListener('click', async function () {
     var days = Number(($('ck-days').value || '') || 0);
     var limits = {
@@ -2171,6 +2204,7 @@ function openCreateKey() {
       allowedIps: [],
       expiresAt: days > 0 ? Date.now() + days * 86400000 : 0,
       group: ($('ck-group').value || '').trim(),
+      accounts: checkedKeyAccounts('ck-accounts'),
       rateLimitPerMin: 0,
     };
     var r = await api('/admin/apikeys', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: ($('ck-name').value || '未命名').trim(), limits: limits }) });
@@ -2196,6 +2230,7 @@ function openEditKey(id) {
   openModal('编辑 API Key',
     '<div class="field"><label for="ek-name">名称</label><input class="input" id="ek-name" value="' + esc(k.name || '') + '"></div>' +
     '<div class="field"><label for="ek-group">分组（空 = 不分组）</label><input class="input" id="ek-group" placeholder="比如：郝爷；1 到 32 个字母、数字、下划线、中划线，可中文" value="' + esc(lim.group || '') + '"></div>' +
+    '<div class="field"><label>直连账号（勾了只用勾的账号，不勾走分组）</label><div id="ek-accounts" style="max-height:180px;overflow:auto;border:1px solid var(--color-line, #e5e7eb);border-radius:8px;padding:4px 10px"><span class="muted">加载账号中…</span></div></div>' +
     '<div class="field"><label for="ek-req">请求上限（0 = 不限）</label><input class="input" id="ek-req" type="number" min="0" value="' + esc(String(lim.maxRequests || 0)) + '"></div>' +
     '<div class="field"><label for="ek-tok">Token 上限（0 = 不限）</label><input class="input" id="ek-tok" type="number" min="0" value="' + esc(String(lim.maxTokens || 0)) + '"></div>' +
     '<div class="field"><label for="ek-win">窗口（小时，默认 24，0 = 不重置）</label><input class="input" id="ek-win" type="number" min="0" value="' + esc(String(lim.windowHours === undefined ? 24 : lim.windowHours)) + '"></div>' +
@@ -2204,6 +2239,7 @@ function openEditKey(id) {
     '<div class="row"><button class="btn btn-primary" id="ek-submit">保存</button><button class="btn" id="ek-cancel">取消</button></div>' +
     '<p class="muted" id="ek-msg" style="margin-top:8px"></p>');
   $('ek-cancel').addEventListener('click', closeModal);
+  fillKeyAccountCheckboxes('ek-accounts', lim.accounts || []);
   $('ek-submit').addEventListener('click', async function () {
     var days = Number(($('ek-days').value || '') || 0);
     var limits = {
@@ -2214,6 +2250,7 @@ function openEditKey(id) {
       allowedIps: lim.allowedIps || [],
       expiresAt: days > 0 ? Date.now() + days * 86400000 : 0,
       group: ($('ek-group').value || '').trim(),
+      accounts: checkedKeyAccounts('ek-accounts'),
       rateLimitPerMin: lim.rateLimitPerMin || 0,
     };
     var r = await api('/admin/apikeys/update', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: id, name: ($('ek-name').value || '未命名').trim(), limits: limits }) });
