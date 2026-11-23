@@ -1337,13 +1337,13 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
           <h2>信号灯加虚拟盘</h2>
           <span class="muted" style="font-size:12px">自动刷新：每 60 秒</span>
         </div>
-        <p class="muted">BTC 与英伟达都在欧易上交易：BTC-USDT 与 XNVDA-USDT。三个策略各自独立给信号，不合成总信号；信号只供参考，不保证赚钱。</p>
+        <p class="muted">BTC 与英伟达都在欧易上交易：BTC-USDT 与 XNVDA-USDT。行情由本页直接从欧易拉，不走网关；三个策略各自独立给信号，不合成总信号；信号只供参考，不保证赚钱。</p>
       </div>
 
       <div class="panel">
         <div class="row space">
           <h2>BTC / USDT</h2>
-          <span class="chip" id="sig-btc-source">每 5 分钟更新</span>
+          <span class="chip" id="sig-btc-source">欧易直连</span>
         </div>
         <div style="font-size:36px;font-weight:700;line-height:1.2;margin-top:6px" id="sig-btc-price">加载中</div>
         <div class="row" style="margin-top:6px">
@@ -1379,7 +1379,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
       <div class="panel">
         <div class="row space">
           <h2>英伟达 XNVDA / USDT</h2>
-          <span class="chip" id="sig-nvda-source">每 5 分钟更新</span>
+          <span class="chip" id="sig-nvda-source">欧易直连</span>
         </div>
         <div style="font-size:36px;font-weight:700;line-height:1.2;margin-top:6px" id="sig-nvda-price">加载中</div>
         <div class="row" style="margin-top:6px">
@@ -4176,19 +4176,128 @@ function btcAgeText(updatedAt) {
 }
 
 // 信号灯加虚拟盘（BTC 与 NVDA）
+// 信号灯加虚拟盘（BTC 与 NVDA，行情由本页直接从欧易拉，不走网关）
 var signalsRefreshTimer = null;
 var signalsLoading = false;
+var sigPrices = { BTC: null, NVDA: null };
+var PAPER_KEY = "wb_paper_v1";
+var PAPER_START = 10000;
 function fmtPnl(n) {
   n = Number(n);
   if (!isFinite(n)) return "暂无";
   return (n > 0 ? "+" : "") + fmtUsd(n);
 }
-function sigErrText(r) {
-  var b = r.body;
-  if (b && b.error && b.error.message) return b.error.message;
-  if (b && b.message) return b.message;
-  if (typeof b === "string" && b) return b;
-  return "请求失败（HTTP " + r.status + "）";
+function sigRoundMoney(v) { return Math.round(v * 100) / 100; }
+function sigRoundQty(v) { return Math.round(v * 100000000) / 100000000; }
+function sigSma(values, period) {
+  if (values.length < period) return null;
+  var sum = 0;
+  for (var i = values.length - period; i < values.length; i += 1) sum += values[i];
+  return sum / period;
+}
+function sigEmaSeries(values, period) {
+  if (values.length < period) return [];
+  var sum = 0;
+  for (var i = 0; i < period; i += 1) sum += values[i];
+  var prev = sum / period;
+  var out = [prev];
+  var k = 2 / (period + 1);
+  for (var j = period; j < values.length; j += 1) {
+    prev = values[j] * k + prev * (1 - k);
+    out.push(prev);
+  }
+  return out;
+}
+function sigMaSignal(closes) {
+  if (closes.length < 26) return { signal: "hold", ma7: null, ma25: null };
+  var prev = closes.slice(0, -1);
+  var ma7Now = sigSma(closes, 7);
+  var ma25Now = sigSma(closes, 25);
+  var ma7Prev = sigSma(prev, 7);
+  var ma25Prev = sigSma(prev, 25);
+  if (ma7Now === null || ma25Now === null || ma7Prev === null || ma25Prev === null) return { signal: "hold", ma7: null, ma25: null };
+  var signal = "hold";
+  if (ma7Prev <= ma25Prev && ma7Now > ma25Now) signal = "buy";
+  else if (ma7Prev >= ma25Prev && ma7Now < ma25Now) signal = "sell";
+  return { signal: signal, ma7: ma7Now, ma25: ma25Now };
+}
+function sigRsiSignal(closes, period) {
+  period = period || 14;
+  if (closes.length < period + 1) return { signal: "hold", rsi: null };
+  var gain = 0;
+  var loss = 0;
+  for (var i = 1; i <= period; i += 1) {
+    var diff = closes[i] - closes[i - 1];
+    if (diff > 0) gain += diff; else loss -= diff;
+  }
+  var avgGain = gain / period;
+  var avgLoss = loss / period;
+  for (var j = period + 1; j < closes.length; j += 1) {
+    var d2 = closes[j] - closes[j - 1];
+    var g = d2 > 0 ? d2 : 0;
+    var l = d2 < 0 ? -d2 : 0;
+    avgGain = (avgGain * (period - 1) + g) / period;
+    avgLoss = (avgLoss * (period - 1) + l) / period;
+  }
+  var rsi;
+  if (avgLoss === 0) rsi = avgGain === 0 ? 50 : 100;
+  else { var rs = avgGain / avgLoss; rsi = 100 - 100 / (1 + rs); }
+  var signal = "hold";
+  if (rsi < 30) signal = "buy";
+  else if (rsi > 70) signal = "sell";
+  return { signal: signal, rsi: rsi };
+}
+function sigMacdSignal(closes) {
+  if (closes.length < 35) return { signal: "hold", dif: null, dea: null };
+  var ema12 = sigEmaSeries(closes, 12);
+  var ema26 = sigEmaSeries(closes, 26);
+  var dif = [];
+  for (var j = 0; j < ema26.length; j += 1) dif.push(ema12[j + 14] - ema26[j]);
+  var deaSeries = sigEmaSeries(dif, 9);
+  var n = dif.length;
+  var difNow = dif[n - 1];
+  var difPrev = dif[n - 2];
+  var deaNow = deaSeries[deaSeries.length - 1];
+  var deaPrev = deaSeries[deaSeries.length - 2];
+  var signal = "hold";
+  if (difPrev <= deaPrev && difNow > deaNow) signal = "buy";
+  else if (difPrev >= deaPrev && difNow < deaNow) signal = "sell";
+  return { signal: signal, dif: difNow, dea: deaNow };
+}
+function sigOkxJson(url) {
+  return fetch(url, { signal: AbortSignal.timeout(10000) }).then(function (res) {
+    if (!res.ok) throw new Error("欧易返回 HTTP " + res.status);
+    return res.json();
+  });
+}
+function sigOkxTicker(instId) {
+  return sigOkxJson("https://www.okx.com/api/v5/market/ticker?instId=" + instId).then(function (body) {
+    if (!body || body.code !== "0" || !body.data || !body.data.length) throw new Error("欧易返回格式不对");
+    var row = body.data[0];
+    var last = parseFloat(String(row.last === undefined ? "" : row.last));
+    var open24h = parseFloat(String(row.open24h === undefined ? "" : row.open24h));
+    if (!isFinite(last) || last <= 0 || !isFinite(open24h) || open24h <= 0) throw new Error("欧易返回的价格不是数字");
+    return { price: last, change24h: (last - open24h) / open24h * 100 };
+  });
+}
+function sigOkxCandles(instId) {
+  return sigOkxJson("https://www.okx.com/api/v5/market/candles?instId=" + instId + "&bar=5m&limit=100").then(function (body) {
+    if (!body || body.code !== "0" || !Array.isArray(body.data)) throw new Error("欧易 K 线返回格式不对");
+    var out = [];
+    body.data.forEach(function (row) {
+      if (!Array.isArray(row) || row.length < 5) return;
+      var ts = Number(row[0]);
+      var close = parseFloat(String(row[4] === undefined ? "" : row[4]));
+      if (!isFinite(ts) || ts <= 0 || !isFinite(close) || close <= 0) return;
+      var confirm = (row[8] === undefined || row[8] === null) ? "0" : String(row[8]);
+      if (confirm !== "1") return;
+      out.push({ ts: ts, close: close });
+    });
+    out.sort(function (a, b) { return a.ts - b.ts; });
+    var closes = [];
+    out.forEach(function (c) { closes.push(c.close); });
+    return closes;
+  });
 }
 function renderSigStrategy(prefix, key, s) {
   var sigEl = $(prefix + "-sig-" + key);
@@ -4198,7 +4307,7 @@ function renderSigStrategy(prefix, key, s) {
   if (!s) {
     sigEl.textContent = "暂无";
     sigEl.style.color = "var(--color-muted, #6b7280)";
-    if (valEl) valEl.textContent = "网关还没上线策略信号";
+    if (valEl) valEl.textContent = "还没拉到 K 线";
     if (ageEl) ageEl.textContent = "";
     return;
   }
@@ -4225,16 +4334,65 @@ function renderSigSymbol(prefix, d) {
   }
   setText(prefix + "-price", (d.price === null || d.price === undefined) ? "暂无" : fmtUsd(d.price));
   setText(prefix + "-change", "24h 涨跌幅：" + ((d.change24h === null || d.change24h === undefined) ? "暂无" : fmtChg(d.change24h)));
-  setText(prefix + "-updated", "更新时间：" + (d.updatedAt ? fmtDateFull(d.updatedAt) : "网关还没查到过价格"));
+  setText(prefix + "-updated", "更新时间：" + (d.updatedAt ? fmtDateFull(d.updatedAt) : "还没拉到价格"));
   var errEl = $(prefix + "-err");
   if (errEl) {
-    if (d.candleError) { errEl.textContent = "最近一次 K 线失败：" + d.candleError + "（信号保持上次的值，等下个 5 分钟再试）。"; errEl.hidden = false; }
+    if (d.candleError) { errEl.textContent = "最近一次 K 线失败：" + d.candleError + "（信号保持上次的值，等下次刷新再试）。"; errEl.hidden = false; }
     else errEl.hidden = true;
   }
   var st = d.strategies || null;
   renderSigStrategy(prefix, "ma", st ? st.ma : null);
   renderSigStrategy(prefix, "rsi", st ? st.rsi : null);
   renderSigStrategy(prefix, "macd", st ? st.macd : null);
+}
+function paperFresh() { return { balance: PAPER_START, realizedPnl: 0, positions: {} }; }
+function paperLoad() {
+  try {
+    var raw = localStorage.getItem(PAPER_KEY);
+    if (!raw) return paperFresh();
+    var p = JSON.parse(raw);
+    if (!p || typeof p !== "object") return paperFresh();
+    var balance = Number(p.balance);
+    var realizedPnl = Number(p.realizedPnl);
+    if (!isFinite(balance) || balance < 0) return paperFresh();
+    if (!isFinite(realizedPnl)) realizedPnl = 0;
+    var positions = {};
+    var src = p.positions || {};
+    ["BTC", "NVDA"].forEach(function (sym) {
+      var pos = src[sym];
+      if (!pos) return;
+      var q = Number(pos.qty);
+      var a = Number(pos.avgCost);
+      if (isFinite(q) && q > 0 && isFinite(a) && a > 0) positions[sym] = { qty: sigRoundQty(q), avgCost: sigRoundMoney(a) };
+    });
+    return { balance: sigRoundMoney(balance), realizedPnl: sigRoundMoney(realizedPnl), positions: positions };
+  } catch (e) { return paperFresh(); }
+}
+function paperSave(p) { try { localStorage.setItem(PAPER_KEY, JSON.stringify(p)); } catch (e) {} }
+function paperView() {
+  var p = paperLoad();
+  var view = { balance: p.balance, realizedPnl: p.realizedPnl, updatedAt: Date.now(), positions: {}, totalValue: null, totalPnl: null };
+  var total = p.balance;
+  var allPriced = true;
+  var hasPos = false;
+  ["BTC", "NVDA"].forEach(function (sym) {
+    var pos = p.positions[sym];
+    if (!pos) return;
+    hasPos = true;
+    var cur = sigPrices[sym] ? sigPrices[sym].price : null;
+    if (cur === null || !isFinite(cur)) {
+      view.positions[sym] = { qty: pos.qty, avgCost: pos.avgCost, currentPrice: null, marketValue: null, unrealizedPnl: null };
+      allPriced = false;
+      return;
+    }
+    var mv = sigRoundMoney(pos.qty * cur);
+    var upnl = sigRoundMoney((cur - pos.avgCost) * pos.qty);
+    view.positions[sym] = { qty: pos.qty, avgCost: pos.avgCost, currentPrice: cur, marketValue: mv, unrealizedPnl: upnl };
+    total = sigRoundMoney(total + mv);
+  });
+  if (!hasPos) { view.totalValue = p.balance; view.totalPnl = sigRoundMoney(p.balance - PAPER_START); }
+  else if (allPriced) { view.totalValue = total; view.totalPnl = sigRoundMoney(total - PAPER_START); }
+  return view;
 }
 function renderPaper(p) {
   if (!p) {
@@ -4268,15 +4426,47 @@ function startSignalsAutoRefresh() {
   signalsRefreshTimer = setInterval(function () {
     var pg = document.getElementById("page-signals");
     if (!pg || !pg.classList.contains("active")) { stopSignalsAutoRefresh(); return; }
-    if (signalsLoading || !masterKey()) return;
+    if (signalsLoading) return;
     loadSignals(true);
   }, 60000);
 }
 function stopSignalsAutoRefresh() {
   if (signalsRefreshTimer) { clearInterval(signalsRefreshTimer); signalsRefreshTimer = null; }
 }
+async function sigLoadOne(symbol, instId, prefix) {
+  var now = Date.now();
+  var quote;
+  try {
+    quote = await sigOkxTicker(instId);
+  } catch (e) {
+    sigPrices[symbol] = null;
+    renderSigSymbol(prefix, null);
+    var errEl = $(prefix + "-err");
+    if (errEl) { errEl.textContent = "行情拉不到：欧易没回数据，等下次刷新再试。"; errEl.hidden = false; }
+    return;
+  }
+  sigPrices[symbol] = { price: quote.price, change24h: quote.change24h, updatedAt: now };
+  var closes = null;
+  var candleError = "";
+  try {
+    closes = await sigOkxCandles(instId);
+  } catch (e) {
+    candleError = (e && e.message) ? e.message : "K 线拉取失败";
+  }
+  var strategies = null;
+  if (closes && closes.length > 0) {
+    var ma = sigMaSignal(closes);
+    var rsi = sigRsiSignal(closes, 14);
+    var macd = sigMacdSignal(closes);
+    strategies = {
+      ma: { signal: ma.signal, value: (ma.ma7 === null) ? null : { ma7: ma.ma7, ma25: ma.ma25 }, updatedAt: now },
+      rsi: { signal: rsi.signal, value: (rsi.rsi === null) ? null : { rsi: rsi.rsi }, updatedAt: now },
+      macd: { signal: macd.signal, value: (macd.dif === null) ? null : { dif: macd.dif, dea: macd.dea }, updatedAt: now }
+    };
+  }
+  renderSigSymbol(prefix, { price: quote.price, change24h: quote.change24h, updatedAt: now, candleError: candleError, strategies: strategies });
+}
 async function loadSignals(quiet) {
-  if (!masterKey()) { showNote("note-signals", "请先在「概览」页设置主密钥，才能查看信号灯加虚拟盘。"); return; }
   if (signalsLoading) return;
   signalsLoading = true;
   hideNote("note-signals");
@@ -4292,72 +4482,60 @@ async function loadSignals(quiet) {
     setText("paper-pnl", "加载中");
     setText("paper-realized", "加载中");
   }
-  var r = await api("/admin/signals");
-  if (!r.ok) {
-    setText("sig-btc-price", "暂无");
-    setText("sig-nvda-price", "暂无");
-    if (r.status === 404) showNote("note-signals", "网关还没上线信号接口（HTTP 404）：网关需要重新部署后才能看信号灯，页面不编假数字。");
-    else if (r.status === 401) showNote("note-signals", "密钥无效：网关返回 401。");
-    else if (r.status === 0) showNote("note-signals", "网络错误：没连上网关（" + r.body + "）。");
-    else showNote("note-signals", "加载失败（HTTP " + r.status + "）。");
-    signalsLoading = false;
-    return;
-  }
-  var syms = (r.body && r.body.symbols) || {};
-  renderSigSymbol("sig-btc", syms.BTC || null);
-  renderSigSymbol("sig-nvda", syms.NVDA || null);
-  var pr = await api("/admin/paper");
-  var paperErr = $("paper-err");
-  if (!pr.ok) {
-    renderPaper(null);
-    if (paperErr) {
-      if (pr.status === 404) paperErr.textContent = "网关还没上线虚拟盘接口（HTTP 404）：网关需要重新部署后才能看虚拟盘。";
-      else if (pr.status === 401) paperErr.textContent = "密钥无效：网关返回 401。";
-      else if (pr.status === 0) paperErr.textContent = "网络错误：没连上网关（" + pr.body + "）。";
-      else paperErr.textContent = "加载失败（HTTP " + pr.status + "）。";
-      paperErr.hidden = false;
-    }
-  } else {
-    if (paperErr) paperErr.hidden = true;
-    renderPaper(pr.body || null);
-  }
+  await Promise.all([
+    sigLoadOne("BTC", "BTC-USDT", "sig-btc"),
+    sigLoadOne("NVDA", "XNVDA-USDT", "sig-nvda")
+  ]);
+  renderPaper(paperView());
+  if (!sigPrices.BTC && !sigPrices.NVDA) showNote("note-signals", "行情拉不到：欧易没回数据，检查网络后等下次刷新再试。");
   signalsLoading = false;
   startSignalsAutoRefresh();
 }
-async function submitPaperOrder(side) {
-  if (!masterKey()) { showToast("请先在「概览」页设置主密钥。"); return; }
+function submitPaperOrder(side) {
   var symEl = $("paper-symbol");
   var qtyEl = $("paper-qty");
   var symbol = symEl ? symEl.value : "BTC";
   var qty = qtyEl ? Number((qtyEl.value || "").trim()) : NaN;
   if (!(qty > 0)) { showToast("先填一个大于 0 的数量。"); return; }
-  var r = await api("/admin/paper/order", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ symbol: symbol, side: side, qty: qty }) });
-  if (!r.ok) {
-    var msg = sigErrText(r);
-    setText("paper-order-msg", msg);
-    showToast(msg);
-    return;
+  qty = sigRoundQty(qty);
+  if (!(qty > 0)) { showToast("先填一个大于 0 的数量。"); return; }
+  var cur = sigPrices[symbol] ? sigPrices[symbol].price : null;
+  if (cur === null || !isFinite(cur) || cur <= 0) { setText("paper-order-msg", "还没拉到价格，等一下再下单。"); showToast("还没拉到价格，等一下再下单。"); return; }
+  var p = paperLoad();
+  if (side === "buy") {
+    var cost = sigRoundMoney(qty * cur);
+    if (cost > p.balance) { setText("paper-order-msg", "虚拟余额不够：这单要 " + fmtUsd(cost) + "，余额只有 " + fmtUsd(p.balance) + "。"); showToast("虚拟余额不够。"); return; }
+    p.balance = sigRoundMoney(p.balance - cost);
+    var held = p.positions[symbol];
+    if (!held) p.positions[symbol] = { qty: qty, avgCost: sigRoundMoney(cur) };
+    else {
+      var totalQty = sigRoundQty(held.qty + qty);
+      p.positions[symbol] = { qty: totalQty, avgCost: sigRoundMoney((held.qty * held.avgCost + qty * cur) / totalQty) };
+    }
+  } else {
+    var held2 = p.positions[symbol];
+    if (!held2 || held2.qty < qty) { setText("paper-order-msg", "持仓不够卖：你只有 " + (held2 ? held2.qty : 0) + " 个 " + symbol + "。"); showToast("持仓不够卖。"); return; }
+    var proceeds = sigRoundMoney((cur - held2.avgCost) * qty);
+    p.realizedPnl = sigRoundMoney(p.realizedPnl + proceeds);
+    p.balance = sigRoundMoney(p.balance + qty * cur);
+    var remaining = sigRoundQty(held2.qty - qty);
+    if (remaining <= 0) delete p.positions[symbol];
+    else p.positions[symbol] = { qty: remaining, avgCost: held2.avgCost };
   }
+  paperSave(p);
   setText("paper-order-msg", "");
   showToast(side === "buy" ? "虚拟买入成功。" : "虚拟卖出成功。");
   if (qtyEl) qtyEl.value = "";
-  renderPaper(r.body && r.body.portfolio ? r.body.portfolio : null);
+  renderPaper(paperView());
 }
 $("paper-buy").addEventListener("click", function () { submitPaperOrder("buy"); });
 $("paper-sell").addEventListener("click", function () { submitPaperOrder("sell"); });
-$("paper-reset").addEventListener("click", async function () {
-  if (!masterKey()) { showToast("请先在「概览」页设置主密钥。"); return; }
+$("paper-reset").addEventListener("click", function () {
   if (!confirm("确定要重置虚拟盘吗？重置后回到 10000 USDT，持仓全部清零。")) return;
-  var r = await api("/admin/paper/reset", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({}) });
-  if (!r.ok) {
-    var msg = sigErrText(r);
-    setText("paper-order-msg", msg);
-    showToast(msg);
-    return;
-  }
+  paperSave(paperFresh());
   setText("paper-order-msg", "");
   showToast("虚拟盘已重置：回到 10000 USDT，持仓已清零。");
-  renderPaper(r.body && r.body.portfolio ? r.body.portfolio : null);
+  renderPaper(paperView());
 });
 
 /* ===== 交互工具 公共懒加载 开始 ===== */
