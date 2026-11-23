@@ -377,6 +377,18 @@
   .kv .v { font-size: 16px; font-weight: 650; color: var(--color-text, #1f2937); }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .chan-card { background: var(--color-surface, #ffffff); border: 1px solid var(--color-border, #e5e7eb); border-radius: var(--radius-box, 0.75rem); padding: 14px; margin-bottom: 12px; }
+  /* 数据卡片（手机优先）：一条记录一张卡，字段上下排，手机上不溢出、不叠字、不留空白 */
+  .data-card { background: var(--color-surface, #ffffff); border: 1px solid var(--color-border, #e5e7eb); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; box-sizing: border-box; width: 100%; max-width: 100%; }
+  .data-card .dc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+  .data-card .dc-name { font-size: 15px; font-weight: 650; color: var(--color-text, #1f2937); overflow-wrap: anywhere; word-break: break-word; }
+  .data-card .dc-name.mono { font-family: ui-monospace, Menlo, monospace; font-size: 13.5px; }
+  .data-card .dc-field { padding: 5px 0; border-top: 1px solid var(--color-border, #e5e7eb); }
+  .data-card .dc-label { display: block; font-size: 11.5px; color: var(--color-muted, #6b7280); }
+  .data-card .dc-value { display: block; font-size: 13.5px; color: var(--color-text, #1f2937); overflow-wrap: anywhere; word-break: break-word; }
+  .data-card .dc-value.mono { font-family: ui-monospace, Menlo, monospace; }
+  .data-card .dc-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--color-border, #e5e7eb); }
+  .data-card .dc-empty { text-align: center; color: var(--color-muted, #6b7280); padding: 16px 0; }
+  .pager.standalone { border-top: 1px solid var(--color-border, #e5e7eb); border-radius: 12px; }
   /* 卡片三件套（ui.90）：标题、正文、操作区；新页面用 .card，旧 .panel 不动 */
   .card { background: var(--color-surface, #ffffff); border: 1px solid var(--color-border, #e5e7eb); border-radius: var(--radius-box, 0.75rem); padding: 16px; margin-bottom: 16px; }
   .card-title { font-size: 14px; font-weight: 650; margin-bottom: 10px; }
@@ -438,13 +450,6 @@
     .input, .select { font-size: 16px; }
     .grid2 { grid-template-columns: 1fr; }
     .input, .input.wide { width: 100%; }
-    .tbl-cards-wrap { border: 0; background: transparent; overflow: visible; }
-    table.tbl-cards thead { display: none; }
-    table.tbl-cards, table.tbl-cards tbody, table.tbl-cards tr, table.tbl-cards td { display: block; width: 100%; }
-    table.tbl-cards tr { background: var(--color-surface, #ffffff); border: 1px solid var(--color-border, #e5e7eb); border-radius: 12px; margin-bottom: 10px; padding: 4px 12px; }
-    table.tbl-cards td { border: 0; padding: 6px 0; }
-    table.tbl-cards td::before { content: attr(data-label); display: block; font-size: 11.5px; color: var(--color-muted, #6b7280); }
-    table.tbl-cards td[colspan]::before { display: none; }
     #page-usage .tbl th:nth-child(1), #page-usage .tbl td:nth-child(1):not([colspan]),
     #page-usage .tbl th:nth-child(2), #page-usage .tbl td:nth-child(2):not([colspan]),
     #page-usage .tbl th:nth-child(3), #page-usage .tbl td:nth-child(3):not([colspan]),
@@ -1953,14 +1958,8 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
         <input class="input" id="keys-filter-key" placeholder="Filter by API key…" aria-label="按密钥筛选">
         <select class="select" id="keys-filter-status" aria-label="密钥状态筛选"><option value="">状态：全部</option><option value="1">启用</option><option value="0">禁用</option></select>
       </div>
-      <div class="tbl-wrap tbl-cards-wrap" style="border-radius:12px 12px 0 0">
-        <table class="tbl tbl-cards">
-          <thead><tr><th>Name</th><th>Status</th><th>API Key</th><th>Quota</th><th>Group</th><th>直连账号</th><th>Models</th><th>IP Restriction</th><th>Time</th><th>Expires</th><th>Actions</th></tr></thead>
-          <tbody id="keys-tbody">
-          </tbody>
-        </table>
-      </div>
-      <div class="pager"><span id="keys-total">Total 0</span></div>
+      <div id="keys-list"></div>
+      <div class="pager standalone"><span id="keys-total">Total 0</span></div>
     </section>
 
     <!-- ===== 日志 ===== -->
@@ -2081,14 +2080,8 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
         <input class="input wide" id="models-filter-name" placeholder="Filter by model name..." aria-label="按模型名称筛选">
         <select class="select" id="models-filter-vendor"><option value="">厂商：全部</option></select>
       </div>
-      <div class="tbl-wrap tbl-cards-wrap" style="border-radius:12px 12px 0 0">
-        <table class="tbl tbl-cards">
-          <thead><tr><th>Model</th><th>Pricing</th><th>渠道与分组</th><th>Tags</th><th>Actions</th></tr></thead>
-          <tbody id="models-tbody">
-          </tbody>
-        </table>
-      </div>
-      <div class="pager"><span id="models-total">Total 0</span></div>
+      <div id="models-list"></div>
+      <div class="pager standalone"><span id="models-total">Total 0</span></div>
     </section>
 
     <!-- ===== 兑换码 ===== -->
@@ -2122,13 +2115,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
       </div>
       <div class="panel" id="redeem-sec-list">
         <h2>兑换码列表</h2>
-        <div class="tbl-wrap tbl-cards-wrap" style="margin-top:10px">
-          <table class="tbl tbl-cards">
-            <thead><tr><th>名称</th><th>面值</th><th>剩余 / 总次数</th><th>状态</th><th>创建时间</th><th>过期</th><th>操作</th></tr></thead>
-            <tbody id="redeem-tbody">
-            </tbody>
-          </table>
-        </div>
+        <div id="redeem-list" style="margin-top:10px"></div>
       </div>
     </section>
   </main>
@@ -2543,8 +2530,8 @@ function keyQuotaText(k) {
   return parts.join(' · ');
 }
 function renderKeys() {
-  var tb = $('keys-tbody');
-  if (!tb) return;
+  var box = $('keys-list');
+  if (!box) return;
   var nameF = (($('keys-filter-name') || {}).value || '').trim();
   var keyF = (($('keys-filter-key') || {}).value || '').trim();
   var stF = (($('keys-filter-status') || {}).value || '');
@@ -2556,31 +2543,30 @@ function renderKeys() {
     return true;
   });
   if (rows.length === 0) {
-    tb.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--color-muted, #6b7280)">没有符合条件的密钥</td></tr>';
+    box.innerHTML = '<div class="data-card"><div class="dc-empty">没有符合条件的密钥</div></div>';
   } else {
-    tb.innerHTML = rows.map(function (k) {
+    box.innerHTML = rows.map(function (k) {
       var lim = k.limits || {};
-      return '<tr>' +
-        '<td data-label="名称">' + esc(k.name) + '</td>' +
-        '<td data-label="状态">' + (k.enabled ? '<span class="chip green">启用</span>' : '<span class="chip">禁用</span>') + '</td>' +
-        '<td data-label="密钥" style="font-family:ui-monospace,Menlo,monospace">' + esc(k.prefix || '') + '…</td>' +
-        '<td data-label="额度">' + esc(keyQuotaText(k)) + '</td>' +
-        '<td data-label="分组">' + esc((lim.group || '') === '' ? '—' : lim.group) + '</td>' +
-        '<td data-label="直连账号">' + esc((lim.accounts || []).length === 0 ? '—' : (lim.accounts || []).length + ' 个') + '</td>' +
-        '<td data-label="模型">' + esc((lim.models || []).length === 0 ? '全部' : lim.models.join(', ')) + '</td>' +
-        '<td data-label="IP 限制">' + esc((lim.allowedIps || []).length === 0 ? '全部' : lim.allowedIps.join(', ')) + '</td>' +
-        '<td data-label="创建时间">' + esc(fmtDateFull(k.createdAt)) + '</td>' +
-        '<td data-label="过期时间">' + esc(lim.expiresAt > 0 ? fmtDateFull(lim.expiresAt) : '永不过期') + '</td>' +
-        '<td data-label="操作"><button class="mini-btn" data-act="edit" data-id="' + esc(k.id) + '">编辑</button>' +
+      return '<div class="data-card">' +
+        '<div class="dc-head"><span class="dc-name">' + esc(k.name) + '</span>' + (k.enabled ? '<span class="chip green">启用</span>' : '<span class="chip">禁用</span>') + '</div>' +
+        '<div class="dc-field"><span class="dc-label">密钥</span><span class="dc-value mono">' + esc(k.prefix || '') + '…</span></div>' +
+        '<div class="dc-field"><span class="dc-label">额度</span><span class="dc-value">' + esc(keyQuotaText(k)) + '</span></div>' +
+        '<div class="dc-field"><span class="dc-label">分组</span><span class="dc-value">' + esc((lim.group || '') === '' ? '—' : lim.group) + '</span></div>' +
+        '<div class="dc-field"><span class="dc-label">直连账号</span><span class="dc-value">' + esc((lim.accounts || []).length === 0 ? '—' : (lim.accounts || []).length + ' 个') + '</span></div>' +
+        '<div class="dc-field"><span class="dc-label">模型</span><span class="dc-value">' + esc((lim.models || []).length === 0 ? '全部' : lim.models.join(', ')) + '</span></div>' +
+        '<div class="dc-field"><span class="dc-label">IP 限制</span><span class="dc-value">' + esc((lim.allowedIps || []).length === 0 ? '全部' : lim.allowedIps.join(', ')) + '</span></div>' +
+        '<div class="dc-field"><span class="dc-label">创建时间</span><span class="dc-value">' + esc(fmtDateFull(k.createdAt)) + '</span></div>' +
+        '<div class="dc-field"><span class="dc-label">过期时间</span><span class="dc-value">' + esc(lim.expiresAt > 0 ? fmtDateFull(lim.expiresAt) : '永不过期') + '</span></div>' +
+        '<div class="dc-actions"><button class="mini-btn" data-act="edit" data-id="' + esc(k.id) + '">编辑</button>' +
         '<button class="mini-btn" data-act="toggle" data-id="' + esc(k.id) + '">' + (k.enabled ? '停用' : '启用') + '</button>' +
         '<button class="mini-btn" data-act="reset-usage" data-id="' + esc(k.id) + '">清用量</button>' +
         '<button class="mini-btn" data-act="reset-key" data-id="' + esc(k.id) + '">重置密钥</button>' +
-        '<button class="mini-btn danger" data-act="remove" data-id="' + esc(k.id) + '">删除</button></td></tr>';
+        '<button class="mini-btn danger" data-act="remove" data-id="' + esc(k.id) + '">删除</button></div></div>';
     }).join('');
   }
-  if (!moStaggerDone.keys && moStagger(tb, 'tr', false)) moStaggerDone.keys = true;
+  if (!moStaggerDone.keys && moStagger(box, '.data-card', false)) moStaggerDone.keys = true;
   setText('keys-total', 'Total ' + rows.length);
-  tb.querySelectorAll('[data-act]').forEach(function (btn) {
+  box.querySelectorAll('[data-act]').forEach(function (btn) {
     btn.addEventListener('click', function () { keyAction(btn.dataset.act, btn.dataset.id); });
   });
 }
@@ -3021,16 +3007,16 @@ function renderChannels() {
   setText('chan-total', 'Total ' + list.length);
   if (list.length === 0) { box.innerHTML = '<div class="panel"><p class="muted">没有符合条件的渠道。</p></div>'; return; }
   if (chanView === 'table') {
-    box.innerHTML = '<div class="tbl-wrap tbl-cards-wrap"><table class="tbl tbl-cards"><thead><tr><th>供应商</th><th>状态</th><th>账号</th><th>权重</th><th>分组</th><th>余额</th><th>响应</th></tr></thead><tbody>' +
+    box.innerHTML = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>供应商</th><th>状态</th><th>账号</th><th>权重</th><th>分组</th><th>余额</th><th>响应</th></tr></thead><tbody>' +
       list.map(function (p) {
         var off = chanDisabled.indexOf(p.id) !== -1;
         var accts = chanAccountsOf(p.id);
         var healthy = accts.filter(function (a) { return !a.disabled && !(a.until > Date.now()); }).length;
         var h = chanHealth[p.id];
-        return '<tr><td data-label="供应商">' + esc(p.name || p.id) + '（' + esc(p.id) + '）</td><td data-label="状态">' + (off ? '已关闭' : '正常') + '</td>' +
-          '<td data-label="账号">' + healthy + '/' + accts.length + '</td><td data-label="权重">' + esc(weights[p.id] !== undefined ? String(weights[p.id]) : '—') + '</td>' +
-          '<td data-label="分组">' + esc(groups[p.id] || '默认') + '</td><td data-label="余额">' + (p._credits !== undefined ? fmtNum(p._credits) : '—') + '</td>' +
-          '<td data-label="响应">' + esc(h ? h.ok + '/' + h.total + ' 正常' : '—') + '</td></tr>';
+        return '<tr><td>' + esc(p.name || p.id) + '（' + esc(p.id) + '）</td><td>' + (off ? '已关闭' : '正常') + '</td>' +
+          '<td>' + healthy + '/' + accts.length + '</td><td>' + esc(weights[p.id] !== undefined ? String(weights[p.id]) : '—') + '</td>' +
+          '<td>' + esc(groups[p.id] || '默认') + '</td><td>' + (p._credits !== undefined ? fmtNum(p._credits) : '—') + '</td>' +
+          '<td>' + esc(h ? h.ok + '/' + h.total + ' 正常' : '—') + '</td></tr>';
       }).join('') + '</tbody></table></div>';
     if (!moStaggerDone.channels && moStagger(box, 'tbody tr', false)) moStaggerDone.channels = true;
     return;
@@ -3424,8 +3410,8 @@ function priceText(f) {
   return '×' + f;
 }
 function renderModels() {
-  var tb = $('models-tbody');
-  if (!tb) return;
+  var box = $('models-list');
+  if (!box) return;
   var nameF = (($('models-filter-name') || {}).value || '').trim();
   var vendorF = (($('models-filter-vendor') || {}).value || '');
   var rows = modelsCache.filter(function (m) {
@@ -3434,26 +3420,26 @@ function renderModels() {
     return true;
   });
   if (rows.length === 0) {
-    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--color-muted, #6b7280)">没有符合条件的模型</td></tr>';
+    box.innerHTML = '<div class="data-card"><div class="dc-empty">没有符合条件的模型</div></div>';
   } else {
-    tb.innerHTML = rows.map(function (m) {
+    box.innerHTML = rows.map(function (m) {
       var id = String(m.id || '');
       var slash = id.indexOf('/');
       var prov = slash > 0 ? id.slice(0, slash) : '';
       var bare = slash > 0 ? id.slice(slash + 1) : id;
       var agg = prov === 'aggregate';
       var off = false;
-      return '<tr>' +
-        '<td data-label="模型" style="font-family:ui-monospace,Menlo,monospace">' + esc(id) + '</td>' +
-        '<td data-label="倍率">' + esc(priceText(m.priceFactor)) + '</td>' +
-        '<td data-label="渠道与分组">' + esc((m.providerName || prov) + (m.realm ? ' · ' + m.realm : '')) + '</td>' +
-        '<td data-label="标签">' + esc(m.kind || '—') + '</td>' +
-        '<td data-label="操作">' + (agg ? '<span style="color:var(--color-muted, #6b7280);font-size:12.5px">聚合模型</span>' :
-          '<button class="mini-btn" data-mtoggle="' + esc(prov) + '|' + esc(bare) + '" data-off="' + (off ? '1' : '0') + '">停用</button>') + '</td></tr>';
+      return '<div class="data-card">' +
+        '<div class="dc-head"><span class="dc-name mono">' + esc(id) + '</span></div>' +
+        '<div class="dc-field"><span class="dc-label">倍率</span><span class="dc-value">' + esc(priceText(m.priceFactor)) + '</span></div>' +
+        '<div class="dc-field"><span class="dc-label">渠道与分组</span><span class="dc-value">' + esc((m.providerName || prov) + (m.realm ? ' · ' + m.realm : '')) + '</span></div>' +
+        '<div class="dc-field"><span class="dc-label">标签</span><span class="dc-value">' + esc(m.kind || '—') + '</span></div>' +
+        '<div class="dc-actions">' + (agg ? '<span style="color:var(--color-muted, #6b7280);font-size:12.5px">聚合模型</span>' :
+          '<button class="mini-btn" data-mtoggle="' + esc(prov) + '|' + esc(bare) + '" data-off="' + (off ? '1' : '0') + '">停用</button>') + '</div></div>';
     }).join('');
   }
   setText('models-total', 'Total ' + rows.length);
-  tb.querySelectorAll('[data-mtoggle]').forEach(function (btn) {
+  box.querySelectorAll('[data-mtoggle]').forEach(function (btn) {
     btn.addEventListener('click', async function () {
       var parts = btn.dataset.mtoggle.split('|');
       var r = await api('/admin/providers/models/toggle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ provider: parts[0], model: parts[1], enabled: false }) });
@@ -3488,16 +3474,23 @@ async function loadRedeem() {
   if (!masterKey()) { showNote('note-redeem', '请先在「概览」页设置主密钥，才能管理兑换码。'); return; }
   hideNote('note-redeem');
   var r = await api('/admin/redeem/list');
-  var tb = $('redeem-tbody');
-  if (!r.ok) { showNote('note-redeem', r.status === 401 ? '密钥无效：网关返回 401。' : '加载失败（HTTP ' + r.status + '）。'); if (tb) tb.innerHTML = ''; return; }
+  var box = $('redeem-list');
+  if (!r.ok) { showNote('note-redeem', r.status === 401 ? '密钥无效：网关返回 401。' : '加载失败（HTTP ' + r.status + '）。'); if (box) box.innerHTML = ''; return; }
   var codes = (r.body && r.body.codes) || [];
-  if (tb) {
-    tb.innerHTML = codes.length === 0
-      ? '<tr><td colspan="7" style="text-align:center;color:var(--color-muted, #6b7280)">还没有兑换码</td></tr>'
+  if (box) {
+    box.innerHTML = codes.length === 0
+      ? '<div class="data-card"><div class="dc-empty">还没有兑换码</div></div>'
       : codes.map(function (c) {
-          return '<tr><td data-label="名称">' + esc(c.name || '') + '</td><td data-label="面值">' + esc(String(c.quota)) + '</td><td data-label="剩余 / 总次数">' + esc(c.usesLeft + ' / ' + c.usesTotal) + '</td><td data-label="状态">' + redeemStatusText(c.status) + '</td><td data-label="创建时间">' + esc(fmtDateFull(c.createdAt)) + '</td><td data-label="过期">' + esc(c.expiresAt > 0 ? fmtDateFull(c.expiresAt) : '永不过期') + '</td><td data-label="操作">' + (c.status === 'disabled' ? '<button class="mini-btn" data-redisable="' + esc(c.id) + '" data-on="1">启用</button>' : '<button class="mini-btn danger" data-redisable="' + esc(c.id) + '" data-on="0">禁用</button>') + '</td></tr>';
+          var stChip = c.status === 'active' ? '<span class="chip green">' + esc(redeemStatusText(c.status)) + '</span>' : '<span class="chip">' + esc(redeemStatusText(c.status)) + '</span>';
+          return '<div class="data-card">' +
+            '<div class="dc-head"><span class="dc-name">' + esc(c.name || '') + '</span>' + stChip + '</div>' +
+            '<div class="dc-field"><span class="dc-label">面值</span><span class="dc-value">' + esc(String(c.quota)) + '</span></div>' +
+            '<div class="dc-field"><span class="dc-label">剩余 / 总次数</span><span class="dc-value">' + esc(c.usesLeft + ' / ' + c.usesTotal) + '</span></div>' +
+            '<div class="dc-field"><span class="dc-label">创建时间</span><span class="dc-value">' + esc(fmtDateFull(c.createdAt)) + '</span></div>' +
+            '<div class="dc-field"><span class="dc-label">过期</span><span class="dc-value">' + esc(c.expiresAt > 0 ? fmtDateFull(c.expiresAt) : '永不过期') + '</span></div>' +
+            '<div class="dc-actions">' + (c.status === 'disabled' ? '<button class="mini-btn" data-redisable="' + esc(c.id) + '" data-on="1">启用</button>' : '<button class="mini-btn danger" data-redisable="' + esc(c.id) + '" data-on="0">禁用</button>') + '</div></div>';
         }).join('');
-    tb.querySelectorAll('[data-redisable]').forEach(function (btn) {
+    box.querySelectorAll('[data-redisable]').forEach(function (btn) {
       btn.addEventListener('click', async function () {
         var r2 = await api('/admin/redeem/disable', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: btn.dataset.redisable, disabled: btn.dataset.on === '0' }) });
         if (!r2.ok) { showToast('操作失败：' + JSON.stringify(r2.body)); return; }
