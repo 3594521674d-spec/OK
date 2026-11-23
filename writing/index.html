@@ -671,8 +671,8 @@
           </div>
         </section>
         <section>
-          <h2>稿件 <span class="sub">本次打开期间有效</span></h2>
-          <div id="msList"><p class="empty-note">还没有稿件。写完一篇点编辑器下方的「存入稿件」，可以存多篇来回切换；要长期保存请用「导出正文」存成文件。</p></div>
+          <h2>稿件 <span class="sub">已自动存在手机本地</span></h2>
+          <div id="msList"><p class="empty-note">还没有稿件。写完一篇点编辑器下方的「存入稿件」，可以存多篇来回切换；稿件已自动存在手机本地，关了再开还在，重要的稿子建议用「导出正文」存成文件备份。</p></div>
         </section>
       </aside>
     </div>
@@ -759,6 +759,22 @@ sel.value = cfg.model
 var editor = $('editor'), titleInput = $('titleInput')
 var busy = false, abortCtl = null
 var manuscripts = [], currentMsId = null, msSeq = 0
+var MS_KEY = 'wb_manuscripts_v1'
+function saveMs() {
+try { localStorage.setItem(MS_KEY, JSON.stringify({ seq: msSeq, current: currentMsId, list: manuscripts })) } catch (e) {}
+}
+function loadMs() {
+try {
+var raw = localStorage.getItem(MS_KEY)
+if (!raw) return
+var d = JSON.parse(raw)
+if (!d || !Array.isArray(d.list)) return
+manuscripts = d.list.filter(function (m) { return m && typeof m.text === 'string' })
+manuscripts.forEach(function (m) { m.time = new Date(m.time); if (typeof m.title !== 'string') m.title = '未命名'; if (typeof m.id !== 'number') m.id = ++msSeq })
+msSeq = Math.max(typeof d.seq === 'number' ? d.seq : 0, manuscripts.reduce(function (a, m) { return Math.max(a, m.id || 0) }, 0))
+currentMsId = typeof d.current === 'number' && manuscripts.some(function (m) { return m.id === d.current }) ? d.current : null
+} catch (e) {}
+}
 
 function toast(msg) {
 var t = $('toast'); t.textContent = msg; t.classList.add('on')
@@ -1110,7 +1126,7 @@ refreshCounts(); closeScrim('sheetScrim'); toast('已插入')
 })
 $('btnSheetDone').addEventListener('click', function () { closeScrim('sheetScrim')})
 
-/* ── 稿件（本次打开期间，内存保存） ── */
+/* ── 稿件（自动存手机本地） ── */
 function stashDraft(tag) {
 if (!editor.value.trim()) return
 manuscripts.unshift({
@@ -1124,8 +1140,9 @@ renderMs()
 }
 function renderMs() {
 var box = $('msList'); box.innerHTML = ''
+saveMs()
 if (!manuscripts.length) {
-box.innerHTML = '<p class="empty-note">还没有稿件。写完一篇点编辑器下方的「存入稿件」，可以存多篇来回切换；要长期保存请用「导出正文」存成文件。</p>'
+box.innerHTML = '<p class="empty-note">还没有稿件。写完一篇点编辑器下方的「存入稿件」，可以存多篇来回切换；稿件已自动存在手机本地，关了再开还在，重要的稿子建议用「导出正文」存成文件备份。</p>'
 return
 }
 manuscripts.forEach(function (m) {
@@ -2943,6 +2960,7 @@ $("btnCopyScriptPrompt").addEventListener("click", function () { copyTextNow(scr
 
 /* ── 初始化 ── */
 fillModelSelect(FALLBACK_MODELS)
+loadMs()
 refreshCounts(); refreshConn(); renderMs(); syncTabs(); renderSkillToggle()
 loadNovel()
 loadScripts()

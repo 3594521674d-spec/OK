@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="description" content="page工作台：中转站控制台，管渠道、模型、密钥、用量与 BTC 盯盘。">
-<title>page工作台 · 控制台</title>
+<meta name="description" content="墨池工作台：中转站控制台，管渠道、模型、密钥、用量与 BTC 盯盘。">
+<title>墨池工作台 · 控制台</title>
 <meta name="theme-color" content="#070b16" id="meta-theme-color">
 <script>
   try { if (localStorage.getItem('page-theme') !== 'light') { document.documentElement.classList.add('dark'); } } catch (e) {}
@@ -467,8 +467,8 @@
 <header>
   <button class="hamburger" id="hamburger" aria-label="菜单">☰</button>
   <div class="brand">
-    <div class="brand-mark">页</div>
-    <span class="brand-name">page工作台</span>
+    <div class="brand-mark">墨</div>
+    <span class="brand-name">墨池工作台</span>
   </div>
   <div class="header-search" id="header-search-box">
     <input id="header-search" placeholder="搜索菜单…" aria-label="搜索菜单" autocomplete="off">
@@ -491,19 +491,15 @@
         <div class="nav-group-label">对话</div>
         <button type="button" class="nav-item" data-page="chat" data-title="对话" data-desc="聊天会话列表"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>对话</button>
         <button type="button" class="nav-item" data-page="writing" data-title="写作" data-desc="写小说：短篇一键成篇，长篇 20 章大纲逐章写"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>写作</button>
-        <button type="button" class="nav-item" data-page="skill" data-title="技能" data-desc="LibTV 画布提示词技能包：138 条能力，摘要与全文"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>技能</button>
         <button type="button" class="nav-item" data-page="prompt" data-title="出提示词" data-desc="拿生成好的小说当底子，按 LibTV 技能出视频提示词"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8 5.8 1.9-5.8 1.9L12 18.4l-1.9-5.8L4.3 10.7l5.8-1.9z"/><path d="M19 15l.9 2.6 2.6.9-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9z"/></svg>出提示词</button>
       </div>
 
       <div class="nav-group">
         <div class="nav-group-label">通用</div>
         <button type="button" class="nav-item active" data-page="overview" data-title="概览" data-desc="余额、密钥、请求、消费、Token 一眼看完"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>概览</button>
-        <button type="button" class="nav-item" data-page="dashboard" data-title="仪表盘" data-desc="模型调用量、性能、延迟统计"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>仪表盘</button>
         <button type="button" class="nav-item" data-page="btc" data-title="BTC 盯盘" data-desc="BTC 现价、提醒条件与历史记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M9.5 9.5h5"/><path d="M9.5 14.5h5"/></svg>BTC 盯盘</button>
         <button type="button" class="nav-item" data-page="keys" data-title="API 密钥" data-desc="创建、查看、停用自己的调用密钥"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m11 12 9-9"/><path d="m15.5 7.5 3 3"/><path d="m18.5 4.5 2 2"/></svg>API 密钥</button>
-        <button type="button" class="nav-item" data-page="usage" data-title="使用日志" data-desc="每一次调用的记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>使用日志</button>
-        <button type="button" class="nav-item" data-page="audit" data-title="审计日志" data-desc="登录、改配置等操作记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>审计日志</button>
-        <button type="button" class="nav-item" data-page="task" data-title="任务日志" data-desc="生图、生视频等异步任务的记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>任务日志</button>
+        <button type="button" class="nav-item" data-page="logs" data-title="日志" data-desc="使用、审计、任务三类日志"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>日志</button>
       </div>
 
       <div class="nav-group">
@@ -540,8 +536,8 @@
       <div class="cards">
         <div class="mini-card"><div class="k">余额（上游积分）</div><div class="v" id="ov-balance">—</div></div>
         <div class="mini-card"><div class="k">API 密钥</div><div class="v" id="ov-keys">—</div></div>
-        <div class="mini-card"><div class="k">今日请求</div><div class="v" id="ov-req">—</div></div>
-        <div class="mini-card"><div class="k">今日消费</div><div class="v" id="ov-cost">—</div></div>
+        <div class="mini-card"><div class="k" id="ov-req-k">今日请求</div><div class="v" id="ov-req">—</div></div>
+        <div class="mini-card"><div class="k" id="ov-cost-k">今日消费</div><div class="v" id="ov-cost">—</div></div>
         <div class="mini-card"><div class="k">累计 Token</div><div class="v" id="ov-tokens">—</div></div>
         <div class="mini-card"><div class="k">平均响应</div><div class="v" id="ov-avg">—</div></div>
       </div>
@@ -565,7 +561,10 @@
 
       <div class="grid2">
         <div class="panel">
-          <h2>性能健康</h2>
+          <div class="row space">
+            <h2>性能健康</h2>
+            <div class="seg" id="ov-win-seg"><button type="button" class="on" data-days="1">今天</button><button type="button" data-days="7">7 天</button><button type="button" data-days="30">30 天</button></div>
+          </div>
           <div class="kv">
             <div><div class="k">成功率</div><div class="v" id="ov-rate">—</div></div>
             <div><div class="k">平均延迟</div><div class="v" id="ov-lat">—</div></div>
@@ -582,32 +581,7 @@
           <p class="muted" id="ov-run">—</p>
         </div>
       </div>
-    </section>
-
-    <!-- ===== 仪表盘 ===== -->
-    <section class="page" id="page-dashboard">
       <p class="page-note" id="note-dashboard" hidden></p>
-      <div class="tabs" id="dash-tabs">
-        <button type="button" class="tab active" data-tab="overview">概览</button>
-        <button type="button" class="tab" data-tab="models">模型调用</button>
-        <button type="button" class="tab" data-tab="traffic">流量</button>
-        <button type="button" class="tab" data-tab="users">按账号</button>
-      </div>
-      <div class="row space mb">
-        <div class="row">
-          <select class="select" id="dash-days" title="时间窗口"><option value="7" selected>最近 7 天</option><option value="1">今日</option><option value="30">最近 30 天</option><option value="0">全部</option></select>
-          <span class="chip">粒度：天</span>
-        </div>
-      </div>
-      <div class="cards">
-        <div class="mini-card"><div class="k">总数</div><div class="v" id="db-total">—</div></div>
-        <div class="mini-card"><div class="k">总额度</div><div class="v" id="db-quota">—</div></div>
-        <div class="mini-card"><div class="k">总 Token</div><div class="v" id="db-tokens">—</div></div>
-        <div class="mini-card"><div class="k">缓存读</div><div class="v" id="db-cache-r">—</div></div>
-        <div class="mini-card"><div class="k">缓存写</div><div class="v" id="db-cache-w">—</div></div>
-        <div class="mini-card"><div class="k">平均 RPM</div><div class="v" id="db-rpm">—</div></div>
-        <div class="mini-card"><div class="k">平均 TPM</div><div class="v" id="db-tpm">—</div></div>
-      </div>
       <div class="panel">
         <div class="row space">
           <h2>额度分布</h2>
@@ -619,6 +593,12 @@
         <div class="row space">
           <h2 id="db-model-title">模型调用分析</h2>
           <div class="seg" id="db-model-seg"><button type="button" class="on" data-mode="trend">调用趋势</button><button type="button" data-mode="share">调用分布</button><button type="button" data-mode="rank">调用排行</button></div>
+        </div>
+        <div class="tabs" id="dash-tabs" style="margin-top:10px">
+          <button type="button" class="tab active" data-tab="overview">按天</button>
+          <button type="button" class="tab" data-tab="models">按模型</button>
+          <button type="button" class="tab" data-tab="traffic">按小时</button>
+          <button type="button" class="tab" data-tab="users">按账号</button>
         </div>
         <div class="chart" id="db-model-chart">图表区 · 未接数据</div>
       </div>
@@ -758,22 +738,6 @@
     </section>
 
     <!-- ===== 技能 ===== -->
-    <section class="page" id="page-skill">
-      <p class="page-note" id="note-skill" hidden></p>
-      <div class="panel" style="padding:0;overflow:hidden">
-        <div class="row" style="padding:10px 14px;border-bottom:1px solid var(--color-border, #e5e7eb)">
-          <div class="tabs" style="margin-bottom:0;border-bottom:0" id="skill-tabs">
-            <button type="button" class="tab active" data-skill="digest">摘要</button>
-            <button type="button" class="tab" data-skill="full">全文</button>
-          </div>
-          <span style="flex:1"></span>
-          <input class="input" id="skill-search" placeholder="搜编号或关键词，比如 dsx" style="width:180px" aria-label="搜技能编号或关键词">
-        </div>
-        <div id="skill-body" style="padding:16px;max-height:calc(100dvh - 250px);min-height:480px;overflow-y:auto;line-height:1.8;font-size:14px">点开即加载…</div>
-      </div>
-      <p class="muted" style="font-size:13px;color:var(--color-muted, #6b7280)">LibTV 画布提示词技能包 v3：138 条能力。摘要 4 千字，全文 11 万字。搜框输入编号或关键词，只显示含它的段落，清空恢复全文。</p>
-    </section>
-
     <!-- ===== 出提示词 ===== -->
     <section class="page" id="page-prompt">
       <p class="page-note" id="note-prompt" hidden></p>
@@ -878,8 +842,14 @@
       <div class="pager"><span id="keys-total">Total 0</span></div>
     </section>
 
-    <!-- ===== 使用日志 ===== -->
-    <section class="page" id="page-usage">
+    <!-- ===== 日志 ===== -->
+    <section class="page" id="page-logs">
+      <div class="tabs" id="log-tabs">
+        <button type="button" class="tab active" data-log="usage">使用日志</button>
+        <button type="button" class="tab" data-log="audit">审计日志</button>
+        <button type="button" class="tab" data-log="task">任务日志</button>
+      </div>
+      <div id="page-usage">
       <p class="page-note" id="note-usage" hidden></p>
       <div class="panel">
         <div class="row mb">
@@ -909,10 +879,8 @@
         </table>
       </div>
       <div class="pager"><span id="usage-total">Total 0</span></div>
-    </section>
-
-    <!-- ===== 审计日志 ===== -->
-    <section class="page" id="page-audit">
+      </div>
+      <div id="page-audit" hidden>
       <p class="page-note" id="note-audit" hidden></p>
       <div class="panel">
         <div class="row mb">
@@ -935,10 +903,8 @@
         </table>
       </div>
       <div class="pager"><span id="audit-total">Total 0</span></div>
-    </section>
-
-    <!-- ===== 任务日志 ===== -->
-    <section class="page" id="page-task">
+      </div>
+      <div id="page-task" hidden>
       <p class="page-note" id="note-task" hidden></p>
       <div class="panel">
         <div class="row">
@@ -955,6 +921,7 @@
         </table>
       </div>
       <div class="pager"><span id="task-total">Total 0</span></div>
+      </div>
     </section>
 
     <!-- ===== 渠道 ===== -->
@@ -1068,7 +1035,7 @@
     item.classList.add('active');
     title.textContent = item.dataset.title;
     sub.textContent = item.dataset.desc;
-    document.title = 'page工作台 · ' + item.dataset.title;
+    document.title = '墨池工作台 · ' + item.dataset.title;
     pages.forEach(function (p) { p.classList.remove('active'); });
     var pg = document.getElementById('page-' + item.dataset.page);
     if (pg) { pg.classList.add('active'); }
@@ -1097,11 +1064,14 @@
     overlay.classList.remove('show');
   });
 
-  // 打开时如果地址栏带 #，选中对应的菜单
+  // 打开时如果地址栏带 #，选中对应的菜单；旧地址 #仪表盘、#使用日志、#审计日志、#任务日志（或 #dashboard、#usage、#audit、#task）跳到合并后的页
   var hash = decodeURIComponent(location.hash.slice(1));
+  var legacyPage = { '仪表盘': 'overview', 'dashboard': 'overview', '使用日志': 'logs', 'usage': 'logs', '审计日志': 'logs', 'audit': 'logs', '任务日志': 'logs', 'task': 'logs' };
+  var legacyTab = { '使用日志': 'usage', 'usage': 'usage', '审计日志': 'audit', 'audit': 'audit', '任务日志': 'task', 'task': 'task' };
   if (hash) {
+    if (legacyTab[hash]) { window.__legacyLogTab = legacyTab[hash]; }
     items.forEach(function (item) {
-      if (item.dataset.title === hash) { select(item, false); }
+      if (item.dataset.title === hash || (legacyPage[hash] && item.dataset.page === legacyPage[hash])) { select(item, false); }
     });
   }
 
@@ -1293,12 +1263,14 @@ var dashTab = 'overview';
 var dashMode = 'trend';
 var dashQuotaMode = 'bar';
 
+var ovWindow = 1;
+var ovUsage = null;
 async function loadOverview() {
   if (!masterKey()) {
     setText('gw-msg', '请先在上面粘贴主密钥并点「保存密钥」，数据才能从网关取回来。');
     return;
   }
-  var u1 = api('/admin/usage?days=1');
+  var u1 = api('/admin/usage?days=' + ovWindow);
   var u0 = api('/admin/usage?days=0');
   var cr = api('/v1/credits?realm=cn');
   var kr = api('/admin/apikeys');
@@ -1310,13 +1282,17 @@ async function loadOverview() {
   if (rc.ok && rc.body) setText('ov-balance', fmtNum(rc.body.total_available));
   /* API 密钥数 */
   if (rk.ok && rk.body) setText('ov-keys', fmtNum((rk.body.keys || []).length));
-  /* 今日请求 / 平均响应 */
+  /* 窗口内数字：成功率、平均延迟、吞吐，窗口由页面上的 今天 / 7 天 / 30 天切换 */
+  var winLabel = ovWindow === 1 ? '今日' : ovWindow + '天';
+  var winSuffix = ovWindow === 1 ? '次/今日' : '次/' + ovWindow + '天';
+  setText('ov-req-k', winLabel + '请求');
+  setText('ov-cost-k', winLabel + '消费');
   if (r1.ok && r1.body) {
     setText('ov-req', fmtNum(r1.body.total));
     setText('ov-avg', fmtMs(r1.body.avgMs));
     setText('ov-rate', r1.body.total > 0 ? (r1.body.ok / r1.body.total * 100).toFixed(1) + '%' : '—');
     setText('ov-lat', fmtMs(r1.body.avgMs));
-    setText('ov-tps', fmtNum(r1.body.total) + ' 次/今日');
+    setText('ov-tps', fmtNum(r1.body.total) + ' ' + winSuffix);
     var top = (r1.body.byModel || [])[0];
     setText('ov-top-model', top ? '调用最多的模型：' + top.model + '（' + fmtNum(top.count) + ' 次）' : '调用最多的模型：—');
   }
@@ -1346,46 +1322,30 @@ async function loadOverview() {
     var tag = document.querySelector('#page-overview .tagline');
     if (tag) tag.textContent = '已接 FC 网关';
   }
-}
-
-/* ===== 仪表盘 ===== */
-function windowMinutes(days, summary) {
-  if (days > 0) return days * 24 * 60;
-  var d = (summary && summary.activeDays) || 0;
-  return d > 0 ? d * 24 * 60 : 0;
-}
-async function loadDashboard() {
-  if (!masterKey()) return;
-  var days = Number(($('dash-days') || {}).value || 7);
-  var r = await api('/admin/usage?days=' + days);
-  var rc = await api('/v1/credits?realm=cn');
-  if (!r.ok || !r.body) {
-    if (r.status === 401) showNote('note-dashboard', '密钥无效：网关返回 401。');
-    return;
-  }
-  var b = r.body;
-  var mins = windowMinutes(days, b);
-  setText('db-total', fmtNum(b.total));
-  /* 总额度：网关不记金额，如实留空；缓存读/写：网关没有缓存统计，如实留空 */
-  setText('db-tokens', fmtTokens((b.inputTokens || 0) + (b.outputTokens || 0)));
-  setText('db-rpm', mins > 0 ? (b.total / mins).toFixed(2) : '—');
-  setText('db-tpm', mins > 0 ? (((b.inputTokens || 0) + (b.outputTokens || 0)) / mins).toFixed(1) : '—');
-  /* 额度分布：上游各账号剩余积分（面积图切到按供应商汇总） */
-  if (rc.ok && rc.body && Array.isArray(rc.body.accounts)) {
-    var balRows = rc.body.accounts
-      .filter(function (a) { return typeof a.total === 'number'; })
-      .map(function (a) { return { label: (a.nickname || a.uid || '') + '（' + (a.provider || '') + '）', value: a.total, provider: a.provider || '' }; })
-      .sort(function (x, y) { return y.value - x.value; });
-    if (dashQuotaMode === 'area') {
-      var byProv = {};
-      balRows.forEach(function (r) { byProv[r.provider] = (byProv[r.provider] || 0) + r.value; });
-      balRows = Object.keys(byProv).map(function (k) { return { label: k, value: byProv[k] }; })
+  /* 两张图：额度分布和模型调用分析，用同一份窗口用量画 */
+  if (r1.ok && r1.body) {
+    ovUsage = r1.body;
+    var b = r1.body;
+    if (rc.ok && rc.body && Array.isArray(rc.body.accounts)) {
+      var balRows = rc.body.accounts
+        .filter(function (a) { return typeof a.total === 'number'; })
+        .map(function (a) { return { label: (a.nickname || a.uid || '') + '（' + (a.provider || '') + '）', value: a.total, provider: a.provider || '' }; })
         .sort(function (x, y) { return y.value - x.value; });
+      if (dashQuotaMode === 'area') {
+        var byProv = {};
+        balRows.forEach(function (r) { byProv[r.provider] = (byProv[r.provider] || 0) + r.value; });
+        balRows = Object.keys(byProv).map(function (k) { return { label: k, value: byProv[k] }; })
+          .sort(function (x, y) { return y.value - x.value; });
+      }
+      renderBars($('db-quota-chart'), balRows, fmtNum);
     }
-    renderBars($('db-quota-chart'), balRows, fmtNum);
+    renderDashModel(b);
+  } else {
+    ovUsage = null;
+    if (r1.status === 401) showNote('note-dashboard', '密钥无效：网关返回 401。');
   }
-  renderDashModel(b);
 }
+/* ===== 概览图表：额度分布和模型调用分析 ===== */
 function renderDashModel(b) {
   var title = $('db-model-title');
   var el = $('db-model-chart');
@@ -1540,6 +1500,27 @@ function openCreateKey() {
     loadKeys();
   });
 }
+/* ===== 日志：使用、审计、任务三页合成一页，页内三个标签，各走各的接口 ===== */
+var logTab = 'usage';
+if (window.__legacyLogTab) { logTab = window.__legacyLogTab; }
+function selectLogTab(tab, load) {
+  logTab = tab;
+  var tabs = $('log-tabs');
+  if (tabs) {
+    tabs.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.dataset.log === tab); });
+  }
+  ['usage', 'audit', 'task'].forEach(function (k) {
+    var p = $('page-' + k);
+    if (p) p.hidden = (k !== tab);
+  });
+  if (load) {
+    if (tab === 'usage') loadUsage();
+    else if (tab === 'audit') loadAudit();
+    else loadTask();
+  }
+}
+function loadLogs() { selectLogTab(logTab, true); }
+
 /* ===== 使用日志 ===== */
 var lastUsage = null;
 function usageWindowDays() {
@@ -2416,15 +2397,11 @@ function loadPage(page) {
   if (page !== 'btc') stopBtcAutoRefresh(); /* 离开 BTC 页就停掉自动刷新 */
   if (page === 'chat') { loadChat(); return; }
   if (page === 'overview') loadOverview();
-  else if (page === 'dashboard') loadDashboard();
   else if (page === 'btc') loadBtc();
   else if (page === 'writing') loadWriting();
-  else if (page === 'skill') loadSkill();
   else if (page === 'prompt') loadPrompt();
   else if (page === 'keys') loadKeys();
-  else if (page === 'usage') loadUsage();
-  else if (page === 'audit') loadAudit();
-  else if (page === 'task') loadTask();
+  else if (page === 'logs') loadLogs();
   else if (page === 'channels') loadChannels();
   else if (page === 'models') loadModels();
   else if (page === 'redeem') loadRedeem();
@@ -2439,89 +2416,8 @@ function loadWriting() {
   if (f) f.src = '../writing/';
 }
 
-/* 技能：第一次点开才取文件，摘要/全文切换，搜框按段落筛选 */
-var skillLoaded = false;
+/* LibTV 技能文件缓存：出提示词页 getPromptSkillText() 共用，摘要/全文各取一次 */
 var skillDocs = {};
-var skillTab = 'digest';
-function escHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-function mdToHtml(md) {
-  var lines = md.split('\n');
-  var out = [];
-  var inList = false;
-  function inline(s) {
-    s = escHtml(s);
-    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    return s;
-  }
-  lines.forEach(function (line) {
-    var m;
-    if ((m = line.match(/^(#{1,3})\s+(.*)$/))) {
-      if (inList) { out.push('</ul>'); inList = false; }
-      var lv = m[1].length;
-      var fs = lv === 1 ? 18 : lv === 2 ? 16 : 15;
-      out.push('<h' + (lv + 1) + ' style="font-size:' + fs + 'px;margin:18px 0 8px">' + inline(m[2]) + '</h' + (lv + 1) + '>');
-    } else if ((m = line.match(/^\s*[-*]\s+(.*)$/))) {
-      if (!inList) { out.push('<ul style="padding-left:20px;margin:6px 0">'); inList = true; }
-      out.push('<li>' + inline(m[1]) + '</li>');
-    } else if ((m = line.match(/^\s*\d+[.、]\s+(.*)$/))) {
-      if (!inList) { out.push('<ul style="padding-left:20px;margin:6px 0">'); inList = true; }
-      out.push('<li>' + inline(m[1]) + '</li>');
-    } else if (line.trim() === '') {
-      if (inList) { out.push('</ul>'); inList = false; }
-    } else {
-      if (inList) { out.push('</ul>'); inList = false; }
-      out.push('<p style="margin:6px 0">' + inline(line) + '</p>');
-    }
-  });
-  if (inList) { out.push('</ul>'); }
-  return out.join('\n');
-}
-function renderSkill() {
-  var body = document.getElementById('skill-body');
-  if (!body) return;
-  var md = skillDocs[skillTab] || '';
-  var q = (document.getElementById('skill-search').value || '').trim();
-  if (!q) {
-    body.innerHTML = mdToHtml(md);
-    return;
-  }
-  var blocks = md.split(/(?=^## )/m);
-  var kept = blocks.filter(function (b) { return b.indexOf(q) !== -1; });
-  if (!kept.length) {
-    body.innerHTML = '<p class="muted">没找到含“' + escHtml(q) + '”的段落。</p>';
-    return;
-  }
-  body.innerHTML = '<p class="muted">找到 ' + kept.length + ' 段含“' + escHtml(q) + '”。</p>' + mdToHtml(kept.join('\n'));
-}
-function loadSkill() {
-  if (!skillLoaded) {
-    skillLoaded = true;
-    var body = document.getElementById('skill-body');
-    Promise.all([
-      fetch('../skills/libtv/DIGEST.md').then(function (r) { return r.text(); }),
-      fetch('../skills/libtv/SKILL.md').then(function (r) { return r.text(); })
-    ]).then(function (texts) {
-      skillDocs.digest = texts[0];
-      skillDocs.full = texts[1];
-      renderSkill();
-    }).catch(function () {
-      if (body) { body.textContent = '技能文件还没推上线，或加载失败。'; }
-    });
-  } else {
-    renderSkill();
-  }
-}
-document.querySelectorAll('#skill-tabs .tab').forEach(function (t) {
-  t.addEventListener('click', function () {
-    document.querySelectorAll('#skill-tabs .tab').forEach(function (x) { x.classList.remove('active'); });
-    t.classList.add('active');
-    skillTab = t.dataset.skill;
-    renderSkill();
-  });
-});
-document.getElementById('skill-search').addEventListener('input', renderSkill);
 
 /* 出提示词：读本地小说 + LibTV 技能，走网关出视频提示词 */
 var promptSending = false;
@@ -2923,15 +2819,25 @@ $('keys-apiaddr').addEventListener('click', function (e) { copyText(API_BASE, e.
 });
 $('keys-filter-status').addEventListener('change', renderKeys);
 
-/* 仪表盘 */
-$('dash-days').addEventListener('change', loadDashboard);
+/* 概览：时间窗口切换，今天 / 7 天 / 30 天，切换就按窗口重新取数 */
+var ovWinSeg = $('ov-win-seg');
+if (ovWinSeg) {
+  ovWinSeg.querySelectorAll('button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      ovWinSeg.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+      ovWindow = Number(b.dataset.days || 1);
+      loadOverview();
+    });
+  });
+}
 $('dash-tabs').querySelectorAll('.tab').forEach(function (t) {
   t.addEventListener('click', function () {
     $('dash-tabs').querySelectorAll('.tab').forEach(function (x) { x.classList.remove('active'); });
     t.classList.add('active');
     dashTab = t.dataset.tab;
-    if (lastUsage) renderDashModel(lastUsage);
-    else loadDashboard();
+    if (ovUsage) renderDashModel(ovUsage);
+    else loadOverview();
   });
 });
 $('db-model-seg').querySelectorAll('button').forEach(function (s) {
@@ -2939,7 +2845,7 @@ $('db-model-seg').querySelectorAll('button').forEach(function (s) {
     $('db-model-seg').querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
     s.classList.add('on');
     dashMode = s.dataset.mode;
-    if (lastUsage) renderDashModel(lastUsage);
+    if (ovUsage) renderDashModel(ovUsage);
   });
 });
 $('db-quota-seg').querySelectorAll('button').forEach(function (s) {
@@ -2947,7 +2853,7 @@ $('db-quota-seg').querySelectorAll('button').forEach(function (s) {
     $('db-quota-seg').querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
     s.classList.add('on');
     dashQuotaMode = s.dataset.mode;
-    loadDashboard();
+    loadOverview();
   });
 });
 
@@ -2975,6 +2881,11 @@ $('task-search').addEventListener('click', loadTask);
 $('task-reset').addEventListener('click', function () {
   $('task-id').value = '';
   loadTask();
+});
+
+/* 日志：页内三个标签切换 */
+$('log-tabs').querySelectorAll('.tab').forEach(function (t) {
+  t.addEventListener('click', function () { selectLogTab(t.dataset.log, true); });
 });
 
 /* 渠道 */
