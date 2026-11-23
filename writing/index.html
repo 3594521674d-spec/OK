@@ -538,13 +538,16 @@
             <button class="bigbtn" id="btnOutline" type="button">生成大纲</button>
           </div>
           <div class="rowbtns">
+            <button class="bigbtn" id="btnAutoWrite" type="button" style="flex:1">自动写完全本</button>
+          </div>
+          <div class="rowbtns">
             <button class="stopbtn" id="btnNewNovel" type="button" style="flex:1">新建长篇</button>
             <button class="stopbtn" id="btnExportNovel" type="button" style="flex:1">导出整本</button>
           </div>
           <div class="rowbtns">
             <button class="stopbtn" id="btnBookScript" type="button" style="flex:1">出整本剧本</button>
           </div>
-          <p class="mode-note" id="outlineStatus">填好右边的故事设定，点「生成大纲」，AI 先搭 20 章目录，再逐章写，每章约一万字。</p>
+          <p class="mode-note" id="outlineStatus">填好右边的故事设定，点「生成大纲」，AI 先搭 20 章目录，再逐章写，每章约一万字；点「自动写完全本」，写完一章自动写下一章，不用逐章点。</p>
           <div id="outlineList" style="margin-top:10px"></div>
           <p class="mode-note">章节顺序可以拖动调整：按住每行开头的章号拖动，调完自动存好。</p>
           <div class="rowbtns">
@@ -886,8 +889,9 @@ busy = on
 ;['btnStory', 'btnStoryM', 'btnResume', 'toolContinue', 'toolExpand', 'toolPolish', 'toolTitles'].forEach(function (id) { $(id).disabled = on})
 ;['btnStop', 'btnStopM'].forEach(function (id) { $(id).disabled =!on})
 editor.readOnly = on
+refreshAutoBtn()
 }
-function stopGen() { if (abortCtl) abortCtl.abort()}
+function stopGen() { autoWrite = false; refreshAutoBtn(); if (abortCtl) abortCtl.abort()}
 $('btnStop').addEventListener('click', stopGen)
 $('btnStopM').addEventListener('click', stopGen)
 
@@ -897,6 +901,7 @@ var WRITING_SKILL = "三边榜单写法 skill（仓颉重蒸第十七批，2026 
 function effectiveSystem() {
 return skillOn? STORY_SYSTEM + '\n\n' + WRITING_SKILL: STORY_SYSTEM
 }
+function effectiveTitleSystem() { return skillOn ? '你是一位懂网文市场的资深编辑，起的标题短、狠、有钩子。\n\n' + WRITING_SKILL : '你是一位懂网文市场的资深编辑，起的标题短、狠、有钩子。' }
 function renderSkillToggle() {
 var btn = $('skillToggle')
 if (!btn) return
@@ -1076,7 +1081,7 @@ openSheet(mode === 'expand'? '扩写结果': '润色结果', '满意就点「替
 if (!full.trim()) { toast('正文是空的，先写出正文再起标题'); return}
 sheetCtx = { mode: 'titles', start: 0, end: 0}
 messages = [
-{ role: 'system', content: '你是一位懂网文市场的资深编辑，起的标题短、狠、有钩子。'},
+{ role: 'system', content: effectiveTitleSystem()},
 { role: 'user', content: '下面是一篇短篇小说的开头部分，请给它拟 5 个标题，每个一行，不要编号、不要引号、不要解释，每个标题不超过 14 个字，要能勾起点击欲：\n\n' + full.slice(0, 1600) + '\n\n参考书名（只学起名的路子，不要照抄）：\n' + TITLE_EXAMPLES}
 ]
 openSheet('标题候选', '点任意一个标题，就填到正文上方的标题栏。', mode)
@@ -1267,6 +1272,7 @@ var chapterCounts = {}
 var chapterMsg = {}
 var novelGenN = 0
 var novelLock = false
+var autoWrite = false
 var novelSaveTimer = null
 var renderedOutlineSig = ''
 
@@ -1406,9 +1412,9 @@ var RETITLE_SYSTEM = [
 '3. 不许用破折号，不许用单引号，不许用星号，对话和强调都用中文双引号。'
 ].join('\n')
 function effectiveLongSystem() { return skillOn ? LONG_SYSTEM + '\n\n' + WRITING_SKILL : LONG_SYSTEM }
-/* 大纲只搭结构，不带 23 万字 skill：带上它会把 GLM 这类模型压到直接拒绝回复，解析出来就是 0 章；写正文仍带 skill */
-function effectiveOutlineSystem() { return OUTLINE_SYSTEM }
-function effectiveRetitleSystem() { return RETITLE_SYSTEM }
+/* 郝爷 2026-11-23 拍板：大纲也带 23 万字 skill；GLM 这类模型可能直接拒绝回复、解析出 0 章，长篇建议用默认 deepseek 模型 */
+function effectiveOutlineSystem() { return skillOn ? OUTLINE_SYSTEM + '\n\n' + WRITING_SKILL : OUTLINE_SYSTEM }
+function effectiveRetitleSystem() { return skillOn ? RETITLE_SYSTEM + '\n\n' + WRITING_SKILL : RETITLE_SYSTEM }
 
 /* 完整大纲文本：20 章标题加梗概，写章节时每次都带上 */
 function outlineText() {
@@ -1485,6 +1491,7 @@ var b = $('btnOutline')
 if (b) { b.textContent = novel.outline.length ? '重新生成大纲' : '生成大纲'; b.disabled = novelGenN !== 0 || novelLock }
 var nb = $('btnNewNovel')
 if (nb) nb.disabled = novelGenN !== 0 || novelLock
+refreshAutoBtn()
 }
 function updateChapterRow(n) {
 var els = chapterEls[n]
@@ -1980,6 +1987,7 @@ renderedOutlineSig = ''; renderOutline()
 setBusy(false); novelLock = false; refreshAllRows(); updateBookProgress()
 }
 $('btnOutline').addEventListener('click', generateOutline)
+$('btnAutoWrite').addEventListener('click', autoWriteBook)
 
 /* ── 只换一章的标题和梗概，正文保留 ── */
 async function retitleChapter(n) {
@@ -2077,6 +2085,38 @@ var final = countChars(novel.chapters[n] || '')
 if (aborted) { setChapterMsg(n, '已停止，已写 ' + final.toLocaleString('zh-CN') + ' 字，点「接着写完」可继续'); toast('已停止') }
 else if (err) { setChapterMsg(n, '中断了：' + err.message + '。已写 ' + final.toLocaleString('zh-CN') + ' 字，点「接着写完」继续'); toast('生成中断：' + err.message) }
 else { setChapterMsg(n, '本章写完了，共 ' + final.toLocaleString('zh-CN') + ' 字'); toast('第' + n + '章写完了，共 ' + final.toLocaleString('zh-CN') + ' 字') }
+}
+/* ── 自动写完全本：写完一章自动写下一章，不用逐章点 ── */
+function nextUnfinishedChapter() {
+for (var i = 1; i <= novel.outline.length; i++) {
+if (countChars(novel.chapters[i] || '') < CHAPTER_DONE) return i
+}
+return 0
+}
+function refreshAutoBtn() {
+var b = $('btnAutoWrite')
+if (!b) return
+b.textContent = autoWrite ? '停止自动' : '自动写完全本'
+b.disabled = (!autoWrite && (busy || novelGenN !== 0 || novelLock)) || !novel.outline.length
+}
+async function autoWriteBook() {
+if (autoWrite) { stopGen(); return }
+if (busy || novelGenN !== 0 || novelLock) return
+if (!ensureKey()) return
+if (!novel.outline.length) { toast('还没有大纲，先点「生成大纲」'); return }
+autoWrite = true; refreshAutoBtn(); refreshAllRows(); updateBookProgress()
+while (autoWrite) {
+var n = nextUnfinishedChapter()
+if (!n) { toast('整本写完了，共 ' + novelTotal().toLocaleString('zh-CN') + ' 字'); break }
+await writeChapter(n, false)
+if (!autoWrite) break
+if (countChars(novel.chapters[n] || '') < CHAPTER_DONE) {
+autoWrite = false
+toast('第' + n + '章没写满，自动停了，点「接着写完」继续')
+break
+}
+}
+autoWrite = false; refreshAutoBtn(); refreshAllRows(); updateBookProgress()
 }
 function rewriteChapter(n) {
 if (novelGenN !== 0 || novelLock) return
@@ -2227,7 +2267,7 @@ setBusy(true); setStatus('AI 正在起标题…')
 var acc = ''
 try {
 await streamChat([
-{ role: 'system', content: '你是一位懂网文市场的资深编辑，起的标题短、狠、有钩子。' },
+{ role: 'system', content: effectiveTitleSystem() },
 { role: 'user', content: '下面是一部长篇小说的设定和大纲，请给它拟 5 个书名，每个一行，不要编号、不要引号、不要解释，每个书名不超过 14 个字，要能勾起点击欲：\n\n' + parts.join('\n') + '\n\n参考书名（只学起名的路子，不要照抄）：\n' + TITLE_EXAMPLES }
 ], {
 temperature: 0.85,
