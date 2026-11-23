@@ -1716,6 +1716,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
     items.forEach(function (el) { el.classList.remove('active'); });
     item.classList.add('active');
     title.textContent = item.dataset.title;
+    title.focus();
     sub.textContent = item.dataset.desc;
     document.title = '墨池工作台 · ' + item.dataset.title;
     pages.forEach(function (p) { p.classList.remove('active'); });
