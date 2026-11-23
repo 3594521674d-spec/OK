@@ -978,9 +978,11 @@
         border-radius: 8px; padding: 8px 4px; font-size: 14px; min-height: 2.8rem;
       }
 #page-writing .tabbar button.wb-on { background: var(--accent-soft); color: var(--accent); font-weight: 700; border-color: var(--accent); }
+#page-writing #wb-tabs { display: none; }
 @media (max-width: 1023px) {#page-writing .wb-layout { grid-template-columns: 1fr; padding: 10px 10px 96px; gap: 10px; }
 #page-writing .rail { position: static; max-height: none; }
 #page-writing .tabbar { display: flex; }
+#page-writing #wb-tabs { display: flex; flex: 1 1 100%; margin: 0; border-bottom: 0; }
 #page-writing .actionbar { display: flex; }
 #page-writing[data-view="write"] .editor-col, #page-writing[data-view="write"] #railSide { display: none; }
 #page-writing[data-view="edit"] #railWrite, #page-writing[data-view="edit"] #railSide { display: none; }
@@ -1499,6 +1501,15 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
       </label>
       <button class="tbtn" id="btnSettings" type="button">网关设置</button>
       <button class="tbtn" id="btnExport" type="button">导出正文</button>
+      <div class="tabs" id="wb-tabs">
+        <button type="button" class="tab" data-wbtab="short">短篇</button>
+        <button type="button" class="tab" data-wbtab="long">长篇</button>
+        <button type="button" class="tab" data-wbtab="script">剧本</button>
+        <button type="button" class="tab" data-wbtab="tools">工具</button>
+        <button type="button" class="tab active" data-wbtab="edit">正文</button>
+        <button type="button" class="tab" data-wbtab="settings">设定</button>
+        <button type="button" class="tab" data-wbtab="ms">稿件</button>
+      </div>
     </header>
 
     <div class="wb-layout">
@@ -1665,7 +1676,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
 
       <!-- 右栏：设定 + 稿件 -->
       <aside class="rail" id="railSide">
-        <section>
+        <section id="secSettings">
           <h2>故事设定 <span class="sub">写之前填，越具体越对味</span></h2>
           <div class="wb-field">
             <label for="fGenre">题材</label>
@@ -1703,7 +1714,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
             <input id="fExtra" type="text" placeholder="如：结尾要反转；不要写悲剧" autocomplete="off" />
           </div>
         </section>
-        <section>
+        <section id="secMs">
           <h2>稿件 <span class="sub">已自动存在手机本地</span></h2>
           <div id="msList"><p class="empty-note">还没有稿件。写完一篇点编辑器下方的「存入稿件」，可以存多篇来回切换；稿件已自动存在手机本地，关了再开还在，重要的稿子建议用「导出正文」存成文件备份。</p></div>
         </section>
@@ -5286,6 +5297,7 @@ toast('正文是空的，先点「写一整篇短篇」')
 return
 }
 refreshCounts(); setBusy(true)
+selectWbTab('edit')
 setStatus(resume? '正在接着写…': '正在写…')
 showProgress(true, countChars(editor.value))
 var stalls = 0, rounds = 0, err = null, aborted = false
@@ -5556,10 +5568,65 @@ var v = $('page-writing').getAttribute('data-view')
 document.querySelectorAll('.tabbar button').forEach(function (b) {
 b.classList.toggle('wb-on', b.getAttribute('data-tab') === v)
 })
+if (v === 'edit') wbTab = 'edit'
+else if (v === 'side') { if (wbTab !== 'settings' && wbTab !== 'ms') wbTab = 'settings' }
+else if (v === 'write') { if (wbTab !== 'short' && wbTab !== 'long' && wbTab !== 'script' && wbTab !== 'tools') wbTab = ((typeof mode === 'string' ? mode : 'short') === 'long' ? 'long' : 'short') }
+applyWbSections()
 }
 document.querySelectorAll('.tabbar button').forEach(function (b) {
 b.addEventListener('click', function () { switchTab(b.getAttribute('data-tab')) })
 })
+
+/* ── 写作页内导航标签：手机上点哪个只显示哪个，不用一直往下拉 ── */
+var wbTab = 'edit'
+var wbMq = window.matchMedia('(max-width: 1023px)')
+var WB_VIEW = { short: 'write', long: 'write', script: 'write', tools: 'write', edit: 'edit', settings: 'side', ms: 'side' }
+function wbIsMobile() { return wbMq.matches }
+function applyWbSections() {
+var tabs = $('wb-tabs')
+var m = (typeof mode === 'string' ? mode : 'short')
+if (!wbIsMobile()) {
+$('secShort').hidden = (m !== 'short')
+$('secLong').hidden = (m !== 'long')
+$('secScript').hidden = false
+$('secTools').hidden = (m !== 'short')
+var ss = $('secSettings'); if (ss) ss.hidden = false
+var sm = $('secMs'); if (sm) sm.hidden = false
+return
+}
+var map = { short: 'secShort', long: 'secLong', script: 'secScript', tools: 'secTools', settings: 'secSettings', ms: 'secMs' }
+var secs = ['secShort', 'secLong', 'secScript', 'secTools', 'secSettings', 'secMs']
+secs.forEach(function (id) {
+var el = $(id)
+if (el) el.hidden = (map[wbTab] !== id)
+})
+if (tabs) tabs.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-wbtab') === wbTab) })
+}
+function refreshScriptTab() {
+loadScripts()
+if (currentScriptText()) showScript(scriptScope.kind, scriptScope.n)
+else if (scripts.short) showScript('short', 0)
+else if (scripts.book) showScript('book', 0)
+else showScript('', 0)
+}
+function selectWbTab(tab) {
+if (WB_VIEW[tab] === undefined) return
+wbTab = tab
+if (tab === 'short' || tab === 'long') setMode(tab)
+else if (tab === 'tools' && (typeof mode === 'string' ? mode : 'short') !== 'short') setMode('short')
+var view = WB_VIEW[tab]
+var cur = $('page-writing').getAttribute('data-view') || 'edit'
+if (view !== cur) switchTab(view)
+else syncTabs()
+applyWbSections()
+if (tab === 'script') refreshScriptTab()
+var m = document.querySelector('main')
+if (m) m.scrollTop = 0
+}
+document.querySelectorAll('#wb-tabs .tab').forEach(function (b) {
+b.addEventListener('click', function () { selectWbTab(b.getAttribute('data-wbtab')) })
+})
+if (wbMq.addEventListener) wbMq.addEventListener('change', function () { applyWbSections() })
 
 /* ── 长篇模式：20 章，每章约一万字 ── */
 var NOVEL_KEY = 'wb_novel_v1'
@@ -5612,14 +5679,12 @@ mode = (m === 'long') ? 'long' : 'short'
 try { localStorage.setItem(MODE_KEY, mode) } catch (e) {}
 $('modeShort').classList.toggle('wb-on', mode === 'short')
 $('modeLong').classList.toggle('wb-on', mode === 'long')
-$('secShort').hidden = (mode !== 'short')
-$('secTools').hidden = (mode !== 'short')
-$('secLong').hidden = (mode !== 'long')
+applyWbSections()
 if (mode === 'long') renderOutline()
 fadeSection(mode === 'long' ? $('secLong') : $('secShort'))
 }
-$('modeShort').addEventListener('click', function () { setMode('short') })
-$('modeLong').addEventListener('click', function () { setMode('long') })
+$('modeShort').addEventListener('click', function () { selectWbTab('short') })
+$('modeLong').addEventListener('click', function () { selectWbTab('long') })
 
 /* 生成内容清洗：模型万一写了破折号、单引号、星号，这里按硬规则清掉 */
 function cleanGenText(s) {
@@ -7011,6 +7076,7 @@ async function generateScript(kind, n) {
   }
   scriptBusy = true;
   setBusy(true);
+  selectWbTab("script");
   scriptScope = { kind: kind, n: n || 0 };
   var view = $("scriptView");
   if (view) { view.value = ""; }
@@ -7061,6 +7127,7 @@ async function generateBookScript() {
   if (!written.length) { toast("还没有写好的章节"); return; }
   scriptBusy = true;
   setBusy(true);
+  selectWbTab("script");
   try {
     var skill = await getJubenSkillText("digest");
     for (var k = 0; k < written.length; k++) {
