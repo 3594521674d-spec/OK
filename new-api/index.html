@@ -504,7 +504,7 @@
 #page-writing button:disabled { opacity: 0.45; cursor: not-allowed; }
 #page-writing :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 #page-writing .topbar {
-        position: sticky; top: 0; z-index: 40;
+        position: sticky; top: 0; z-index: 20;
         display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
         padding: 8px 12px;
         background: var(--surface);
@@ -675,7 +675,7 @@
 #page-writing .mini { border: 0; background: none; color: var(--ink-2); padding: 4px 6px; font-size: 12.5px; min-height: 2rem; }
 #page-writing .mini:active { color: var(--accent); }
 #page-writing .tabbar {
-        display: none; position: sticky; bottom: 0; z-index: 40;
+        display: none; position: sticky; bottom: 0; z-index: 20;
         background: var(--surface); border-top: 1px solid var(--line);
         padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
         gap: 6px;
