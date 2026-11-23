@@ -3325,12 +3325,24 @@ function verifyPromptDialogues() {
   }
   box.innerHTML = html;
 }
+async function fetchSkillTextOrEmpty(url) {
+  try {
+    var r = await fetch(url);
+    if (!r.ok) return '';
+    return await r.text();
+  } catch (e) { return ''; }
+}
 async function getPromptSkillText() {
   if (skillDocs[promptScope]) return skillDocs[promptScope];
   var url = promptScope === 'full' ? '../skills/libtv/SKILL.md' : '../skills/libtv/DIGEST.md';
   var r = await fetch(url);
   if (!r.ok) throw new Error('技能文件加载失败（HTTP ' + r.status + '）');
   var t = await r.text();
+  var fightUrl = promptScope === 'full' ? '../skills/fight/SKILL.md' : '../skills/fight/DIGEST.md';
+  var fight = await fetchSkillTextOrEmpty(fightUrl);
+  if (fight) t += '\n\n## 打斗提示词技能包\n' + fight;
+  var vfx = await fetchSkillTextOrEmpty('../skills/vfx/SKILL.md');
+  if (vfx) t += '\n\n## 视频特效提示词技能包\n' + vfx;
   skillDocs[promptScope] = t;
   return t;
 }
@@ -3407,7 +3419,7 @@ async function sendPrompt() {
   if ($('prompt-verify')) $('prompt-verify').hidden = true;
   try {
     var skill = await getPromptSkillText();
-    var sys = '你是视频提示词专家。按下面 LibTV 画布提示词技能包的写法出提示词，只蒸写法套路，不搬整条提示词原文，每处引用不超 50 字。\n\n硬规则：每段开头写“输出 1280×720”；画面里不出现可读的文字、字幕和水印；不要背景音乐；人物外形和衣服按小说原文锁定，每段逐字复用，不改长相；台词只能从下面“台词清单”里一字不改地抄，不许编新台词、不许改字、不许把甲的台词安到乙头上，说话人标注仅供参考，抄台词只抄引号内的字；某段没有对应台词就别写台词，别硬凑；资产提示词里的人物名、服装、道具只能用正文里有的，不许编；出场人物只用清单里出现过的人物名。\n\n技能参考：\n' + skill;
+    var sys = '你是视频提示词专家。按下面三个提示词技能包（LibTV 画布、打斗、视频特效）的写法出提示词，只蒸写法套路，不搬整条提示词原文，每处引用不超 50 字。\n\n硬规则：每段开头写“输出 1280×720”；画面里不出现可读的文字、字幕和水印；不要背景音乐；人物外形和衣服按小说原文锁定，每段逐字复用，不改长相；台词只能从下面“台词清单”里一字不改地抄，不许编新台词、不许改字、不许把甲的台词安到乙头上，说话人标注仅供参考，抄台词只抄引号内的字；某段没有对应台词就别写台词，别硬凑；资产提示词里的人物名、服装、道具只能用正文里有的，不许编；出场人物只用清单里出现过的人物名。\n\n技能参考：\n' + skill;
     var novelPart = novel ? promptNovelText(novel, chapN) + '\n\n' : '';
     var dlgBlock = '';
     if (chapN && promptDialogues.chapter === chapN) {
