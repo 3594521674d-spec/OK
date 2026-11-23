@@ -742,8 +742,6 @@
   .chat-bubble { max-width: 85%; padding: 9px 12px; border-radius: 12px; white-space: pre-wrap; word-break: break-word; font-size: 14px; line-height: 1.6; }
   .chat-bubble-user { background: linear-gradient(180deg, var(--color-accent, #c9a227), var(--color-accent-deep, #cf9c31)); color: var(--color-on-accent, #1a1405); }
   .chat-bubble-assistant { background: var(--color-surface, #ffffff); }
-  .btc-banner { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); border: 1px solid var(--color-accent, #c9a227); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; font-size: 14px; line-height: 1.6; }
-  .btc-banner span { flex: 1; }
   .seg-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--color-border, #e5e7eb); border-radius: 10px; margin-bottom: 8px; background: var(--color-surface, #ffffff); }
   .seg-drag { flex: none; cursor: grab; touch-action: manipulation; font-size: 18px; line-height: 1.4; color: var(--color-muted, #6b7280); padding: 2px 6px; }
   .seg-body { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
@@ -1222,7 +1220,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
       <div class="nav-group">
         <div class="nav-group-label">通用</div>
         <button type="button" class="nav-item active" data-page="overview" data-title="概览" data-desc="余额、密钥、请求、消费、Token 一眼看完"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>概览</button>
-        <button type="button" class="nav-item" data-page="btc" data-title="BTC 盯盘" data-desc="BTC 现价、提醒条件与历史记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M9.5 9.5h5"/><path d="M9.5 14.5h5"/></svg>BTC 盯盘</button>
+        <button type="button" class="nav-item" data-page="signals" data-title="信号" data-desc="BTC 与英伟达信号灯加虚拟盘"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-5 3 3 5-7"/></svg>信号</button>
         <button type="button" class="nav-item" data-page="keys" data-title="API 密钥" data-desc="创建、查看、停用自己的调用密钥"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m11 12 9-9"/><path d="m15.5 7.5 3 3"/><path d="m18.5 4.5 2 2"/></svg>API 密钥</button>
         <button type="button" class="nav-item" data-page="logs" data-title="日志" data-desc="使用、审计、任务三类日志"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>日志</button>
       </div>
@@ -1330,109 +1328,145 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
     </section>
 
     <!-- ===== BTC 盯盘 ===== -->
-    <section class="page" id="page-btc">
-      <p class="page-note" id="note-btc" hidden></p>
-      <div id="btc-alert-banner" class="btc-banner" hidden><span id="btc-alert-text"></span><button class="btn" id="btc-alert-dismiss">知道了</button></div>
+
+    <!-- ===== 信号灯加虚拟盘 ===== -->
+    <section class="page" id="page-signals">
+      <p class="page-note" id="note-signals" hidden></p>
       <div class="panel">
         <div class="row space">
-          <h2>BTC / USDT 现价</h2>
-          <span class="chip" id="btc-source">每 5 分钟更新</span>
+          <h2>信号灯加虚拟盘</h2>
           <span class="muted" style="font-size:12px">自动刷新：每 60 秒</span>
         </div>
-        <div style="font-size:36px;font-weight:700;line-height:1.2;margin-top:6px" id="btc-price">—</div>
-        <div class="row" style="margin-top:6px">
-          <span id="btc-change" style="font-size:15px">24h 涨跌幅：—</span>
-          <span class="muted" id="btc-updated">更新时间：—</span>
+        <p class="muted">BTC 与英伟达都在欧易上交易：BTC-USDT 与 XNVDA-USDT。三个策略各自独立给信号，不合成总信号；信号只供参考，不保证赚钱。</p>
+      </div>
+
+      <div class="panel">
+        <div class="row space">
+          <h2>BTC / USDT</h2>
+          <span class="chip" id="sig-btc-source">每 5 分钟更新</span>
         </div>
-        <p class="muted" id="btc-err" hidden></p>
-        <p class="muted" style="margin-top:8px">只看不下单：每 5 分钟网关查一次公开行情（OKX 主用，CoinGecko 备用），价格与提醒都存在网关里；下单还是你自己手动下。</p>
-      </div>
-
-      <div class="panel">
-        <h2>价格走势</h2>
-        <p class="muted" style="font-size:13px" id="btc-chart-note">价格线加 MA7 和 MA25，数据来自网关每 5 分钟记的历史。</p>
-        <div id="btc-chart" style="height:300px;margin-top:10px"></div>
-      </div>
-
-      <div class="panel">
-        <h2>策略信号（5m K 线，每 5 分钟算一次）</h2>
-        <p class="muted">只看不下单：三个策略各自独立给信号，不合成总信号；信号只供你手动下单参考，不保证赚钱。</p>
-        <p class="muted" id="btc-strat-err" hidden></p>
+        <div style="font-size:36px;font-weight:700;line-height:1.2;margin-top:6px" id="sig-btc-price">加载中</div>
+        <div class="row" style="margin-top:6px">
+          <span id="sig-btc-change" style="font-size:15px">24h 涨跌幅：加载中</span>
+          <span class="muted" id="sig-btc-updated">更新时间：加载中</span>
+        </div>
+        <p class="muted" id="sig-btc-err" hidden></p>
         <div class="row" style="margin-top:10px;align-items:stretch">
           <div class="mini-card" style="flex:1;min-width:200px">
             <div class="k">均线 MA7 / MA25</div>
-            <div class="v" id="btc-sig-ma" style="font-size:26px">—</div>
-            <div class="muted" id="btc-val-ma" style="font-size:13px">—</div>
+            <div class="v" id="sig-btc-sig-ma" style="font-size:26px">加载中</div>
+            <div class="muted" id="sig-btc-val-ma" style="font-size:13px">加载中</div>
             <div class="muted" style="font-size:12px">MA7 上穿 MA25 为做多，下穿为做空（只看已收完的 K 线）</div>
-            <div class="muted" id="btc-age-ma" style="font-size:12px">—</div>
+            <div class="muted" id="sig-btc-age-ma" style="font-size:12px">加载中</div>
           </div>
           <div class="mini-card" style="flex:1;min-width:200px">
             <div class="k">RSI（14）</div>
-            <div class="v" id="btc-sig-rsi" style="font-size:26px">—</div>
-            <div class="muted" id="btc-val-rsi" style="font-size:13px">—</div>
-            <div class="muted" style="font-size:12px">RSI &lt; 30 为做多（超卖），&gt; 70 为做空（超买）</div>
-            <div class="muted" id="btc-age-rsi" style="font-size:12px">—</div>
+            <div class="v" id="sig-btc-sig-rsi" style="font-size:26px">加载中</div>
+            <div class="muted" id="sig-btc-val-rsi" style="font-size:13px">加载中</div>
+            <div class="muted" style="font-size:12px">RSI 小于 30 为做多（超卖），大于 70 为做空（超买）</div>
+            <div class="muted" id="sig-btc-age-rsi" style="font-size:12px">加载中</div>
           </div>
           <div class="mini-card" style="flex:1;min-width:200px">
             <div class="k">MACD（12,26,9）</div>
-            <div class="v" id="btc-sig-macd" style="font-size:26px">—</div>
-            <div class="muted" id="btc-val-macd" style="font-size:13px">—</div>
+            <div class="v" id="sig-btc-sig-macd" style="font-size:26px">加载中</div>
+            <div class="muted" id="sig-btc-val-macd" style="font-size:13px">加载中</div>
             <div class="muted" style="font-size:12px">DIF 上穿 DEA 为做多，下穿为做空（只看已收完的 K 线）</div>
-            <div class="muted" id="btc-age-macd" style="font-size:12px">—</div>
+            <div class="muted" id="sig-btc-age-macd" style="font-size:12px">加载中</div>
           </div>
         </div>
       </div>
 
       <div class="panel">
-        <h2>信号变化（最近 20 条）</h2>
+        <div class="row space">
+          <h2>英伟达 XNVDA / USDT</h2>
+          <span class="chip" id="sig-nvda-source">每 5 分钟更新</span>
+        </div>
+        <div style="font-size:36px;font-weight:700;line-height:1.2;margin-top:6px" id="sig-nvda-price">加载中</div>
+        <div class="row" style="margin-top:6px">
+          <span id="sig-nvda-change" style="font-size:15px">24h 涨跌幅：加载中</span>
+          <span class="muted" id="sig-nvda-updated">更新时间：加载中</span>
+        </div>
+        <p class="muted" id="sig-nvda-err" hidden></p>
+        <div class="row" style="margin-top:10px;align-items:stretch">
+          <div class="mini-card" style="flex:1;min-width:200px">
+            <div class="k">均线 MA7 / MA25</div>
+            <div class="v" id="sig-nvda-sig-ma" style="font-size:26px">加载中</div>
+            <div class="muted" id="sig-nvda-val-ma" style="font-size:13px">加载中</div>
+            <div class="muted" style="font-size:12px">MA7 上穿 MA25 为做多，下穿为做空（只看已收完的 K 线）</div>
+            <div class="muted" id="sig-nvda-age-ma" style="font-size:12px">加载中</div>
+          </div>
+          <div class="mini-card" style="flex:1;min-width:200px">
+            <div class="k">RSI（14）</div>
+            <div class="v" id="sig-nvda-sig-rsi" style="font-size:26px">加载中</div>
+            <div class="muted" id="sig-nvda-val-rsi" style="font-size:13px">加载中</div>
+            <div class="muted" style="font-size:12px">RSI 小于 30 为做多（超卖），大于 70 为做空（超买）</div>
+            <div class="muted" id="sig-nvda-age-rsi" style="font-size:12px">加载中</div>
+          </div>
+          <div class="mini-card" style="flex:1;min-width:200px">
+            <div class="k">MACD（12,26,9）</div>
+            <div class="v" id="sig-nvda-sig-macd" style="font-size:26px">加载中</div>
+            <div class="muted" id="sig-nvda-val-macd" style="font-size:13px">加载中</div>
+            <div class="muted" style="font-size:12px">DIF 上穿 DEA 为做多，下穿为做空（只看已收完的 K 线）</div>
+            <div class="muted" id="sig-nvda-age-macd" style="font-size:12px">加载中</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>虚拟盘</h2>
+        <p class="muted">虚拟本金 10000 USDT，只练手，不动真钱。</p>
+        <div class="row" style="margin-top:10px;align-items:stretch">
+          <div class="mini-card" style="flex:1;min-width:140px">
+            <div class="k">虚拟余额</div>
+            <div class="v" id="paper-balance" style="font-size:22px">加载中</div>
+          </div>
+          <div class="mini-card" style="flex:1;min-width:140px">
+            <div class="k">总资产</div>
+            <div class="v" id="paper-total" style="font-size:22px">加载中</div>
+          </div>
+          <div class="mini-card" style="flex:1;min-width:140px">
+            <div class="k">总盈亏</div>
+            <div class="v" id="paper-pnl" style="font-size:22px">加载中</div>
+          </div>
+          <div class="mini-card" style="flex:1;min-width:140px">
+            <div class="k">已实现盈亏</div>
+            <div class="v" id="paper-realized" style="font-size:22px">加载中</div>
+          </div>
+        </div>
+        <p class="muted" id="paper-updated" style="margin-top:8px">更新时间：加载中</p>
+        <p class="muted" id="paper-err" hidden></p>
         <div class="tbl-wrap" style="margin-top:10px">
           <table class="tbl">
-            <thead><tr><th>时间</th><th>策略</th><th>信号变化</th><th>当时价格（$）</th></tr></thead>
-            <tbody id="btc-signal-tbody">
+            <thead><tr><th>标的</th><th>数量</th><th>均价</th><th>现价</th><th>市值</th><th>浮动盈亏</th></tr></thead>
+            <tbody id="paper-positions-tbody">
             </tbody>
           </table>
         </div>
       </div>
 
       <div class="panel">
-        <h2>提醒条件</h2>
-        <p class="muted">全留空 = 只显示价格、不提醒。价格穿过条件那一下记一条提醒，回来之后再穿过去才重新记，不会刷屏。</p>
+        <h2>虚拟下单</h2>
         <div class="row" style="margin-top:10px">
-          <label class="muted" for="btc-above">高于价提醒（$）</label>
-          <input class="input" type="number" id="btc-above" placeholder="如 70000" step="1" min="0">
-          <label class="muted" for="btc-below">低于价提醒（$）</label>
-          <input class="input" type="number" id="btc-below" placeholder="如 60000" step="1" min="0">
-          <label class="muted" for="btc-changepct">24h 涨跌幅超过（%）</label>
-          <input class="input" type="number" id="btc-changepct" placeholder="如 3" step="0.1" min="0" max="100">
+          <label class="muted" for="paper-symbol">标的</label>
+          <select class="select" id="paper-symbol" aria-label="标的">
+            <option value="BTC">BTC</option>
+            <option value="NVDA">NVDA</option>
+          </select>
+          <label class="muted" for="paper-qty">数量</label>
+          <input class="input" type="number" id="paper-qty" placeholder="如 0.01" step="0.0001" min="0" aria-label="数量">
         </div>
         <div class="row" style="margin-top:10px">
-          <label><input type="checkbox" id="btc-enabled" checked> 启用提醒</label>
-          <button class="btn btn-primary" id="btc-save">保存提醒条件</button>
-          <span class="muted" id="btc-msg"></span>
+          <button class="btn btn-primary" id="paper-buy">虚拟买入</button>
+          <button class="btn" id="paper-sell">虚拟卖出</button>
+          <span class="muted" id="paper-order-msg"></span>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="paper-reset">重置虚拟盘</button>
+          <span class="muted">重置后回到 10000 USDT，持仓清零。</span>
         </div>
       </div>
 
-      <div class="panel">
-        <h2>价格历史（最近 288 条，24 小时）</h2>
-        <div class="tbl-wrap" style="margin-top:10px">
-          <table class="tbl">
-            <thead><tr><th>时间</th><th>价格（$）</th><th>24h 涨跌幅</th></tr></thead>
-            <tbody id="btc-history-tbody">
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>提醒记录（最近 50 条）</h2>
-        <div class="tbl-wrap" style="margin-top:10px">
-          <table class="tbl">
-            <thead><tr><th>时间</th><th>触发时价格（$）</th><th>触发规则</th><th>内容</th></tr></thead>
-            <tbody id="btc-alerts-tbody">
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <p class="muted">虚拟盘只练手，不动真钱；信号只供参考，不保证赚钱。</p>
     </section>
 
     <!-- ===== 对话 ===== -->
@@ -3428,10 +3462,10 @@ $('redeem-do').addEventListener('click', async function () {
   loadRedeem();
 });
 function loadPage(page) {
-  if (page !== 'btc') stopBtcAutoRefresh(); /* 离开 BTC 页就停掉自动刷新 */
+  if (page !== "signals") stopSignalsAutoRefresh();
   if (page === 'chat') { loadChat(); return; }
   if (page === 'overview') loadOverview();
-  else if (page === 'btc') loadBtc();
+  else if (page === "signals") loadSignals();
   else if (page === 'prompt') loadPrompt();
   else if (page === 'keys') loadKeys();
   else if (page === 'logs') loadLogs();
@@ -4114,7 +4148,6 @@ $('chan-view').querySelectorAll('button').forEach(function (s) {
 $('models-filter-name').addEventListener('input', renderModels);
 $('models-filter-vendor').addEventListener('change', renderModels);
 
-/* ===== BTC 盯盘（只看不下单） ===== */
 function fmtUsd(n) {
   n = Number(n);
   if (!isFinite(n)) return '—';
@@ -4124,15 +4157,6 @@ function fmtChg(n) {
   n = Number(n);
   if (!isFinite(n)) return '—';
   return (n > 0 ? '+' : '') + n.toFixed(2) + '%';
-}
-function btcRuleLabel(rule) {
-  if (rule === 'above') return '高于价';
-  if (rule === 'below') return '低于价';
-  if (rule === 'changePct') return '涨跌幅';
-  if (rule === 'ma') return '均线';
-  if (rule === 'rsi') return 'RSI';
-  if (rule === 'macd') return 'MACD';
-  return rule || '—';
 }
 function btcSignalText(sig) {
   if (sig === 'buy') return '做多';
@@ -4150,166 +4174,190 @@ function btcAgeText(updatedAt) {
   if (mins < 60) return '算于 ' + mins + ' 分钟前';
   return '算于 ' + Math.floor(mins / 60) + ' 小时 ' + (mins % 60) + ' 分钟前';
 }
-function renderBtcStrategy(key, s) {
-  var sigEl = $('btc-sig-' + key);
-  var valEl = $('btc-val-' + key);
-  var ageEl = $('btc-age-' + key);
+
+// 信号灯加虚拟盘（BTC 与 NVDA）
+var signalsRefreshTimer = null;
+var signalsLoading = false;
+function fmtPnl(n) {
+  n = Number(n);
+  if (!isFinite(n)) return "暂无";
+  return (n > 0 ? "+" : "") + fmtUsd(n);
+}
+function sigErrText(r) {
+  var b = r.body;
+  if (b && b.error && b.error.message) return b.error.message;
+  if (b && b.message) return b.message;
+  if (typeof b === "string" && b) return b;
+  return "请求失败（HTTP " + r.status + "）";
+}
+function renderSigStrategy(prefix, key, s) {
+  var sigEl = $(prefix + "-sig-" + key);
+  var valEl = $(prefix + "-val-" + key);
+  var ageEl = $(prefix + "-age-" + key);
   if (!sigEl) return;
   if (!s) {
-    sigEl.textContent = '—';
-    sigEl.style.color = 'var(--color-muted, #6b7280)';
-    if (valEl) valEl.textContent = '网关还没上线策略信号';
-    if (ageEl) ageEl.textContent = '';
+    sigEl.textContent = "暂无";
+    sigEl.style.color = "var(--color-muted, #6b7280)";
+    if (valEl) valEl.textContent = "网关还没上线策略信号";
+    if (ageEl) ageEl.textContent = "";
     return;
   }
   sigEl.textContent = btcSignalText(s.signal);
   sigEl.style.color = btcSignalColor(s.signal);
   var v = s.value || null;
   if (valEl) {
-    if (!v) valEl.textContent = 'K 线不足，还算不出来';
-    else if (key === 'ma') valEl.textContent = 'MA7 ' + fmtUsd(v.ma7) + ' / MA25 ' + fmtUsd(v.ma25);
-    else if (key === 'rsi') valEl.textContent = 'RSI ' + Number(v.rsi).toFixed(1);
-    else valEl.textContent = 'DIF ' + Number(v.dif).toFixed(2) + ' / DEA ' + Number(v.dea).toFixed(2);
+    if (!v) valEl.textContent = "K 线不足，还算不出来";
+    else if (key === "ma") valEl.textContent = "MA7 " + fmtUsd(v.ma7) + " / MA25 " + fmtUsd(v.ma25);
+    else if (key === "rsi") valEl.textContent = "RSI " + Number(v.rsi).toFixed(1);
+    else valEl.textContent = "DIF " + Number(v.dif).toFixed(2) + " / DEA " + Number(v.dea).toFixed(2);
   }
   if (ageEl) ageEl.textContent = btcAgeText(s.updatedAt);
 }
-var btcRefreshTimer = null;
-var btcLoading = false;
-/* BTC 页自动刷新：打开 BTC 页后每 60 秒重新拉一次；切到别的页面就停掉，不在后台刷。 */
-function startBtcAutoRefresh() {
-  stopBtcAutoRefresh();
-  btcRefreshTimer = setInterval(function () {
-    var pg = document.getElementById('page-btc');
-    if (!pg || !pg.classList.contains('active')) { stopBtcAutoRefresh(); return; }
-    if (btcLoading || !masterKey()) return;
-    loadBtc(true);
-  }, 60000);
-}
-function stopBtcAutoRefresh() {
-  if (btcRefreshTimer) { clearInterval(btcRefreshTimer); btcRefreshTimer = null; }
-}
-async function loadBtc(quiet) {
-  if (!masterKey()) { showNote('note-btc', '请先在「概览」页设置主密钥，才能查看 BTC 盯盘。'); return; }
-  if (btcLoading) return;
-  btcLoading = true;
-  hideNote('note-btc');
-  if (!quiet) {
-    setText('btc-price', '加载中…');
-    setText('btc-change', '24h 涨跌幅：—');
-    setText('btc-updated', '更新时间：—');
-  }
-  var r = await api('/admin/btc/watch');
-  if (!r.ok) {
-    setText('btc-price', '—');
-    if (r.status === 404) showNote('note-btc', '网关还没上线盯盘接口（HTTP 404）：网关需要重新部署后才能看 BTC 盯盘，页面不编假数字。');
-    else if (r.status === 401) showNote('note-btc', '密钥无效：网关返回 401。');
-    else if (r.status === 0) showNote('note-btc', '网络错误：没连上网关（' + r.body + '）。');
-    else showNote('note-btc', '加载失败（HTTP ' + r.status + '）。');
-    btcLoading = false;
+function renderSigSymbol(prefix, d) {
+  if (!d) {
+    setText(prefix + "-price", "暂无");
+    setText(prefix + "-change", "24h 涨跌幅：暂无");
+    setText(prefix + "-updated", "更新时间：暂无");
+    renderSigStrategy(prefix, "ma", null);
+    renderSigStrategy(prefix, "rsi", null);
+    renderSigStrategy(prefix, "macd", null);
     return;
   }
-  var b = r.body || {};
-  setText('btc-price', b.price === null || b.price === undefined ? '—' : fmtUsd(b.price));
-  setText('btc-change', '24h 涨跌幅：' + fmtChg(b.change24h));
-  setText('btc-updated', '更新时间：' + (b.updatedAt ? fmtDateFull(b.updatedAt) : '网关还没查到过价格（每 5 分钟查一次）'));
-  var errEl = $('btc-err');
+  setText(prefix + "-price", (d.price === null || d.price === undefined) ? "暂无" : fmtUsd(d.price));
+  setText(prefix + "-change", "24h 涨跌幅：" + ((d.change24h === null || d.change24h === undefined) ? "暂无" : fmtChg(d.change24h)));
+  setText(prefix + "-updated", "更新时间：" + (d.updatedAt ? fmtDateFull(d.updatedAt) : "网关还没查到过价格"));
+  var errEl = $(prefix + "-err");
   if (errEl) {
-    var errs = [];
-    if (b.lastError) errs.push('最近一次查价失败：' + b.lastError + '（等下个 5 分钟再试）。');
-    if (b.candleError) errs.push('最近一次 K 线失败：' + b.candleError + '（信号保持上次的值，等下个 5 分钟再试）。');
-    if (errs.length) { errEl.textContent = errs.join(' '); errEl.hidden = false; }
+    if (d.candleError) { errEl.textContent = "最近一次 K 线失败：" + d.candleError + "（信号保持上次的值，等下个 5 分钟再试）。"; errEl.hidden = false; }
     else errEl.hidden = true;
   }
-  var cfg = b.config || {};
-  if ($('btc-above')) $('btc-above').value = cfg.above === null || cfg.above === undefined ? '' : cfg.above;
-  if ($('btc-below')) $('btc-below').value = cfg.below === null || cfg.below === undefined ? '' : cfg.below;
-  if ($('btc-changepct')) $('btc-changepct').value = cfg.changePct === null || cfg.changePct === undefined ? '' : cfg.changePct;
-  if ($('btc-enabled')) $('btc-enabled').checked = cfg.enabled !== false;
-  var hist = (b.history || []).slice().reverse();
-  var ht = $('btc-history-tbody');
-  if (ht) {
-    ht.innerHTML = hist.length === 0
-      ? '<tr><td colspan="3" style="text-align:center;color:var(--color-muted, #6b7280)">暂无历史：网关每 5 分钟查一次，下个 5 分钟后就有数据。</td></tr>'
-      : hist.map(function (p) {
-          return '<tr><td>' + esc(fmtDateFull(p.ts)) + '</td><td>' + esc(fmtUsd(p.price)) + '</td><td>' + esc(fmtChg(p.change24h)) + '</td></tr>';
-        }).join('');
-  }
-  renderBtcChart(b.history || []);
-  var alerts = (b.alerts || []).slice().reverse();
-  var at = $('btc-alerts-tbody');
-  if (at) {
-    at.innerHTML = alerts.length === 0
-      ? '<tr><td colspan="4" style="text-align:center;color:var(--color-muted, #6b7280)">暂无提醒</td></tr>'
-      : alerts.map(function (a) {
-          return '<tr><td>' + esc(fmtDateFull(a.ts)) + '</td><td>' + esc(fmtUsd(a.price)) + '</td><td>' + esc(btcRuleLabel(a.rule)) + '</td><td>' + esc(a.text) + '</td></tr>';
-        }).join('');
-  }
-  /* 新提醒横幅：网关记了一条新提醒就亮出来，点「知道了」后下次有新提醒再亮 */
-  var newestAlert = alerts.length ? alerts[0] : null;
-  if (newestAlert) btcLastAlertTs = newestAlert.ts;
-  var lastSeenAlert = 0;
-  try { lastSeenAlert = Number(localStorage.getItem('wb_btc_last_alert') || 0); } catch (e) {}
-  var alertBanner = $('btc-alert-banner');
-  if (alertBanner) {
-    if (newestAlert && newestAlert.ts > lastSeenAlert) {
-      var alertText = $('btc-alert-text');
-      if (alertText) alertText.textContent = 'BTC 提醒触发：' + btcRuleLabel(newestAlert.rule) + '，' + newestAlert.text + '（' + fmtDateFull(newestAlert.ts) + '）';
-      alertBanner.hidden = false;
-    } else {
-      alertBanner.hidden = true;
-    }
-  }
-  /* 策略信号（网关没部署新接口时 b.strategies 为空，老实提示，不编假信号） */
-  var st = b.strategies || null;
-  var stratErr = $('btc-strat-err');
-  if (!st) {
-    if (stratErr) { stratErr.textContent = '网关还没上线策略信号：需要重新部署网关后才能看均线/RSI/MACD，页面不编假信号。'; stratErr.hidden = false; }
-    renderBtcStrategy('ma', null);
-    renderBtcStrategy('rsi', null);
-    renderBtcStrategy('macd', null);
-  } else {
-    if (stratErr) stratErr.hidden = true;
-    renderBtcStrategy('ma', st.ma);
-    renderBtcStrategy('rsi', st.rsi);
-    renderBtcStrategy('macd', st.macd);
-  }
-  var sh = (b.signalHistory || []).slice().reverse();
-  var sht = $('btc-signal-tbody');
-  if (sht) {
-    sht.innerHTML = sh.length === 0
-      ? '<tr><td colspan="4" style="text-align:center;color:var(--color-muted, #6b7280)">暂无信号变化</td></tr>'
-      : sh.map(function (s) {
-          return '<tr><td>' + esc(fmtDateFull(s.ts)) + '</td><td>' + esc(btcRuleLabel(s.strategy)) + '</td><td>' + esc(btcSignalText(s.from)) + ' → ' + esc(btcSignalText(s.to)) + '</td><td>' + esc(fmtUsd(s.price)) + '</td></tr>';
-        }).join('');
-  }
-  btcLoading = false;
-  startBtcAutoRefresh();
+  var st = d.strategies || null;
+  renderSigStrategy(prefix, "ma", st ? st.ma : null);
+  renderSigStrategy(prefix, "rsi", st ? st.rsi : null);
+  renderSigStrategy(prefix, "macd", st ? st.macd : null);
 }
-var btcLastAlertTs = 0;
-$('btc-alert-dismiss').addEventListener('click', function () {
-  var banner = $('btc-alert-banner');
-  if (banner) banner.hidden = true;
-  try { localStorage.setItem('wb_btc_last_alert', String(btcLastAlertTs)); } catch (e) {}
-});
-$('btc-save').addEventListener('click', async function () {
-  if (!masterKey()) { showToast('请先在「概览」页设置主密钥。'); return; }
-  var above = ($('btc-above').value || '').trim();
-  var below = ($('btc-below').value || '').trim();
-  var pct = ($('btc-changepct').value || '').trim();
-  var body = {
-    enabled: $('btc-enabled').checked,
-    above: above === '' ? null : Number(above),
-    below: below === '' ? null : Number(below),
-    changePct: pct === '' ? null : Number(pct),
-  };
-  var r = await api('/admin/btc/config', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  if (r.ok) {
-    setText('btc-msg', '已保存：提醒条件已更新。');
-    loadBtc();
-  } else {
-    var msg = (r.body && r.body.error && r.body.error.message) ? r.body.error.message : ('保存失败（HTTP ' + r.status + '）');
-    setText('btc-msg', msg);
+function renderPaper(p) {
+  if (!p) {
+    setText("paper-balance", "暂无");
+    setText("paper-total", "暂无");
+    setText("paper-pnl", "暂无");
+    setText("paper-realized", "暂无");
+    setText("paper-updated", "更新时间：暂无");
+    return;
   }
+  setText("paper-balance", fmtUsd(p.balance));
+  setText("paper-total", fmtUsd(p.totalValue));
+  setText("paper-pnl", fmtPnl(p.totalPnl));
+  setText("paper-realized", fmtPnl(p.realizedPnl));
+  setText("paper-updated", "更新时间：" + (p.updatedAt ? fmtDateFull(p.updatedAt) : "暂无"));
+  var tb = $("paper-positions-tbody");
+  if (tb) {
+    var rows = [];
+    ["BTC", "NVDA"].forEach(function (sym) {
+      var pos = p.positions ? p.positions[sym] : null;
+      if (!pos) return;
+      rows.push("<tr><td>" + esc(sym) + "</td><td>" + esc(String(pos.qty)) + "</td><td>" + esc(fmtUsd(pos.avgCost)) + "</td><td>" + esc(pos.currentPrice === null || pos.currentPrice === undefined ? "暂无" : fmtUsd(pos.currentPrice)) + "</td><td>" + esc(pos.marketValue === null || pos.marketValue === undefined ? "暂无" : fmtUsd(pos.marketValue)) + "</td><td>" + esc(pos.unrealizedPnl === null || pos.unrealizedPnl === undefined ? "暂无" : fmtPnl(pos.unrealizedPnl)) + "</td></tr>");
+    });
+    tb.innerHTML = rows.length === 0
+      ? "<tr><td colspan=\"6\" style=\"text-align:center;color:var(--color-muted, #6b7280)\">暂无持仓：先下一单虚拟单，持仓会显示在这里。</td></tr>"
+      : rows.join("");
+  }
+}
+function startSignalsAutoRefresh() {
+  stopSignalsAutoRefresh();
+  signalsRefreshTimer = setInterval(function () {
+    var pg = document.getElementById("page-signals");
+    if (!pg || !pg.classList.contains("active")) { stopSignalsAutoRefresh(); return; }
+    if (signalsLoading || !masterKey()) return;
+    loadSignals(true);
+  }, 60000);
+}
+function stopSignalsAutoRefresh() {
+  if (signalsRefreshTimer) { clearInterval(signalsRefreshTimer); signalsRefreshTimer = null; }
+}
+async function loadSignals(quiet) {
+  if (!masterKey()) { showNote("note-signals", "请先在「概览」页设置主密钥，才能查看信号灯加虚拟盘。"); return; }
+  if (signalsLoading) return;
+  signalsLoading = true;
+  hideNote("note-signals");
+  if (!quiet) {
+    setText("sig-btc-price", "加载中");
+    setText("sig-nvda-price", "加载中");
+    setText("sig-btc-change", "24h 涨跌幅：加载中");
+    setText("sig-nvda-change", "24h 涨跌幅：加载中");
+    setText("sig-btc-updated", "更新时间：加载中");
+    setText("sig-nvda-updated", "更新时间：加载中");
+    setText("paper-balance", "加载中");
+    setText("paper-total", "加载中");
+    setText("paper-pnl", "加载中");
+    setText("paper-realized", "加载中");
+  }
+  var r = await api("/admin/signals");
+  if (!r.ok) {
+    setText("sig-btc-price", "暂无");
+    setText("sig-nvda-price", "暂无");
+    if (r.status === 404) showNote("note-signals", "网关还没上线信号接口（HTTP 404）：网关需要重新部署后才能看信号灯，页面不编假数字。");
+    else if (r.status === 401) showNote("note-signals", "密钥无效：网关返回 401。");
+    else if (r.status === 0) showNote("note-signals", "网络错误：没连上网关（" + r.body + "）。");
+    else showNote("note-signals", "加载失败（HTTP " + r.status + "）。");
+    signalsLoading = false;
+    return;
+  }
+  var syms = (r.body && r.body.symbols) || {};
+  renderSigSymbol("sig-btc", syms.BTC || null);
+  renderSigSymbol("sig-nvda", syms.NVDA || null);
+  var pr = await api("/admin/paper");
+  var paperErr = $("paper-err");
+  if (!pr.ok) {
+    renderPaper(null);
+    if (paperErr) {
+      if (pr.status === 404) paperErr.textContent = "网关还没上线虚拟盘接口（HTTP 404）：网关需要重新部署后才能看虚拟盘。";
+      else if (pr.status === 401) paperErr.textContent = "密钥无效：网关返回 401。";
+      else if (pr.status === 0) paperErr.textContent = "网络错误：没连上网关（" + pr.body + "）。";
+      else paperErr.textContent = "加载失败（HTTP " + pr.status + "）。";
+      paperErr.hidden = false;
+    }
+  } else {
+    if (paperErr) paperErr.hidden = true;
+    renderPaper(pr.body || null);
+  }
+  signalsLoading = false;
+  startSignalsAutoRefresh();
+}
+async function submitPaperOrder(side) {
+  if (!masterKey()) { showToast("请先在「概览」页设置主密钥。"); return; }
+  var symEl = $("paper-symbol");
+  var qtyEl = $("paper-qty");
+  var symbol = symEl ? symEl.value : "BTC";
+  var qty = qtyEl ? Number((qtyEl.value || "").trim()) : NaN;
+  if (!(qty > 0)) { showToast("先填一个大于 0 的数量。"); return; }
+  var r = await api("/admin/paper/order", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ symbol: symbol, side: side, qty: qty }) });
+  if (!r.ok) {
+    var msg = sigErrText(r);
+    setText("paper-order-msg", msg);
+    showToast(msg);
+    return;
+  }
+  setText("paper-order-msg", "");
+  showToast(side === "buy" ? "虚拟买入成功。" : "虚拟卖出成功。");
+  if (qtyEl) qtyEl.value = "";
+  renderPaper(r.body && r.body.portfolio ? r.body.portfolio : null);
+}
+$("paper-buy").addEventListener("click", function () { submitPaperOrder("buy"); });
+$("paper-sell").addEventListener("click", function () { submitPaperOrder("sell"); });
+$("paper-reset").addEventListener("click", async function () {
+  if (!masterKey()) { showToast("请先在「概览」页设置主密钥。"); return; }
+  if (!confirm("确定要重置虚拟盘吗？重置后回到 10000 USDT，持仓全部清零。")) return;
+  var r = await api("/admin/paper/reset", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({}) });
+  if (!r.ok) {
+    var msg = sigErrText(r);
+    setText("paper-order-msg", msg);
+    showToast(msg);
+    return;
+  }
+  setText("paper-order-msg", "");
+  showToast("虚拟盘已重置：回到 10000 USDT，持仓已清零。");
+  renderPaper(r.body && r.body.portfolio ? r.body.portfolio : null);
 });
 
 /* ===== 交互工具 公共懒加载 开始 ===== */
@@ -4621,136 +4669,6 @@ $("prompt-compare-clear").addEventListener("click", function () {
 });
 /* ===== 交互工具4 图片对比滑块 结束 ===== */
 
-/* ===== 交互工具6 BTC 价格走势图 开始 ===== */
-var LWC_CDN = "https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js";
-var btcChart = null;
-var btcChartSeries = null;
-var btcChartData = null;
-var btcChartLastTs = 0;
-function computeMA(values, period) {
-  var out = [];
-  var sum = 0;
-  for (var i = 0; i < values.length; i++) {
-    sum += values[i];
-    if (i >= period) { sum -= values[i - period]; }
-    out.push(i >= period - 1 ? sum / period : null);
-  }
-  return out;
-}
-function btcChartColors() {
-  var dark = document.documentElement.classList.contains("dark");
-  var bg = "#ffffff";
-  try {
-    var panel = document.querySelector("#page-btc .panel");
-    if (panel) { bg = window.getComputedStyle(panel).backgroundColor || bg; }
-  } catch (e) {}
-  return {
-    dark: dark,
-    bg: bg,
-    text: dark ? "rgba(233, 237, 245, 0.85)" : "#1f2937",
-    grid: dark ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.06)",
-    area: dark ? "#e8c268" : "#c9a227",
-    areaTop: dark ? "rgba(232, 194, 104, 0.25)" : "rgba(201, 162, 39, 0.25)",
-    ma7: dark ? "#60a5fa" : "#2563eb",
-    ma25: dark ? "#f87171" : "#dc2626"
-  };
-}
-function btcChartNote(msg) {
-  var note = $("btc-chart-note");
-  if (note) { note.textContent = msg; }
-}
-async function renderBtcChart(history) {
-  var box = $("btc-chart");
-  if (!box) { return; }
-  var pts = (history || []).filter(function (p) {
-    return p && typeof p.price === "number" && p.ts;
-  }).slice().sort(function (a, b) { return a.ts - b.ts; });
-  var dedup = [];
-  var seenT = {};
-  pts.forEach(function (p) {
-    var t = Math.floor(p.ts / 1000);
-    if (!seenT[t]) { seenT[t] = 1; dedup.push(p); }
-  });
-  pts = dedup;
-  if (pts.length < 2) {
-    btcChartNote("历史还不够，网关每 5 分钟记一条，下个 5 分钟后再看。");
-    return;
-  }
-  var lastTs = pts[pts.length - 1].ts;
-  if (btcChart && lastTs === btcChartLastTs) { return; }
-  btcChartData = pts;
-  btcChartLastTs = lastTs;
-  if (!window.LightweightCharts) {
-    btcChartNote("正在加载画图库…");
-    try {
-      await loadLibOnce("lwc", LWC_CDN);
-    } catch (e) {
-      btcChartNote("图库没加载出来，检查网络后刷新页面再看。");
-      return;
-    }
-  }
-  buildBtcChart();
-}
-function buildBtcChart() {
-  var box = $("btc-chart");
-  if (!box || !window.LightweightCharts || !btcChartData) { return; }
-  var c = btcChartColors();
-  if (btcChart) {
-    try { btcChart.remove(); } catch (e) {}
-    btcChart = null;
-  }
-  btcChart = LightweightCharts.createChart(box, {
-    width: box.clientWidth || 600,
-    height: 300,
-    layout: { background: { type: "solid", color: c.bg }, textColor: c.text },
-    grid: { vertLines: { color: c.grid }, horzLines: { color: c.grid } },
-    timeScale: { timeVisible: true, secondsVisible: false },
-    rightPriceScale: { borderColor: c.grid }
-  });
-  var closes = btcChartData.map(function (p) { return p.price; });
-  var times = btcChartData.map(function (p) { return Math.floor(p.ts / 1000); });
-  var area = btcChart.addAreaSeries({ lineColor: c.area, topColor: c.areaTop, bottomColor: "rgba(0, 0, 0, 0)", lineWidth: 2, priceLineVisible: false });
-  area.setData(btcChartData.map(function (p, i) { return { time: times[i], value: p.price }; }));
-  var ma7 = computeMA(closes, 7);
-  var ma25 = computeMA(closes, 25);
-  var s7 = btcChart.addLineSeries({ color: c.ma7, lineWidth: 1, priceLineVisible: false });
-  s7.setData(btcChartData.map(function (p, i) {
-    return ma7[i] === null ? null : { time: times[i], value: ma7[i] };
-  }).filter(function (x) { return !!x; }));
-  var s25 = btcChart.addLineSeries({ color: c.ma25, lineWidth: 1, priceLineVisible: false });
-  s25.setData(btcChartData.map(function (p, i) {
-    return ma25[i] === null ? null : { time: times[i], value: ma25[i] };
-  }).filter(function (x) { return !!x; }));
-  btcChartSeries = { area: area, ma7: s7, ma25: s25 };
-  btcChartNote("价格线加 MA7 和 MA25，数据来自网关每 5 分钟记的历史。");
-}
-function applyBtcChartTheme() {
-  if (!btcChart || !btcChartSeries) { return; }
-  var c = btcChartColors();
-  try {
-    btcChart.applyOptions({
-      layout: { background: { type: "solid", color: c.bg }, textColor: c.text },
-      grid: { vertLines: { color: c.grid }, horzLines: { color: c.grid } },
-      rightPriceScale: { borderColor: c.grid }
-    });
-    btcChartSeries.area.applyOptions({ lineColor: c.area, topColor: c.areaTop });
-    btcChartSeries.ma7.applyOptions({ color: c.ma7 });
-    btcChartSeries.ma25.applyOptions({ color: c.ma25 });
-  } catch (e) {}
-}
-var btcChartResize = null;
-function watchBtcChartSize() {
-  var box = $("btc-chart");
-  if (!box || btcChartResize || !window.ResizeObserver) { return; }
-  btcChartResize = new ResizeObserver(function () {
-    if (btcChart && box.clientWidth) {
-      try { btcChart.applyOptions({ width: box.clientWidth }); } catch (e) {}
-    }
-  });
-  btcChartResize.observe(box);
-}
-watchBtcChartSize();
-/* ===== 交互工具6 BTC 价格走势图 结束 ===== */
 
 /* ===== 交互工具 主题跟随 开始 ===== */
 var themeFollowObserver = null;
@@ -4759,7 +4677,6 @@ if (window.MutationObserver) {
     if (qdBoard) {
       try { qdBoard.editor.setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light"); } catch (e) {}
     }
-    applyBtcChartTheme();
   });
   themeFollowObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 }
