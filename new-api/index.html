@@ -1004,6 +1004,8 @@ body.page-writing #page-title, body.page-writing #page-sub { display: none; }
 #page-writing #wb-tabs, #page-writing .wb-subtabs { overflow-x: auto; }
 #page-writing .wb-layout { grid-template-columns: 1fr; }
 #page-writing .rail { position: static; max-height: none; }
+#page-writing .wb-layout { display: block; }
+#page-writing #railWrite, #page-writing #railSide { width: 100%; max-width: none; margin-left: 0; margin-right: 0; }
 #page-writing .tabbar { display: flex; }
 #page-writing #wb-tabs { display: flex; flex: 1 1 100%; margin: 0; border-bottom: 0; }
 #page-writing .actionbar { display: flex; }
@@ -1061,9 +1063,9 @@ body.page-writing #page-title, body.page-writing #page-sub { display: none; }
       }
 #page-writing #wb-toast.wb-on { opacity: 1; transform: translateX(-50%) translateY(0); }
 @media (prefers-reduced-motion: reduce) {#page-writing .progress .fill, #page-writing #wb-toast { transition: none; }
-#page-writing .skilltoggle, #page-writing .ch, #page-writing .bigbtn, #page-writing .modeseg button, #page-writing .tool, #page-writing .tbtn, #page-writing .stopbtn, #page-writing .ch-actions button { transition: none; }
+#page-writing .skilltoggle, #page-writing .ch, #page-writing .bigbtn, #page-writing .tool, #page-writing .tbtn, #page-writing .stopbtn, #page-writing .ch-actions button { transition: none; }
 #page-writing .ripple-ink, #page-writing .skel::after { animation: none !important; }}
-#page-writing .bigbtn, #page-writing .stopbtn, #page-writing .tool, #page-writing .tbtn, #page-writing .mini, #page-writing .tabbar button, #page-writing .modeseg button, #page-writing .ch-actions button, #page-writing .ch-head, #page-writing .skilltoggle, #page-writing .x, #page-writing .sheetbtns button, #page-writing .titlechips button {
+#page-writing .bigbtn, #page-writing .stopbtn, #page-writing .tool, #page-writing .tbtn, #page-writing .mini, #page-writing .tabbar button, #page-writing .ch-actions button, #page-writing .ch-head, #page-writing .skilltoggle, #page-writing .x, #page-writing .sheetbtns button, #page-writing .titlechips button {
         position: relative; overflow: hidden;
       }
 #page-writing .ripple-ink {
@@ -1086,13 +1088,6 @@ body.page-writing #page-title, body.page-writing #page-sub { display: none; }
 #page-writing .ch-skel { margin-top: 10px; }
 #page-writing .ch-skel .skel { height: 13px; margin-bottom: 9px; }
 #page-writing .ch-skel .skel:last-child { margin-bottom: 0; }
-#page-writing .modeseg { display: flex; gap: 6px; margin-bottom: 12px; }
-#page-writing .modeseg button {
-        flex: 1; min-height: 3rem; border-radius: var(--radius);
-        border: 1.5px solid var(--line); background: var(--surface); color: var(--ink-2);
-        font-size: 16px; font-weight: 700;
-      }
-#page-writing .modeseg button.wb-on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 #page-writing .novel-progress { margin-top: 10px; }
 #page-writing .novel-progress .bar { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
 #page-writing .novel-progress .fill { height: 100%; width: 0%; background: var(--gold); border-radius: 99px; transition: width 0.4s ease; }
@@ -1180,11 +1175,6 @@ body.page-writing #page-title, body.page-writing #page-sub { display: none; }
 #page-writing .ch-head { transform-style: preserve-3d; }
 #page-writing .ch-num { transform: translateZ(16px); }
 #page-writing .ch-state { transform: translateZ(28px); }
-#page-writing .modeseg button { transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease; }
-#page-writing .modeseg button.wb-on {
-        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.28), 0 6px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.22);
-      }
-#page-writing .modeseg button:active { transform: translateY(1px); }
 #page-writing .tool, #page-writing .tbtn, #page-writing .stopbtn, #page-writing .ch-actions button {
         transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
       }
@@ -1586,10 +1576,6 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
     <div class="wb-layout">
       <!-- 左栏：写作 -->
       <aside class="rail" id="railWrite">
-        <div class="modeseg" role="group" aria-label="写作模式">
-          <button type="button" id="modeShort" class="wb-on">短篇</button>
-          <button type="button" id="modeLong">长篇</button>
-        </div>
         <section id="secShort">
           <h2>短篇小说 <span class="sub">整篇一次写完</span></h2>
           <div id="secShortWrite">
@@ -6101,14 +6087,10 @@ function setMode(m) {
 saveNovel()
 mode = (m === 'long') ? 'long' : 'short'
 try { localStorage.setItem(MODE_KEY, mode) } catch (e) {}
-$('modeShort').classList.toggle('wb-on', mode === 'short')
-$('modeLong').classList.toggle('wb-on', mode === 'long')
 applyWbSections()
 if (mode === 'long') renderOutline()
 fadeSection(mode === 'long' ? $('secLong') : $('secShort'))
 }
-$('modeShort').addEventListener('click', function () { selectWbTab('short') })
-$('modeLong').addEventListener('click', function () { selectWbTab('long') })
 
 /* 生成内容清洗：模型万一写了破折号、单引号、星号，这里按硬规则清掉 */
 function cleanGenText(s) {
