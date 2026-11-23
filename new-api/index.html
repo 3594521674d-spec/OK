@@ -930,6 +930,10 @@
 #page-writing .titlerow { display: flex; gap: 8px; align-items: center; }
 #page-writing .titlerow input { flex: 1; min-width: 0; }
 #page-writing .titlerow .stopbtn { flex: 0 0 auto; }
+#page-writing .copyrow { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+#page-writing .copyrow select { flex: 1; min-width: 0; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; }
+#page-writing .copyrow .stopbtn { flex: 0 0 auto; }
+#page-writing .copyrow .copyrow-lab { flex: 0 0 auto; font-size: 13px; color: var(--ink-2); }
 #page-writing .mscript { border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 11px; margin-bottom: 8px; background: var(--surface); }
 #page-writing .mscript.cur { border-color: var(--accent); background: var(--accent-soft); }
 #page-writing .mscript .mt { font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; gap: 8px; }
@@ -1230,7 +1234,6 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
       <div class="nav-group">
         <div class="nav-group-label">通用</div>
         <button type="button" class="nav-item active" data-page="overview" data-title="概览" data-desc="余额、密钥、请求、消费、Token 一眼看完"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>概览</button>
-        <button type="button" class="nav-item" data-page="signals" data-title="信号" data-desc="BTC 与英伟达合约信号灯加自动买卖"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-5 3 3 5-7"/></svg>信号</button>
         <button type="button" class="nav-item" data-page="keys" data-title="API 密钥" data-desc="创建、查看、停用自己的调用密钥"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m11 12 9-9"/><path d="m15.5 7.5 3 3"/><path d="m18.5 4.5 2 2"/></svg>API 密钥</button>
         <button type="button" class="nav-item" data-page="logs" data-title="日志" data-desc="使用、审计、任务三类日志"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>日志</button>
       </div>
@@ -1342,162 +1345,6 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
       </div>
     </section>
 
-    <!-- ===== BTC 盯盘 ===== -->
-
-    <!-- ===== 信号灯加虚拟盘 ===== -->
-    <section class="page" id="page-signals">
-      <p class="page-note" id="note-signals" hidden></p>
-      <div class="panel">
-        <div class="row space">
-          <h2>信号灯加合约自动买卖</h2>
-          <span class="muted" style="font-size:12px">自动刷新：每 60 秒</span>
-        </div>
-        <p class="muted">BTC 与英伟达永续合约：BTC-USDT-SWAP 与 NVDA-USDT-SWAP。行情由本页直接从欧易拉，不走网关；三个策略各自独立给信号，多数方向定趋势，1 小时 K 线；信号只供参考，不保证赚钱。</p>
-      </div>
-
-      <div class="panel">
-        <div class="row space">
-          <h2>BTC 永续合约 BTC-USDT-SWAP</h2>
-          <span class="chip" id="sig-btc-source">欧易直连</span>
-        </div>
-        <div style="font-size:36px;font-weight:700;line-height:1.2;margin-top:6px" id="sig-btc-price">加载中</div>
-        <div class="row" style="margin-top:6px">
-          <span id="sig-btc-change" style="font-size:15px">24h 涨跌幅：加载中</span>
-          <span class="muted" id="sig-btc-updated">更新时间：加载中</span>
-        </div>
-        <div class="row" style="margin-top:6px">
-          <span style="font-size:15px">综合趋势：<strong id="sig-btc-trend">加载中</strong></span>
-          <span class="muted">三个信号多数方向定趋势</span>
-        </div>
-        <div class="row" style="margin-top:6px">
-          <span style="font-size:14px">计谋解读：<span id="sig-btc-scheme">加载中</span></span>
-        </div>
-        <div class="row" style="margin-top:6px">
-          <label class="row" style="gap:6px;align-items:center"><input type="checkbox" id="auto-btc"> 自动买卖（合约）</label>
-          <span class="muted" id="auto-btc-status">自动买卖关着</span>
-        </div>
-        <p class="muted" id="sig-btc-err" hidden></p>
-        <div class="row" style="margin-top:10px;align-items:stretch">
-          <div class="mini-card" style="flex:1;min-width:200px">
-            <div class="k">均线 MA7 / MA25</div>
-            <div class="v" id="sig-btc-sig-ma" style="font-size:26px">加载中</div>
-            <div class="muted" id="sig-btc-val-ma" style="font-size:13px">加载中</div>
-            <div class="muted" style="font-size:12px">MA7 上穿 MA25 为做多，下穿为做空（只看已收完的 1 小时 K 线）</div>
-            <div class="muted" id="sig-btc-age-ma" style="font-size:12px">加载中</div>
-          </div>
-          <div class="mini-card" style="flex:1;min-width:200px">
-            <div class="k">RSI（14）</div>
-            <div class="v" id="sig-btc-sig-rsi" style="font-size:26px">加载中</div>
-            <div class="muted" id="sig-btc-val-rsi" style="font-size:13px">加载中</div>
-            <div class="muted" style="font-size:12px">RSI 小于 30 为做多（超卖），大于 70 为做空（超买）</div>
-            <div class="muted" id="sig-btc-age-rsi" style="font-size:12px">加载中</div>
-          </div>
-          <div class="mini-card" style="flex:1;min-width:200px">
-            <div class="k">MACD（12,26,9）</div>
-            <div class="v" id="sig-btc-sig-macd" style="font-size:26px">加载中</div>
-            <div class="muted" id="sig-btc-val-macd" style="font-size:13px">加载中</div>
-            <div class="muted" style="font-size:12px">DIF 上穿 DEA 为做多，下穿为做空（只看已收完的 1 小时 K 线）</div>
-            <div class="muted" id="sig-btc-age-macd" style="font-size:12px">加载中</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="row space">
-          <h2>英伟达永续合约 NVDA-USDT-SWAP</h2>
-          <span class="chip" id="sig-nvda-source">欧易直连</span>
-        </div>
-        <div style="font-size:36px;font-weight:700;line-height:1.2;margin-top:6px" id="sig-nvda-price">加载中</div>
-        <div class="row" style="margin-top:6px">
-          <span id="sig-nvda-change" style="font-size:15px">24h 涨跌幅：加载中</span>
-          <span class="muted" id="sig-nvda-updated">更新时间：加载中</span>
-        </div>
-        <div class="row" style="margin-top:6px">
-          <span style="font-size:15px">综合趋势：<strong id="sig-nvda-trend">加载中</strong></span>
-          <span class="muted">三个信号多数方向定趋势</span>
-        </div>
-        <div class="row" style="margin-top:6px">
-          <span style="font-size:14px">计谋解读：<span id="sig-nvda-scheme">加载中</span></span>
-        </div>
-        <div class="row" style="margin-top:6px">
-          <label class="row" style="gap:6px;align-items:center"><input type="checkbox" id="auto-nvda"> 自动买卖（合约）</label>
-          <span class="muted" id="auto-nvda-status">自动买卖关着</span>
-        </div>
-        <p class="muted" id="sig-nvda-err" hidden></p>
-        <div class="row" style="margin-top:10px;align-items:stretch">
-          <div class="mini-card" style="flex:1;min-width:200px">
-            <div class="k">均线 MA7 / MA25</div>
-            <div class="v" id="sig-nvda-sig-ma" style="font-size:26px">加载中</div>
-            <div class="muted" id="sig-nvda-val-ma" style="font-size:13px">加载中</div>
-            <div class="muted" style="font-size:12px">MA7 上穿 MA25 为做多，下穿为做空（只看已收完的 1 小时 K 线）</div>
-            <div class="muted" id="sig-nvda-age-ma" style="font-size:12px">加载中</div>
-          </div>
-          <div class="mini-card" style="flex:1;min-width:200px">
-            <div class="k">RSI（14）</div>
-            <div class="v" id="sig-nvda-sig-rsi" style="font-size:26px">加载中</div>
-            <div class="muted" id="sig-nvda-val-rsi" style="font-size:13px">加载中</div>
-            <div class="muted" style="font-size:12px">RSI 小于 30 为做多（超卖），大于 70 为做空（超买）</div>
-            <div class="muted" id="sig-nvda-age-rsi" style="font-size:12px">加载中</div>
-          </div>
-          <div class="mini-card" style="flex:1;min-width:200px">
-            <div class="k">MACD（12,26,9）</div>
-            <div class="v" id="sig-nvda-sig-macd" style="font-size:26px">加载中</div>
-            <div class="muted" id="sig-nvda-val-macd" style="font-size:13px">加载中</div>
-            <div class="muted" style="font-size:12px">DIF 上穿 DEA 为做多，下穿为做空（只看已收完的 1 小时 K 线）</div>
-            <div class="muted" id="sig-nvda-age-macd" style="font-size:12px">加载中</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>合约虚拟盘</h2>
-        <p class="muted">虚拟保证金 10000 USDT，杠杆 1 倍，只练手，不动真钱。</p>
-        <div class="row" style="margin-top:10px;align-items:stretch">
-          <div class="mini-card" style="flex:1;min-width:140px">
-            <div class="k">保证金余额</div>
-            <div class="v" id="contract-balance" style="font-size:22px">加载中</div>
-          </div>
-          <div class="mini-card" style="flex:1;min-width:140px">
-            <div class="k">总资产</div>
-            <div class="v" id="contract-total" style="font-size:22px">加载中</div>
-          </div>
-          <div class="mini-card" style="flex:1;min-width:140px">
-            <div class="k">总盈亏</div>
-            <div class="v" id="contract-pnl" style="font-size:22px">加载中</div>
-          </div>
-          <div class="mini-card" style="flex:1;min-width:140px">
-            <div class="k">已实现盈亏</div>
-            <div class="v" id="contract-realized" style="font-size:22px">加载中</div>
-          </div>
-        </div>
-        <p class="muted" id="contract-updated" style="margin-top:8px">更新时间：加载中</p>
-        <div class="tbl-wrap" style="margin-top:10px">
-          <table class="tbl">
-            <thead><tr><th>标的</th><th>方向</th><th>数量</th><th>开仓价</th><th>现价</th><th>名义价值</th><th>浮动盈亏</th></tr></thead>
-            <tbody id="contract-positions-tbody">
-            </tbody>
-          </table>
-        </div>
-        <div class="row" style="margin-top:10px">
-          <button class="btn" id="contract-reset">重置合约虚拟盘</button>
-          <span class="muted">重置后回到 10000 USDT，持仓和交易记录清零，自动买卖也关掉。</span>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>自动交易记录</h2>
-        <div class="tbl-wrap" style="margin-top:10px">
-          <table class="tbl">
-            <thead><tr><th>时间</th><th>标的</th><th>方向</th><th>价格</th><th>数量</th><th>说明</th></tr></thead>
-            <tbody id="contract-trades-tbody">
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <p class="muted">自动买卖只在页面开着的时候跑，关掉页面就停了；虚拟盘只练手，不动真钱；信号只供参考，不保证赚钱。</p>
-    </section>
-
     <!-- ===== 对话 ===== -->
     <section class="page" id="page-chat">
       <p class="page-note" id="note-chat" hidden></p>
@@ -1570,9 +1417,6 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
             <div class="rowbtns"><button class="bigbtn" id="btnCopyShort" type="button">复制这篇</button></div>
           </div>
           <div class="tools" id="toolsShort" style="margin-top:12px">
-            <button class="tool" id="toolContinueS" type="button"><b>续写</b><span>从末尾往下接</span></button>
-            <button class="tool" id="toolExpandS" type="button"><b>扩写</b><span>把末尾一段写丰满</span></button>
-            <button class="tool" id="toolPolishS" type="button"><b>润色</b><span>改顺末尾一段</span></button>
             <button class="tool" id="toolTitlesS" type="button"><b>起标题</b><span>按正文拟 5 个名</span></button>
             <button class="tool" id="toolCopyS" type="button"><b>复制文章</b><span>整篇复制走</span></button>
           </div>
@@ -1614,11 +1458,12 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
           </div>
           </div>
           <div class="tools" id="toolsLong" style="margin-top:12px">
-            <button class="tool" id="toolContinueL" type="button"><b>续写</b><span>从本章末尾往下接</span></button>
-            <button class="tool" id="toolExpandL" type="button"><b>扩写</b><span>把本章末尾写丰满</span></button>
-            <button class="tool" id="toolPolishL" type="button"><b>润色</b><span>改顺本章末尾</span></button>
             <button class="tool" id="toolTitlesL" type="button"><b>起标题</b><span>按本章拟 5 个名</span></button>
-            <button class="tool" id="toolCopyL" type="button"><b>复制文章</b><span>复制本章正文</span></button>
+          </div>
+          <div class="copyrow" id="copyChapterRow">
+            <span class="copyrow-lab">复制章节</span>
+            <select id="copyChapterSel" aria-label="选择要复制的章节"></select>
+            <button class="stopbtn" id="btnCopyChapterSel" type="button">复制</button>
           </div>
         </section>
       </aside>
@@ -3139,10 +2984,8 @@ async function loadModels() {
 }
 /* ===== 调度与启动 ===== */
 function loadPage(page) {
-  if (page !== "signals") stopSignalsAutoRefresh();
   if (page === 'chat') { loadChat(); return; }
   if (page === 'overview') loadOverview();
-  else if (page === "signals") loadSignals();
   else if (page === 'keys') loadKeys();
   else if (page === 'logs') loadLogs();
   else if (page === 'channels') loadChannels();
@@ -3280,537 +3123,6 @@ function fmtChg(n) {
   if (!isFinite(n)) return '—';
   return (n > 0 ? '+' : '') + n.toFixed(2) + '%';
 }
-function btcSignalText(sig) {
-  if (sig === 'buy') return '做多';
-  if (sig === 'sell') return '做空';
-  return '持有';
-}
-function btcSignalColor(sig) {
-  if (sig === 'buy') return 'var(--color-success, #16a34a)';
-  if (sig === 'sell') return 'var(--color-danger, #dc2626)';
-  return 'var(--color-muted, #6b7280)';
-}
-function btcAgeText(updatedAt) {
-  if (!updatedAt) return '还没算出过';
-  var mins = Math.max(0, Math.round((Date.now() - updatedAt) / 60000));
-  if (mins < 60) return '算于 ' + mins + ' 分钟前';
-  return '算于 ' + Math.floor(mins / 60) + ' 小时 ' + (mins % 60) + ' 分钟前';
-}
-
-// 信号灯加虚拟盘（BTC 与 NVDA）
-// 信号灯加虚拟盘（BTC 与 NVDA，行情由本页直接从欧易拉，不走网关）
-var signalsRefreshTimer = null;
-var signalsLoading = false;
-var sigPrices = { BTC: null, NVDA: null };
-var CONTRACT_KEY = "wb_contract_v1";
-var CONTRACT_AUTO_KEY = "wb_contract_auto_v1";
-var CONTRACT_START = 10000;
-function fmtPnl(n) {
-  n = Number(n);
-  if (!isFinite(n)) return "暂无";
-  return (n > 0 ? "+" : "") + fmtUsd(n);
-}
-function sigRoundMoney(v) { return Math.round(v * 100) / 100; }
-function sigRoundQty(v) { return Math.round(v * 100000000) / 100000000; }
-function sigSma(values, period) {
-  if (values.length < period) return null;
-  var sum = 0;
-  for (var i = values.length - period; i < values.length; i += 1) sum += values[i];
-  return sum / period;
-}
-function sigEmaSeries(values, period) {
-  if (values.length < period) return [];
-  var sum = 0;
-  for (var i = 0; i < period; i += 1) sum += values[i];
-  var prev = sum / period;
-  var out = [prev];
-  var k = 2 / (period + 1);
-  for (var j = period; j < values.length; j += 1) {
-    prev = values[j] * k + prev * (1 - k);
-    out.push(prev);
-  }
-  return out;
-}
-function sigMaSignal(closes) {
-  if (closes.length < 26) return { signal: "hold", ma7: null, ma25: null };
-  var prev = closes.slice(0, -1);
-  var ma7Now = sigSma(closes, 7);
-  var ma25Now = sigSma(closes, 25);
-  var ma7Prev = sigSma(prev, 7);
-  var ma25Prev = sigSma(prev, 25);
-  if (ma7Now === null || ma25Now === null || ma7Prev === null || ma25Prev === null) return { signal: "hold", ma7: null, ma25: null };
-  var signal = "hold";
-  if (ma7Prev <= ma25Prev && ma7Now > ma25Now) signal = "buy";
-  else if (ma7Prev >= ma25Prev && ma7Now < ma25Now) signal = "sell";
-  return { signal: signal, ma7: ma7Now, ma25: ma25Now };
-}
-function sigRsiSignal(closes, period) {
-  period = period || 14;
-  if (closes.length < period + 1) return { signal: "hold", rsi: null };
-  var gain = 0;
-  var loss = 0;
-  for (var i = 1; i <= period; i += 1) {
-    var diff = closes[i] - closes[i - 1];
-    if (diff > 0) gain += diff; else loss -= diff;
-  }
-  var avgGain = gain / period;
-  var avgLoss = loss / period;
-  for (var j = period + 1; j < closes.length; j += 1) {
-    var d2 = closes[j] - closes[j - 1];
-    var g = d2 > 0 ? d2 : 0;
-    var l = d2 < 0 ? -d2 : 0;
-    avgGain = (avgGain * (period - 1) + g) / period;
-    avgLoss = (avgLoss * (period - 1) + l) / period;
-  }
-  var rsi;
-  if (avgLoss === 0) rsi = avgGain === 0 ? 50 : 100;
-  else { var rs = avgGain / avgLoss; rsi = 100 - 100 / (1 + rs); }
-  var signal = "hold";
-  if (rsi < 30) signal = "buy";
-  else if (rsi > 70) signal = "sell";
-  return { signal: signal, rsi: rsi };
-}
-function sigMacdSignal(closes) {
-  if (closes.length < 35) return { signal: "hold", dif: null, dea: null };
-  var ema12 = sigEmaSeries(closes, 12);
-  var ema26 = sigEmaSeries(closes, 26);
-  var dif = [];
-  for (var j = 0; j < ema26.length; j += 1) dif.push(ema12[j + 14] - ema26[j]);
-  var deaSeries = sigEmaSeries(dif, 9);
-  var n = dif.length;
-  var difNow = dif[n - 1];
-  var difPrev = dif[n - 2];
-  var deaNow = deaSeries[deaSeries.length - 1];
-  var deaPrev = deaSeries[deaSeries.length - 2];
-  var signal = "hold";
-  if (difPrev <= deaPrev && difNow > deaNow) signal = "buy";
-  else if (difPrev >= deaPrev && difNow < deaNow) signal = "sell";
-  return { signal: signal, dif: difNow, dea: deaNow };
-}
-function sigOkxJson(url) {
-  return fetch(url, { signal: AbortSignal.timeout(10000) }).then(function (res) {
-    if (!res.ok) throw new Error("欧易返回 HTTP " + res.status);
-    return res.json();
-  });
-}
-function sigOkxTicker(instId) {
-  return sigOkxJson("https://www.okx.com/api/v5/market/ticker?instId=" + instId).then(function (body) {
-    if (!body || body.code !== "0" || !body.data || !body.data.length) throw new Error("欧易返回格式不对");
-    var row = body.data[0];
-    var last = parseFloat(String(row.last === undefined ? "" : row.last));
-    var open24h = parseFloat(String(row.open24h === undefined ? "" : row.open24h));
-    if (!isFinite(last) || last <= 0 || !isFinite(open24h) || open24h <= 0) throw new Error("欧易返回的价格不是数字");
-    return { price: last, change24h: (last - open24h) / open24h * 100 };
-  });
-}
-function sigOkxCandles(instId) {
-  return sigOkxJson("https://www.okx.com/api/v5/market/candles?instId=" + instId + "&bar=1H&limit=100").then(function (body) {
-    if (!body || body.code !== "0" || !Array.isArray(body.data)) throw new Error("欧易 K 线返回格式不对");
-    var out = [];
-    body.data.forEach(function (row) {
-      if (!Array.isArray(row) || row.length < 5) return;
-      var ts = Number(row[0]);
-      var close = parseFloat(String(row[4] === undefined ? "" : row[4]));
-      if (!isFinite(ts) || ts <= 0 || !isFinite(close) || close <= 0) return;
-      var confirm = (row[8] === undefined || row[8] === null) ? "0" : String(row[8]);
-      if (confirm !== "1") return;
-      out.push({ ts: ts, close: close });
-    });
-    out.sort(function (a, b) { return a.ts - b.ts; });
-    var closes = [];
-    out.forEach(function (c) { closes.push(c.close); });
-    return closes;
-  });
-}
-function renderSigStrategy(prefix, key, s) {
-  var sigEl = $(prefix + "-sig-" + key);
-  var valEl = $(prefix + "-val-" + key);
-  var ageEl = $(prefix + "-age-" + key);
-  if (!sigEl) return;
-  if (!s) {
-    sigEl.textContent = "暂无";
-    sigEl.style.color = "var(--color-muted, #6b7280)";
-    if (valEl) valEl.textContent = "还没拉到 K 线";
-    if (ageEl) ageEl.textContent = "";
-    return;
-  }
-  sigEl.textContent = btcSignalText(s.signal);
-  sigEl.style.color = btcSignalColor(s.signal);
-  var v = s.value || null;
-  if (valEl) {
-    if (!v) valEl.textContent = "K 线不足，还算不出来";
-    else if (key === "ma") valEl.textContent = "MA7 " + fmtUsd(v.ma7) + " / MA25 " + fmtUsd(v.ma25);
-    else if (key === "rsi") valEl.textContent = "RSI " + Number(v.rsi).toFixed(1);
-    else valEl.textContent = "DIF " + Number(v.dif).toFixed(2) + " / DEA " + Number(v.dea).toFixed(2);
-  }
-  if (ageEl) ageEl.textContent = btcAgeText(s.updatedAt);
-}
-function renderSigSymbol(prefix, d) {
-  if (!d) {
-    setText(prefix + "-price", "暂无");
-    setText(prefix + "-change", "24h 涨跌幅：暂无");
-    setText(prefix + "-updated", "更新时间：暂无");
-    renderSigStrategy(prefix, "ma", null);
-    renderSigStrategy(prefix, "rsi", null);
-    renderSigStrategy(prefix, "macd", null);
-    return;
-  }
-  setText(prefix + "-price", (d.price === null || d.price === undefined) ? "暂无" : fmtUsd(d.price));
-  setText(prefix + "-change", "24h 涨跌幅：" + ((d.change24h === null || d.change24h === undefined) ? "暂无" : fmtChg(d.change24h)));
-  setText(prefix + "-updated", "更新时间：" + (d.updatedAt ? fmtDateFull(d.updatedAt) : "还没拉到价格"));
-  var errEl = $(prefix + "-err");
-  if (errEl) {
-    if (d.candleError) { errEl.textContent = "最近一次 K 线失败：" + d.candleError + "（信号保持上次的值，等下次刷新再试）。"; errEl.hidden = false; }
-    else errEl.hidden = true;
-  }
-  var st = d.strategies || null;
-  renderSigStrategy(prefix, "ma", st ? st.ma : null);
-  renderSigStrategy(prefix, "rsi", st ? st.rsi : null);
-  renderSigStrategy(prefix, "macd", st ? st.macd : null);
-}
-function contractFresh() { return { margin: CONTRACT_START, realizedPnl: 0, positions: {}, trades: [], lastTrend: {} }; }
-function contractLoad() {
-  try {
-    var raw = localStorage.getItem(CONTRACT_KEY);
-    if (!raw) return contractFresh();
-    var p = JSON.parse(raw);
-    if (!p || typeof p !== "object") return contractFresh();
-    var margin = Number(p.margin);
-    var realizedPnl = Number(p.realizedPnl);
-    if (!isFinite(margin) || margin < 0) return contractFresh();
-    if (!isFinite(realizedPnl)) realizedPnl = 0;
-    var positions = {};
-    var src = p.positions || {};
-    ["BTC", "NVDA"].forEach(function (sym) {
-      var pos = src[sym];
-      if (!pos) return;
-      var q = Number(pos.qty);
-      var a = Number(pos.entry);
-      var d = pos.dir;
-      if (isFinite(q) && q > 0 && isFinite(a) && a > 0 && (d === "long" || d === "short")) positions[sym] = { dir: d, qty: sigRoundQty(q), entry: sigRoundMoney(a) };
-    });
-    var trades = [];
-    if (Array.isArray(p.trades)) {
-      p.trades.forEach(function (t) {
-        if (!t || typeof t !== "object") return;
-        var ts = Number(t.ts);
-        var price = Number(t.price);
-        var qty = Number(t.qty);
-        if (!isFinite(ts) || ts <= 0) return;
-        if (!isFinite(price) || price <= 0) return;
-        if (!isFinite(qty) || qty <= 0) return;
-        if (t.symbol !== "BTC" && t.symbol !== "NVDA") return;
-        if (t.action !== "开多" && t.action !== "开空") return;
-        trades.push({ ts: ts, symbol: t.symbol, action: t.action, price: sigRoundMoney(price), qty: sigRoundQty(qty), note: String(t.note === undefined ? "" : t.note) });
-      });
-    }
-    var lastTrend = {};
-    var lt = p.lastTrend || {};
-    ["BTC", "NVDA"].forEach(function (sym) {
-      var v = lt[sym];
-      if (v === "buy" || v === "sell") lastTrend[sym] = v;
-    });
-    return { margin: sigRoundMoney(margin), realizedPnl: sigRoundMoney(realizedPnl), positions: positions, trades: trades.slice(-50), lastTrend: lastTrend };
-  } catch (e) { return contractFresh(); }
-}
-function contractSave(p) { try { localStorage.setItem(CONTRACT_KEY, JSON.stringify(p)); } catch (e) {} }
-function autoLoad() {
-  try {
-    var raw = localStorage.getItem(CONTRACT_AUTO_KEY);
-    if (!raw) return { BTC: false, NVDA: false };
-    var a = JSON.parse(raw);
-    if (!a || typeof a !== "object") return { BTC: false, NVDA: false };
-    return { BTC: a.BTC === true, NVDA: a.NVDA === true };
-  } catch (e) { return { BTC: false, NVDA: false }; }
-}
-function autoSave(a) { try { localStorage.setItem(CONTRACT_AUTO_KEY, JSON.stringify(a)); } catch (e) {} }
-function sigTrendMajority(maSig, rsiSig, macdSig) {
-  var buy = 0;
-  var sell = 0;
-  [maSig, rsiSig, macdSig].forEach(function (s) {
-    if (s === "buy") buy += 1;
-    else if (s === "sell") sell += 1;
-  });
-  if (buy >= 2) return "buy";
-  if (sell >= 2) return "sell";
-  return "hold";
-}
-function renderSigTrend(prefix, trend) {
-  var el = $(prefix + "-trend");
-  if (!el) return;
-  if (!trend) { el.textContent = "暂无"; el.style.color = "var(--color-muted, #6b7280)"; return; }
-  el.textContent = btcSignalText(trend);
-  el.style.color = btcSignalColor(trend);
-}
-function sigSchemeText(maSig, rsiSig, macdSig, trend) {
-  if (!trend) return "暂无";
-  var buy = 0, sell = 0;
-  [maSig, rsiSig, macdSig].forEach(function (x) { if (x === "buy") buy += 1; else if (x === "sell") sell += 1; });
-  if (trend === "buy") {
-    if (rsiSig === "sell") return "欲擒故纵：涨势在，但RSI超买，别追高，等回落再看";
-    return "顺手牵羊：信号看涨，顺势拿着，别自己吓自己";
-  }
-  if (trend === "sell") {
-    if (rsiSig === "buy") return "走为上：跌势在，RSI已超卖，别抄底，等跌稳";
-    return "釜底抽薪：跌势是真跌，别逆势接";
-  }
-  if (buy === 1 && sell === 1) return "声东击西：信号打架，有一边是假动作，别追，等分出胜负";
-  if (rsiSig === "sell") return "笑里藏刀：表面没事，RSI已超买，提防回落";
-  if (rsiSig === "buy") return "隔岸观火：RSI超卖但均线和MACD没跟，别急着抄底，先看着";
-  return "以逸待劳：三个信号都没动，等趋势出来再说";
-}
-function renderSigScheme(prefix, maSig, rsiSig, macdSig, trend) {
-  var el = $(prefix + "-scheme");
-  if (!el) return;
-  el.textContent = sigSchemeText(maSig, rsiSig, macdSig, trend);
-}
-function contractView() {
-  var p = contractLoad();
-  var view = { margin: p.margin, realizedPnl: p.realizedPnl, updatedAt: Date.now(), positions: {}, totalValue: null, totalPnl: null };
-  var locked = 0;
-  var unreal = 0;
-  var allPriced = true;
-  ["BTC", "NVDA"].forEach(function (sym) {
-    var pos = p.positions[sym];
-    if (!pos) return;
-    var cur = sigPrices[sym] ? sigPrices[sym].price : null;
-    var notional = sigRoundMoney(pos.qty * pos.entry);
-    locked = sigRoundMoney(locked + notional);
-    if (cur === null || !isFinite(cur)) {
-      view.positions[sym] = { dir: pos.dir, qty: pos.qty, entry: pos.entry, currentPrice: null, notional: null, unrealizedPnl: null };
-      allPriced = false;
-      return;
-    }
-    var upnl = pos.dir === "long" ? sigRoundMoney((cur - pos.entry) * pos.qty) : sigRoundMoney((pos.entry - cur) * pos.qty);
-    unreal = sigRoundMoney(unreal + upnl);
-    view.positions[sym] = { dir: pos.dir, qty: pos.qty, entry: pos.entry, currentPrice: cur, notional: sigRoundMoney(pos.qty * cur), unrealizedPnl: upnl };
-  });
-  var hasPos = Object.keys(view.positions).length > 0;
-  if (!hasPos) { view.totalValue = p.margin; view.totalPnl = sigRoundMoney(p.margin - CONTRACT_START); }
-  else if (allPriced) { view.totalValue = sigRoundMoney(p.margin + locked + unreal); view.totalPnl = sigRoundMoney(view.totalValue - CONTRACT_START); }
-  return view;
-}
-function renderContract(v) {
-  if (!v) {
-    setText("contract-balance", "暂无");
-    setText("contract-total", "暂无");
-    setText("contract-pnl", "暂无");
-    setText("contract-realized", "暂无");
-    setText("contract-updated", "更新时间：暂无");
-    return;
-  }
-  setText("contract-balance", fmtUsd(v.margin));
-  setText("contract-total", v.totalValue === null || v.totalValue === undefined ? "暂无" : fmtUsd(v.totalValue));
-  setText("contract-pnl", fmtPnl(v.totalPnl));
-  setText("contract-realized", fmtPnl(v.realizedPnl));
-  setText("contract-updated", "更新时间：" + (v.updatedAt ? fmtDateFull(v.updatedAt) : "暂无"));
-  var tb = $("contract-positions-tbody");
-  if (tb) {
-    var rows = [];
-    ["BTC", "NVDA"].forEach(function (sym) {
-      var pos = v.positions ? v.positions[sym] : null;
-      if (!pos) return;
-      rows.push("<tr><td>" + esc(sym) + "</td><td>" + esc(pos.dir === "long" ? "做多" : "做空") + "</td><td>" + esc(String(pos.qty)) + "</td><td>" + esc(fmtUsd(pos.entry)) + "</td><td>" + esc(pos.currentPrice === null || pos.currentPrice === undefined ? "暂无" : fmtUsd(pos.currentPrice)) + "</td><td>" + esc(pos.notional === null || pos.notional === undefined ? "暂无" : fmtUsd(pos.notional)) + "</td><td>" + esc(pos.unrealizedPnl === null || pos.unrealizedPnl === undefined ? "暂无" : fmtPnl(pos.unrealizedPnl)) + "</td></tr>");
-    });
-    tb.innerHTML = rows.length === 0
-      ? "<tr><td colspan=\"7\" style=\"text-align:center;color:var(--color-muted, #6b7280)\">暂无持仓：打开自动买卖后，趋势变了 AI 会自动开仓。</td></tr>"
-      : rows.join("");
-  }
-}
-function renderTrades() {
-  var tb = $("contract-trades-tbody");
-  if (!tb) return;
-  var p = contractLoad();
-  var list = (p.trades || []).slice().reverse();
-  if (list.length === 0) {
-    tb.innerHTML = "<tr><td colspan=\"6\" style=\"text-align:center;color:var(--color-muted, #6b7280)\">还没有自动交易：打开自动买卖开关后，趋势变了 AI 才会动手。</td></tr>";
-    return;
-  }
-  var rows = [];
-  list.slice(0, 20).forEach(function (t) {
-    rows.push("<tr><td>" + esc(fmtDateFull(t.ts)) + "</td><td>" + esc(t.symbol) + "</td><td>" + esc(t.action) + "</td><td>" + esc(fmtUsd(t.price)) + "</td><td>" + esc(String(t.qty)) + "</td><td>" + esc(t.note || "") + "</td></tr>");
-  });
-  tb.innerHTML = rows.join("");
-}
-function renderAutoToggles() {
-  var a = autoLoad();
-  var btcEl = $("auto-btc");
-  var nvdaEl = $("auto-nvda");
-  if (btcEl) btcEl.checked = a.BTC === true;
-  if (nvdaEl) nvdaEl.checked = a.NVDA === true;
-  renderAutoStatus();
-}
-function renderAutoStatus() {
-  var a = autoLoad();
-  var p = contractLoad();
-  ["BTC", "NVDA"].forEach(function (sym) {
-    var key = sym === "BTC" ? "btc" : "nvda";
-    var el = $("auto-" + key + "-status");
-    if (!el) return;
-    var on = sym === "BTC" ? a.BTC : a.NVDA;
-    var pos = p.positions ? p.positions[sym] : null;
-    var posText = pos ? (pos.dir === "long" ? "当前持仓做多" : "当前持仓做空") : "当前没有持仓";
-    var lt = p.lastTrend ? p.lastTrend[sym] : null;
-    var trendText = "";
-    if (lt === "buy") trendText = "，上次趋势做多";
-    else if (lt === "sell") trendText = "，上次趋势做空";
-    el.textContent = on ? ("自动买卖开着" + trendText + "，" + posText) : ("自动买卖关着，" + posText);
-  });
-}
-function contractMarkTrend(p, symbol, trend) {
-  if (!p.lastTrend) p.lastTrend = {};
-  p.lastTrend[symbol] = trend;
-  contractSave(p);
-}
-function maybeAutoTrade(symbol, trend, price) {
-  if (!trend || trend === "hold") return;
-  if (price === null || !isFinite(price) || price <= 0) return;
-  var a = autoLoad();
-  var on = symbol === "BTC" ? a.BTC : a.NVDA;
-  if (!on) return;
-  var p = contractLoad();
-  var last = p.lastTrend ? p.lastTrend[symbol] : null;
-  if (last === trend) return;
-  var wantDir = trend === "buy" ? "long" : "short";
-  var pos = p.positions ? p.positions[symbol] : null;
-  if (pos && pos.dir === wantDir) { contractMarkTrend(p, symbol, trend); return; }
-  var realized = 0;
-  var closedNote = "";
-  if (pos) {
-    if (pos.dir === "long") realized = sigRoundMoney((price - pos.entry) * pos.qty);
-    else realized = sigRoundMoney((pos.entry - price) * pos.qty);
-    p.realizedPnl = sigRoundMoney(p.realizedPnl + realized);
-    p.margin = sigRoundMoney(p.margin + pos.qty * pos.entry + realized);
-    closedNote = pos.dir === "long" ? "平多开空" : "平空开多";
-    delete p.positions[symbol];
-  }
-  if (p.margin <= 0) { contractMarkTrend(p, symbol, trend); return; }
-  var qty = Math.floor(p.margin / price * 100000000) / 100000000;
-  if (!(qty > 0)) { contractMarkTrend(p, symbol, trend); return; }
-  var cost = sigRoundMoney(qty * price);
-  if (cost > p.margin) {
-    qty = sigRoundQty(qty - 0.00000001);
-    cost = sigRoundMoney(qty * price);
-  }
-  if (!(qty > 0) || cost > p.margin) { contractMarkTrend(p, symbol, trend); return; }
-  p.margin = sigRoundMoney(p.margin - cost);
-  p.positions[symbol] = { dir: wantDir, qty: qty, entry: sigRoundMoney(price) };
-  var action = wantDir === "long" ? "开多" : "开空";
-  var note = closedNote ? (closedNote + "，已实现 " + fmtPnl(realized)) : (trend === "buy" ? "趋势转多" : "趋势转空");
-  if (!p.trades) p.trades = [];
-  p.trades.push({ ts: Date.now(), symbol: symbol, action: action, price: sigRoundMoney(price), qty: qty, note: note });
-  if (p.trades.length > 50) p.trades = p.trades.slice(-50);
-  contractMarkTrend(p, symbol, trend);
-}
-function startSignalsAutoRefresh() {
-  stopSignalsAutoRefresh();
-  signalsRefreshTimer = setInterval(function () {
-    var pg = document.getElementById("page-signals");
-    if (!pg || !pg.classList.contains("active")) { stopSignalsAutoRefresh(); return; }
-    if (signalsLoading) return;
-    loadSignals(true);
-  }, 60000);
-}
-function stopSignalsAutoRefresh() {
-  if (signalsRefreshTimer) { clearInterval(signalsRefreshTimer); signalsRefreshTimer = null; }
-}
-async function sigLoadOne(symbol, instId, prefix) {
-  var now = Date.now();
-  var quote;
-  try {
-    quote = await sigOkxTicker(instId);
-  } catch (e) {
-    sigPrices[symbol] = null;
-    renderSigSymbol(prefix, null);
-    renderSigTrend(prefix, null);
-    renderSigScheme(prefix, null, null, null, null);
-    var errEl = $(prefix + "-err");
-    if (errEl) { errEl.textContent = "行情拉不到：欧易没回数据，等下次刷新再试。"; errEl.hidden = false; }
-    return { symbol: symbol, price: null, trend: null, fresh: false };
-  }
-  sigPrices[symbol] = { price: quote.price, change24h: quote.change24h, updatedAt: now };
-  var closes = null;
-  var candleError = "";
-  try {
-    closes = await sigOkxCandles(instId);
-  } catch (e) {
-    candleError = (e && e.message) ? e.message : "K 线拉取失败";
-  }
-  var strategies = null;
-  var trend = null;
-  if (closes && closes.length > 0) {
-    var ma = sigMaSignal(closes);
-    var rsi = sigRsiSignal(closes, 14);
-    var macd = sigMacdSignal(closes);
-    strategies = {
-      ma: { signal: ma.signal, value: (ma.ma7 === null) ? null : { ma7: ma.ma7, ma25: ma.ma25 }, updatedAt: now },
-      rsi: { signal: rsi.signal, value: (rsi.rsi === null) ? null : { rsi: rsi.rsi }, updatedAt: now },
-      macd: { signal: macd.signal, value: (macd.dif === null) ? null : { dif: macd.dif, dea: macd.dea }, updatedAt: now }
-    };
-    trend = sigTrendMajority(ma.signal, rsi.signal, macd.signal);
-  }
-  renderSigSymbol(prefix, { price: quote.price, change24h: quote.change24h, updatedAt: now, candleError: candleError, strategies: strategies });
-  renderSigTrend(prefix, trend);
-  renderSigScheme(prefix, ma ? ma.signal : null, rsi ? rsi.signal : null, macd ? macd.signal : null, trend);
-  return { symbol: symbol, price: quote.price, trend: trend, fresh: (closes !== null && closes.length > 0 && trend !== null) };
-}
-async function loadSignals(quiet) {
-  if (signalsLoading) return;
-  signalsLoading = true;
-  hideNote("note-signals");
-  if (!quiet) {
-    setText("sig-btc-price", "加载中");
-    setText("sig-nvda-price", "加载中");
-    setText("sig-btc-change", "24h 涨跌幅：加载中");
-    setText("sig-nvda-change", "24h 涨跌幅：加载中");
-    setText("sig-btc-updated", "更新时间：加载中");
-    setText("sig-nvda-updated", "更新时间：加载中");
-    setText("sig-btc-trend", "加载中");
-    setText("sig-nvda-trend", "加载中");
-    setText("sig-btc-scheme", "加载中");
-    setText("sig-nvda-scheme", "加载中");
-    setText("contract-balance", "加载中");
-    setText("contract-total", "加载中");
-    setText("contract-pnl", "加载中");
-    setText("contract-realized", "加载中");
-  }
-  var results = await Promise.all([
-    sigLoadOne("BTC", "BTC-USDT-SWAP", "sig-btc"),
-    sigLoadOne("NVDA", "NVDA-USDT-SWAP", "sig-nvda")
-  ]);
-  results.forEach(function (r) {
-    if (r && r.fresh) maybeAutoTrade(r.symbol, r.trend, r.price);
-  });
-  renderAutoToggles();
-  renderContract(contractView());
-  renderTrades();
-  if (!sigPrices.BTC && !sigPrices.NVDA) showNote("note-signals", "行情拉不到：欧易没回数据，检查网络后等下次刷新再试。");
-  signalsLoading = false;
-  startSignalsAutoRefresh();
-}
-$("auto-btc").addEventListener("change", function () {
-  var a = autoLoad();
-  a.BTC = $("auto-btc").checked === true;
-  autoSave(a);
-  renderAutoStatus();
-  showToast(a.BTC ? "BTC 自动买卖已打开。" : "BTC 自动买卖已关闭。");
-});
-$("auto-nvda").addEventListener("change", function () {
-  var a = autoLoad();
-  a.NVDA = $("auto-nvda").checked === true;
-  autoSave(a);
-  renderAutoStatus();
-  showToast(a.NVDA ? "英伟达自动买卖已打开。" : "英伟达自动买卖已关闭。");
-});
-$("contract-reset").addEventListener("click", function () {
-  if (!confirm("确定要重置合约虚拟盘吗？重置后回到 10000 USDT，持仓和交易记录全部清零，自动买卖也关掉。")) return;
-  contractSave(contractFresh());
-  autoSave({ BTC: false, NVDA: false });
-  renderAutoToggles();
-  renderContract(contractView());
-  renderTrades();
-  showToast("合约虚拟盘已重置：回到 10000 USDT，持仓已清零，自动买卖已关闭。");
-});
 
 /* ===== 交互工具 公共懒加载 开始 ===== */
 var SORTABLE_CDN = "https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js";
@@ -4151,7 +3463,7 @@ return false
 }
 function setBusy(on) {
 busy = on
-;['btnStory', 'btnResume', 'toolContinueS', 'toolExpandS', 'toolPolishS', 'toolTitlesS', 'toolContinueL', 'toolExpandL', 'toolPolishL', 'toolTitlesL'].forEach(function (id) { var el = $(id); if (el) el.disabled = on})
+;['btnStory', 'btnResume', 'toolTitlesS', 'toolTitlesL'].forEach(function (id) { var el = $(id); if (el) el.disabled = on})
 ;['btnStop'].forEach(function (id) { var el = $(id); if (el) el.disabled =!on})
 refreshAutoBtn()
 }
@@ -4401,13 +3713,7 @@ b.addEventListener('click', function () { if (target) { target.value = t; if (ta
 box.appendChild(b)
 })
 }
-$('toolContinueS').addEventListener('click', function () { runTool('continue')})
-$('toolExpandS').addEventListener('click', function () { runTool('expand')})
-$('toolPolishS').addEventListener('click', function () { runTool('polish')})
 $('toolTitlesS').addEventListener('click', function () { runTool('titles')})
-$('toolContinueL').addEventListener('click', function () { runTool('continue')})
-$('toolExpandL').addEventListener('click', function () { runTool('expand')})
-$('toolPolishL').addEventListener('click', function () { runTool('polish')})
 $('toolTitlesL').addEventListener('click', function () { runTool('titles')})
 async function copyPlainText(t, emptyMsg) {
 if (!t || !t.trim()) { toast(emptyMsg); return }
@@ -4422,7 +3728,12 @@ ta.remove()
 }
 }
 $('toolCopyS').addEventListener('click', function () { copyPlainText(currentShortText(), '正文是空的，先写出正文再复制') })
-$('toolCopyL').addEventListener('click', function () { var n = toolCurrentChapter(); copyPlainText(n ? (novel.chapters[n] || '') : '', '长篇还没写出正文，先写一章') })
+$('btnCopyChapterSel').addEventListener('click', function () {
+var sel = $('copyChapterSel')
+if (!sel || sel.disabled || !sel.value) { toast('还没有大纲，先点「生成大纲」'); return }
+copyChapter(parseInt(sel.value, 10))
+})
+$('copyChapterSel').addEventListener('change', function () { copySelTouched = true })
 
 $('btnSheetReplace').addEventListener('click', function () {
 if (!sheetCtx) return
@@ -5011,11 +4322,44 @@ wrap.appendChild(head); wrap.appendChild(body)
 chapterEls[n] = { head: head, body: body, titleEl: titleEl, stateEl: stateEl, wcEl: wcEl, titleInput: titleInput, sumInput: sumInput, skelEl: skelEl, fillEl: fillEl, ptextEl: ptextEl, btnWrite: btnWrite, btnResume: btnResume, btnRetitle: btnRetitle, btnRewrite: btnRewrite, btnDel: btnDel, btnCopy: btnCopy, btnStop: btnStop }
 return wrap
 }
+/* ── 长篇复制章节：下拉选一章，旁边固定复制按钮 ── */
+var copySelTouched = false
+function lastWrittenChapter() {
+var n = 0
+for (var k in novel.chapters) { var i = parseInt(k, 10); if (!isNaN(i) && (novel.chapters[k] || '').trim() && i > n) n = i }
+return n
+}
+function refreshCopyChapterSel() {
+var sel = $('copyChapterSel')
+if (!sel) return
+var prev = sel.value ? parseInt(sel.value, 10) : NaN
+sel.innerHTML = ''
+if (!novel.outline.length) {
+var o0 = document.createElement('option')
+o0.value = ''
+o0.textContent = '还没有大纲'
+sel.appendChild(o0)
+sel.value = ''
+sel.disabled = true
+return
+}
+sel.disabled = false
+novel.outline.forEach(function (c, i) {
+var o = document.createElement('option')
+o.value = String(i + 1)
+o.textContent = '第' + (i + 1) + '章 · ' + (c.title || '')
+sel.appendChild(o)
+})
+var pick = NaN
+if (copySelTouched && !isNaN(prev) && prev >= 1 && prev <= novel.outline.length) pick = prev
+if (isNaN(pick)) { var lw = lastWrittenChapter(); pick = (lw >= 1 && lw <= novel.outline.length) ? lw : 1 }
+sel.value = String(pick)
+}
 function renderOutline() {
 var box = $('outlineList')
 if (!box) return
 var sig = JSON.stringify(novel.outline)
-if (renderedOutlineSig === sig && box.childElementCount > 0) { updateBookProgress(); return }
+if (renderedOutlineSig === sig && box.childElementCount > 0) { updateBookProgress(); refreshCopyChapterSel(); return }
 renderedOutlineSig = sig
 box.innerHTML = ''
 chapterEls = {}
@@ -5030,6 +4374,7 @@ staggerCards(box)
 for (var n = 1; n <= novel.outline.length; n++) updateChapterRow(n)
 updateBookProgress()
 initOutlineSortable()
+refreshCopyChapterSel()
 }
 
 /* ===== 交互工具5a 长篇大纲拖拽调序 开始 ===== */
@@ -5239,6 +4584,7 @@ if (e.name === 'AbortError') aborted = true; else err = e
 hideChapterSkel(n)
 setBusy(false); novelGenN = 0; refreshAllRows(); updateBookProgress()
 saveNovel()
+refreshCopyChapterSel()
 var final = countChars(novel.chapters[n] || '')
 if (aborted) { setChapterMsg(n, '已停止，已写 ' + final.toLocaleString('zh-CN') + ' 字，点「接着写完」可继续'); toast('已停止') }
 else if (err) { setChapterMsg(n, '中断了：' + err.message + '。已写 ' + final.toLocaleString('zh-CN') + ' 字，点「接着写完」继续'); toast('生成中断：' + err.message) }
@@ -5344,6 +4690,7 @@ chapterEls = {}
 chapterCounts = {}
 chapterMsg = {}
 renderedOutlineSig = ''
+copySelTouched = false
 $('novelTitle').value = ''
 $('novelSynopsis').value = ''
 saveNovel(); renderOutline()
