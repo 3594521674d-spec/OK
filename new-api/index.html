@@ -988,14 +988,14 @@ body.page-writing .layout > main { overflow: hidden; overscroll-behavior: none; 
 body.page-writing #page-title, body.page-writing #page-sub { display: none; }
 #page-writing.active { display: flex; flex-direction: column; height: 100%; overflow: hidden; overscroll-behavior: none; }
 #page-writing .topbar { position: static; flex: none; max-width: 100%; }
-#page-writing .wb-layout { display: block; flex: 1; min-height: 0; overflow: hidden; padding: 10px 10px 12px; gap: 10px; }
+#page-writing .wb-layout { display: block; flex: 1; min-height: 0; overflow: hidden; padding: 10px 10px 12px; gap: 10px; max-width: none; margin: 0; }
 #page-writing .rail { height: 100%; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 #page-writing .tabbar { position: static; flex: none; }
 #page-writing #wb-tabs { overflow-x: auto; }
 #page-writing .wb-layout { grid-template-columns: 1fr; }
 #page-writing .rail { position: static; max-height: none; }
 #page-writing .wb-layout { display: block; }
-#page-writing #railWrite, #page-writing #railSide { width: 100%; max-width: none; margin-left: 0; margin-right: 0; }
+#page-writing #railWrite, #page-writing #railSide, #page-writing #secShort, #page-writing #secLong { width: 100% !important; max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; }
 #page-writing .tabbar { display: flex; }
 #page-writing #wb-tabs { display: flex; flex: 1 1 100%; margin: 0; border-bottom: 0; }
 #page-writing .actionbar { display: flex; }
@@ -1542,7 +1542,10 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
           <div id="secShortWrite">
           <div class="wb-field">
             <label for="shortTitleInput">书名</label>
-            <input id="shortTitleInput" type="text" placeholder="给这篇短篇起个名（可让 AI 起）" autocomplete="off" />
+            <div class="titlerow">
+              <input id="shortTitleInput" type="text" placeholder="给这篇短篇起个名（可让 AI 起）" autocomplete="off" />
+              <button class="stopbtn" id="btnShortTitle" type="button">让 AI 起</button>
+            </div>
           </div>
           <button class="bigbtn" id="btnStory" type="button">写一整篇短篇</button>
           <div class="rowbtns">
@@ -1571,6 +1574,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
             <button class="tool" id="toolExpandS" type="button"><b>扩写</b><span>把末尾一段写丰满</span></button>
             <button class="tool" id="toolPolishS" type="button"><b>润色</b><span>改顺末尾一段</span></button>
             <button class="tool" id="toolTitlesS" type="button"><b>起标题</b><span>按正文拟 5 个名</span></button>
+            <button class="tool" id="toolCopyS" type="button"><b>复制文章</b><span>整篇复制走</span></button>
           </div>
           </div>
         </section>
@@ -1614,6 +1618,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
             <button class="tool" id="toolExpandL" type="button"><b>扩写</b><span>把本章末尾写丰满</span></button>
             <button class="tool" id="toolPolishL" type="button"><b>润色</b><span>改顺本章末尾</span></button>
             <button class="tool" id="toolTitlesL" type="button"><b>起标题</b><span>按本章拟 5 个名</span></button>
+            <button class="tool" id="toolCopyL" type="button"><b>复制文章</b><span>复制本章正文</span></button>
           </div>
         </section>
       </aside>
@@ -4392,7 +4397,7 @@ function renderTitleChips(text, target) {
 var box = $('titleChips'); box.innerHTML = ''
 text.split('\n').map(function (s) { return s.replace(/^[\d、.．·\-—\s"「『]+/, '').replace(/["」』]$/, '').trim()}).filter(Boolean).slice(0, 6).forEach(function (t) {
 var b = document.createElement('button'); b.type = 'button'; b.textContent = t
-b.addEventListener('click', function () { if (target) { target.value = t; if (target === $('novelTitle')) { novel.title = t; saveNovelSoon() } } else toolSetTitleOf(t); closeScrim('sheetScrim'); toast('标题已填上')})
+b.addEventListener('click', function () { if (target) { target.value = t; if (target === $('novelTitle')) { novel.title = t; saveNovelSoon() } else if (target === $('shortTitleInput')) { shortStory.title = t; saveShortStory(); renderShortResult() } } else toolSetTitleOf(t); closeScrim('sheetScrim'); toast('标题已填上')})
 box.appendChild(b)
 })
 }
@@ -4404,6 +4409,20 @@ $('toolContinueL').addEventListener('click', function () { runTool('continue')})
 $('toolExpandL').addEventListener('click', function () { runTool('expand')})
 $('toolPolishL').addEventListener('click', function () { runTool('polish')})
 $('toolTitlesL').addEventListener('click', function () { runTool('titles')})
+async function copyPlainText(t, emptyMsg) {
+if (!t || !t.trim()) { toast(emptyMsg); return }
+var v = cleanGenText(t)
+try { await navigator.clipboard.writeText(v); toast('已复制') }
+catch (e) {
+var ta = document.createElement('textarea')
+ta.value = v
+document.body.appendChild(ta); ta.select()
+try { document.execCommand('copy'); toast('已复制') } catch (_) { toast('复制失败，请手动选中复制') }
+ta.remove()
+}
+}
+$('toolCopyS').addEventListener('click', function () { copyPlainText(currentShortText(), '正文是空的，先写出正文再复制') })
+$('toolCopyL').addEventListener('click', function () { var n = toolCurrentChapter(); copyPlainText(n ? (novel.chapters[n] || '') : '', '长篇还没写出正文，先写一章') })
 
 $('btnSheetReplace').addEventListener('click', function () {
 if (!sheetCtx) return
@@ -5373,6 +5392,35 @@ setBusy(false)
 }
 $('btnNovelSynopsis').addEventListener('click', genNovelSynopsis)
 
+async function genShortTitle() {
+if (busy) return
+if (!ensureKey()) return
+var storyText = currentShortText()
+var parts = []
+parts.push(settingsText())
+if (storyText.trim()) parts.push('正文开头：\n' + storyText.slice(0, 1600))
+sheetCtx = { mode: 'titles', start: 0, end: 0 }
+openSheet('标题候选', '点任意一个标题，就填到书名栏。', 'titles')
+setBusy(true); setStatus('AI 正在起标题…')
+var acc = ''
+try {
+await streamChat([
+{ role: 'system', content: effectiveTitleSystem() },
+{ role: 'user', content: '下面是一篇短篇小说的设定' + (storyText.trim() ? '和正文开头' : '') + '，请给它拟 5 个书名，每个一行，不要编号、不要引号、不要解释，每个书名不超过 14 个字，要能勾起点击欲：\n\n' + parts.join('\n') + '\n\n参考书名（只学起名的路子，不要照抄）：\n' + TITLE_EXAMPLES }
+], {
+temperature: 0.85,
+maxTokens: 4000,
+onDelta: function (d) { acc += d; $('sheetText').value = acc; $('sheetText').scrollTop = $('sheetText').scrollHeight }
+})
+renderTitleChips(acc, $('shortTitleInput'))
+setStatus('处理完了')
+} catch (e) {
+if (e.name === 'AbortError') { setStatus('已停止') }
+else { setStatus('出错：' + e.message); toast(e.message) }
+}
+setBusy(false)
+}
+$('btnShortTitle').addEventListener('click', genShortTitle);
 async function genNovelTitle() {
 if (busy || novelGenN !== 0 || novelLock) return
 if (!ensureKey()) return
