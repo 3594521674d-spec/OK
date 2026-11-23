@@ -446,6 +446,11 @@
   .chat-bubble-assistant { background: var(--color-surface, #ffffff); }
   .btc-banner { background: var(--color-accent-soft, rgba(201, 162, 39, 0.14)); border: 1px solid var(--color-accent, #c9a227); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; font-size: 14px; line-height: 1.6; }
   .btc-banner span { flex: 1; }
+  .seg-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--color-border, #e5e7eb); border-radius: 10px; margin-bottom: 8px; background: var(--color-surface, #ffffff); }
+  .seg-drag { flex: none; cursor: grab; touch-action: manipulation; font-size: 18px; line-height: 1.4; color: var(--color-muted, #6b7280); padding: 2px 6px; }
+  .seg-body { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+  .sort-ghost { opacity: 0.4; }
+  #prompt-board { height: 420px; border: 1px solid var(--color-border, #e5e7eb); border-radius: 10px; overflow: hidden; background: var(--color-surface, #ffffff); }
   .pager-boxed { border: 1px solid var(--color-border, #e5e7eb); border-radius: 12px; }
   .redeem-code-out { background: var(--color-ink, #111827); color: var(--color-accent, #c9a227); border-radius: 8px; padding: 10px 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; word-break: break-all; margin-top: 10px; display: flex; align-items: center; gap: 10px; }
   .redeem-code-out span { flex: 1; }
@@ -658,6 +663,12 @@
       </div>
 
       <div class="panel">
+        <h2>价格走势</h2>
+        <p class="muted" style="font-size:13px" id="btc-chart-note">价格线加 MA7 和 MA25，数据来自网关每 5 分钟记的历史。</p>
+        <div id="btc-chart" style="height:300px;margin-top:10px"></div>
+      </div>
+
+      <div class="panel">
         <h2>策略信号（5m K 线，每 5 分钟算一次）</h2>
         <p class="muted">只看不下单：三个策略各自独立给信号，不合成总信号；信号只供你手动下单参考，不保证赚钱。</p>
         <p class="muted" id="btc-strat-err" hidden></p>
@@ -823,6 +834,42 @@
         <div id="prompt-verify" hidden style="margin-top:12px;padding:10px 12px;border:1px solid var(--color-border, #e5e7eb);border-radius:10px;font-size:13px;line-height:1.7"></div>
       </div>
       <p class="muted" style="font-size:13px;color:var(--color-muted, #6b7280)">小说不用粘贴：直接读写作页存在手机本地的那本（标题、大纲和已写好的章节）。参考摘要 4 千字，又便宜又快；参考全文 11 万字，更准但一次花得多。出的提示词按 30 秒幸运7模板：6 段，每段 5 秒。</p>
+      <div class="panel" id="prompt-seg-wrap" hidden>
+        <h2>分段调序</h2>
+        <p class="muted" style="font-size:13px">下面是刚出的 6 段提示词，按住每段开头的符号拖动可以调顺序，调完点复制就是调好顺序的版本。</p>
+        <div id="prompt-seg-list"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn btn-primary" id="prompt-seg-copy">复制调序后的结果</button>
+          <button class="btn" id="prompt-seg-reset">恢复原顺序</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="row space">
+          <h2>分镜画布</h2>
+          <button class="btn" id="prompt-board-toggle">打开画布</button>
+        </div>
+        <p class="muted" style="font-size:13px">6 段提示词各是一张便签，在画布上拖动、缩放，改动自动存在本机，下次打开还在。</p>
+        <div id="prompt-board-wrap" hidden>
+          <div id="prompt-board"></div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn" id="prompt-board-reseed">重新排 6 格</button>
+            <button class="btn" id="prompt-board-clear">清空画布</button>
+            <span class="muted" id="prompt-board-status" style="font-size:13px"></span>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>图片对比</h2>
+        <p class="muted" style="font-size:13px" id="prompt-compare-hint">先选两张图：左边放改前，右边放改后，选好就能拖滑块左右对比。适合同一资产改版前后、海报两版放一起看。</p>
+        <div class="row" style="margin-top:10px">
+          <label class="muted" for="prompt-compare-before">改前</label>
+          <input type="file" id="prompt-compare-before" accept="image/png,image/jpeg,image/webp,image/gif,image/heic,image/heif">
+          <label class="muted" for="prompt-compare-after">改后</label>
+          <input type="file" id="prompt-compare-after" accept="image/png,image/jpeg,image/webp,image/gif,image/heic,image/heif">
+          <button class="btn" id="prompt-compare-clear">清空对比</button>
+        </div>
+        <div id="prompt-compare-box" style="margin-top:10px"></div>
+      </div>
     </section>
 
     <!-- ===== API 密钥 ===== -->
@@ -2827,6 +2874,7 @@ async function sendPrompt() {
       if (!promptResultText && out) out.textContent = '（上游没有返回内容）';
     }
     verifyPromptDialogues();
+    renderPromptSegments();
     if (status) status.textContent = promptScope === 'full' ? '已出（参考全文）' : '已出（参考摘要）';
     if (copyBtn) copyBtn.disabled = !promptResultText;
   } catch (e) {
@@ -3144,6 +3192,7 @@ async function loadBtc(quiet) {
           return '<tr><td>' + esc(fmtDateFull(p.ts)) + '</td><td>' + esc(fmtUsd(p.price)) + '</td><td>' + esc(fmtChg(p.change24h)) + '</td></tr>';
         }).join('');
   }
+  renderBtcChart(b.history || []);
   var alerts = (b.alerts || []).slice().reverse();
   var at = $('btc-alerts-tbody');
   if (at) {
@@ -3220,6 +3269,459 @@ $('btc-save').addEventListener('click', async function () {
     setText('btc-msg', msg);
   }
 });
+
+/* ===== 交互工具 公共懒加载 开始 ===== */
+var SORTABLE_CDN = "https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js";
+var libPromises = {};
+function loadLibScript(src) {
+  return new Promise(function (resolve, reject) {
+    var s = document.createElement("script");
+    s.src = src;
+    s.onload = function () { resolve(); };
+    s.onerror = function () { reject(new Error("load failed")); };
+    document.head.appendChild(s);
+  });
+}
+function loadLibOnce(key, src) {
+  if (!libPromises[key]) { libPromises[key] = loadLibScript(src); }
+  return libPromises[key];
+}
+/* ===== 交互工具 公共懒加载 结束 ===== */
+
+/* ===== 交互工具5b 提示词分段调序 开始 ===== */
+function parsePromptSegments(text) {
+  var segs = [];
+  if (!text) { return segs; }
+  var cnNum = { "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6 };
+  var lines = String(text).split("\n");
+  var cur = null;
+  function flush() {
+    if (cur && cur.body.trim()) { segs.push(cur); }
+    cur = null;
+  }
+  lines.forEach(function (line) {
+    var m = line.match(/^\s*#{0,3}\s*第\s*([一二三四五六1-6])\s*段/);
+    var n = 0;
+    if (m) {
+      n = cnNum[m[1]] || parseInt(m[1], 10);
+    } else {
+      var t = line.match(/^\s*[（(]?\s*(\d{1,2})\s*[-~～到]\s*(\d{1,2})\s*秒/);
+      if (t) {
+        var start = parseInt(t[1], 10);
+        n = Math.floor(start / 5) + 1;
+        if (n < 1 || n > 6) { n = 0; }
+      }
+    }
+    if (n >= 1 && n <= 6) {
+      if (cur && cur.n === n) { return; }
+      flush();
+      var tm = line.match(/(\d{1,2})\s*[-~～到]\s*(\d{1,2})\s*秒/);
+      var title = "第" + n + "段" + (tm ? " " + tm[1] + "到" + tm[2] + "秒" : "");
+      cur = { n: n, title: title, body: "" };
+      var rest = line.replace(/^\s*#{0,3}\s*第\s*[一二三四五六1-6]\s*段\s*(?:[（(][^）)]*[）)]\s*)?[：:\s]*/, "");
+      if (!m && tm) {
+        rest = line.replace(/^\s*[（(]?\s*\d{1,2}\s*[-~～到]\s*\d{1,2}\s*秒\s*[）)]?\s*[：:\s]*/, "");
+      }
+      if (rest.trim()) { cur.body = rest.trim() + "\n"; }
+      return;
+    }
+    if (cur) { cur.body += line + "\n"; }
+  });
+  flush();
+  segs.sort(function (a, b) { return a.n - b.n; });
+  var out = [];
+  var seenN = {};
+  segs.forEach(function (s) {
+    if (!seenN[s.n]) { seenN[s.n] = 1; out.push(s); }
+  });
+  return out;
+}
+var promptSegs = [];
+var segSortable = null;
+function renderPromptSegments() {
+  var wrap = $("prompt-seg-wrap");
+  var list = $("prompt-seg-list");
+  if (!wrap || !list) { return; }
+  var segs = parsePromptSegments(promptResultText);
+  promptSegs = segs;
+  if (segs.length < 2) {
+    wrap.hidden = true;
+    list.innerHTML = "";
+    if (segSortable) { segSortable.destroy(); segSortable = null; }
+    return;
+  }
+  wrap.hidden = false;
+  list.innerHTML = "";
+  segs.forEach(function (s) {
+    var item = document.createElement("div");
+    item.className = "seg-item";
+    item.setAttribute("data-n", String(s.n));
+    var grip = document.createElement("span");
+    grip.className = "seg-drag";
+    grip.textContent = "≡";
+    grip.title = "按住拖动调顺序";
+    var body = document.createElement("div");
+    body.className = "seg-body";
+    var t = document.createElement("strong");
+    t.textContent = s.title;
+    var p = document.createElement("div");
+    p.textContent = s.body.trim();
+    body.appendChild(t);
+    body.appendChild(p);
+    item.appendChild(grip);
+    item.appendChild(body);
+    list.appendChild(item);
+  });
+  initSegSortable();
+}
+function initSegSortable() {
+  var list = $("prompt-seg-list");
+  if (!list || segSortable) { return; }
+  if (!window.Sortable) {
+    loadLibOnce("sortable", SORTABLE_CDN).then(function () { initSegSortable(); }).catch(function () {});
+    return;
+  }
+  segSortable = new Sortable(list, {
+    animation: 150,
+    handle: ".seg-drag",
+    draggable: ".seg-item",
+    ghostClass: "sort-ghost",
+    delay: 120,
+    delayOnTouchOnly: true,
+    onEnd: function () { applySegOrder(); }
+  });
+}
+function applySegOrder() {
+  var list = $("prompt-seg-list");
+  if (!list) { return; }
+  var order = [];
+  var items = list.querySelectorAll(".seg-item");
+  for (var i = 0; i < items.length; i++) {
+    var n = parseInt(items[i].getAttribute("data-n") || "0", 10);
+    if (n) { order.push(n); }
+  }
+  var byN = {};
+  promptSegs.forEach(function (s) { byN[s.n] = s; });
+  var next = [];
+  order.forEach(function (n) { if (byN[n]) { next.push(byN[n]); } });
+  if (next.length === promptSegs.length) { promptSegs = next; }
+}
+function copyOrderedSegments() {
+  if (!promptSegs.length) { return; }
+  var text = promptSegs.map(function (s) { return s.title + "\n" + s.body.trim(); }).join("\n\n");
+  copyText(text, $("prompt-seg-copy"));
+}
+function resetSegOrder() {
+  promptSegs = parsePromptSegments(promptResultText);
+  renderPromptSegments();
+}
+$("prompt-seg-copy").addEventListener("click", copyOrderedSegments);
+$("prompt-seg-reset").addEventListener("click", resetSegOrder);
+/* ===== 交互工具5b 提示词分段调序 结束 ===== */
+
+/* ===== 交互工具3 分镜画布 开始 ===== */
+var QD_CDN_JS = "https://cdn.jsdelivr.net/npm/@quickdrawjs/core@0.3.0/src/index.js";
+var QD_CDN_CSS = "https://cdn.jsdelivr.net/npm/@quickdrawjs/core@0.3.0/src/quickdraw.css";
+var QD_STORE_KEY = "wb_storyboard_v1";
+var qdBoard = null;
+var qdModule = null;
+var qdOpen = false;
+var qdCssLoaded = false;
+var qdSaveTimer = null;
+function setBoardStatus(msg) {
+  var el = $("prompt-board-status");
+  if (el) { el.textContent = msg; }
+}
+function saveBoardSoon() {
+  if (!qdBoard) { return; }
+  clearTimeout(qdSaveTimer);
+  qdSaveTimer = setTimeout(function () {
+    try {
+      localStorage.setItem(QD_STORE_KEY, JSON.stringify(qdBoard.editor.store.getSnapshot()));
+    } catch (e) {}
+  }, 400);
+}
+function seedBoardFromSegments() {
+  if (!qdBoard) { return; }
+  var segs = parsePromptSegments(promptResultText);
+  if (!segs.length) {
+    setBoardStatus("还没解析出 6 段：先出一次提示词，再点重新排 6 格。");
+    return;
+  }
+  var store = qdBoard.editor.store;
+  store.clear();
+  var z = 0;
+  segs.forEach(function (s, i) {
+    var col = i % 3;
+    var row = Math.floor(i / 3);
+    var label = "第" + s.n + "段 " + ((s.n - 1) * 5) + "到" + (s.n * 5) + "秒";
+    var body = (s.body || "").replace(/\s+/g, " ").trim().slice(0, 120);
+    store.put({
+      id: qdModule.newId("shape"),
+      typeName: "shape",
+      type: "note",
+      x: 40 + col * 300,
+      y: 40 + row * 280,
+      rot: 0,
+      z: ++z,
+      props: { text: label + "\n" + body, color: "yellow", size: "m", font: "sans", scale: 1 }
+    });
+  });
+  saveBoardSoon();
+  setBoardStatus("6 段已排到画布上，可以拖动、缩放，改动自动存在本机。");
+}
+function restoreBoard() {
+  var raw = null;
+  try { raw = localStorage.getItem(QD_STORE_KEY); } catch (e) {}
+  if (raw) {
+    try {
+      var snap = JSON.parse(raw);
+      if (snap && snap.document && snap.document.store && Object.keys(snap.document.store).length) {
+        qdBoard.editor.store.loadSnapshot(snap);
+        setBoardStatus("画布已恢复成本机存好的样子，可以拖动、缩放，改动自动存在本机。");
+        return;
+      }
+    } catch (e) {}
+  }
+  seedBoardFromSegments();
+}
+async function initBoard() {
+  var box = $("prompt-board");
+  if (!box) { return; }
+  setBoardStatus("正在加载画布…");
+  try {
+    if (!qdCssLoaded) {
+      var link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = QD_CDN_CSS;
+      document.head.appendChild(link);
+      qdCssLoaded = true;
+    }
+    if (!qdModule) { qdModule = await import(QD_CDN_JS); }
+    var dark = document.documentElement.classList.contains("dark");
+    qdBoard = qdModule.createQuickdraw({ container: box, theme: dark ? "dark" : "light", grid: "dots" });
+    qdBoard.editor.store.listen(function () { saveBoardSoon(); });
+    restoreBoard();
+  } catch (e) {
+    setBoardStatus("画布没加载出来，检查网络后重新点一次分镜画布。");
+  }
+}
+function toggleBoard() {
+  var wrap = $("prompt-board-wrap");
+  if (!wrap) { return; }
+  qdOpen = !qdOpen;
+  wrap.hidden = !qdOpen;
+  $("prompt-board-toggle").textContent = qdOpen ? "收起画布" : "打开画布";
+  if (qdOpen && !qdBoard) { initBoard(); }
+}
+$("prompt-board-toggle").addEventListener("click", toggleBoard);
+$("prompt-board-reseed").addEventListener("click", function () {
+  if (!qdBoard) { setBoardStatus("画布还没打开，先点打开画布。"); return; }
+  seedBoardFromSegments();
+});
+$("prompt-board-clear").addEventListener("click", function () {
+  if (!qdBoard) { return; }
+  qdBoard.editor.store.clear();
+  saveBoardSoon();
+  setBoardStatus("画布已清空，点重新排 6 格可以再排一次。");
+});
+/* ===== 交互工具3 分镜画布 结束 ===== */
+
+/* ===== 交互工具4 图片对比滑块 开始 ===== */
+var BA_CDN = "https://unpkg.com/@markpbaggett/before-after@0.4.0/dist/before-after.js";
+var compareImgs = { before: "", after: "" };
+function readCompareFile(input, which) {
+  var f = input.files && input.files[0];
+  if (!f) { return; }
+  var r = new FileReader();
+  r.onload = function () {
+    compareImgs[which] = String(r.result || "");
+    refreshCompare();
+  };
+  r.readAsDataURL(f);
+}
+async function refreshCompare() {
+  var box = $("prompt-compare-box");
+  var hint = $("prompt-compare-hint");
+  if (!box) { return; }
+  if (!compareImgs.before || !compareImgs.after) {
+    if (hint) { hint.hidden = false; }
+    box.innerHTML = "";
+    return;
+  }
+  if (hint) { hint.hidden = true; }
+  if (!window.customElements || !customElements.get("before-after")) {
+    try {
+      await loadLibOnce("before-after", BA_CDN);
+    } catch (e) {
+      box.innerHTML = "<p class=\"muted\">对比组件没加载出来，检查网络后重新选一次图。</p>";
+      return;
+    }
+  }
+  box.innerHTML = "";
+  var el = document.createElement("before-after");
+  el.setAttribute("before", compareImgs.before);
+  el.setAttribute("after", compareImgs.after);
+  el.setAttribute("before-label", "改前");
+  el.setAttribute("after-label", "改后");
+  el.setAttribute("start-position", "50");
+  box.appendChild(el);
+}
+$("prompt-compare-before").addEventListener("change", function (e) { readCompareFile(e.target, "before"); });
+$("prompt-compare-after").addEventListener("change", function (e) { readCompareFile(e.target, "after"); });
+$("prompt-compare-clear").addEventListener("click", function () {
+  compareImgs = { before: "", after: "" };
+  var b = $("prompt-compare-before");
+  var a = $("prompt-compare-after");
+  if (b) { b.value = ""; }
+  if (a) { a.value = ""; }
+  refreshCompare();
+});
+/* ===== 交互工具4 图片对比滑块 结束 ===== */
+
+/* ===== 交互工具6 BTC 价格走势图 开始 ===== */
+var LWC_CDN = "https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js";
+var btcChart = null;
+var btcChartSeries = null;
+var btcChartData = null;
+var btcChartLastTs = 0;
+function computeMA(values, period) {
+  var out = [];
+  var sum = 0;
+  for (var i = 0; i < values.length; i++) {
+    sum += values[i];
+    if (i >= period) { sum -= values[i - period]; }
+    out.push(i >= period - 1 ? sum / period : null);
+  }
+  return out;
+}
+function btcChartColors() {
+  var dark = document.documentElement.classList.contains("dark");
+  var bg = "#ffffff";
+  try {
+    var panel = document.querySelector("#page-btc .panel");
+    if (panel) { bg = window.getComputedStyle(panel).backgroundColor || bg; }
+  } catch (e) {}
+  return {
+    dark: dark,
+    bg: bg,
+    text: dark ? "rgba(233, 237, 245, 0.85)" : "#1f2937",
+    grid: dark ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.06)",
+    area: dark ? "#e8c268" : "#c9a227",
+    areaTop: dark ? "rgba(232, 194, 104, 0.25)" : "rgba(201, 162, 39, 0.25)",
+    ma7: dark ? "#60a5fa" : "#2563eb",
+    ma25: dark ? "#f87171" : "#dc2626"
+  };
+}
+function btcChartNote(msg) {
+  var note = $("btc-chart-note");
+  if (note) { note.textContent = msg; }
+}
+async function renderBtcChart(history) {
+  var box = $("btc-chart");
+  if (!box) { return; }
+  var pts = (history || []).filter(function (p) {
+    return p && typeof p.price === "number" && p.ts;
+  }).slice().sort(function (a, b) { return a.ts - b.ts; });
+  var dedup = [];
+  var seenT = {};
+  pts.forEach(function (p) {
+    var t = Math.floor(p.ts / 1000);
+    if (!seenT[t]) { seenT[t] = 1; dedup.push(p); }
+  });
+  pts = dedup;
+  if (pts.length < 2) {
+    btcChartNote("历史还不够，网关每 5 分钟记一条，下个 5 分钟后再看。");
+    return;
+  }
+  var lastTs = pts[pts.length - 1].ts;
+  if (btcChart && lastTs === btcChartLastTs) { return; }
+  btcChartData = pts;
+  btcChartLastTs = lastTs;
+  if (!window.LightweightCharts) {
+    btcChartNote("正在加载画图库…");
+    try {
+      await loadLibOnce("lwc", LWC_CDN);
+    } catch (e) {
+      btcChartNote("图库没加载出来，检查网络后刷新页面再看。");
+      return;
+    }
+  }
+  buildBtcChart();
+}
+function buildBtcChart() {
+  var box = $("btc-chart");
+  if (!box || !window.LightweightCharts || !btcChartData) { return; }
+  var c = btcChartColors();
+  if (btcChart) {
+    try { btcChart.remove(); } catch (e) {}
+    btcChart = null;
+  }
+  btcChart = LightweightCharts.createChart(box, {
+    width: box.clientWidth || 600,
+    height: 300,
+    layout: { background: { type: "solid", color: c.bg }, textColor: c.text },
+    grid: { vertLines: { color: c.grid }, horzLines: { color: c.grid } },
+    timeScale: { timeVisible: true, secondsVisible: false },
+    rightPriceScale: { borderColor: c.grid }
+  });
+  var closes = btcChartData.map(function (p) { return p.price; });
+  var times = btcChartData.map(function (p) { return Math.floor(p.ts / 1000); });
+  var area = btcChart.addAreaSeries({ lineColor: c.area, topColor: c.areaTop, bottomColor: "rgba(0, 0, 0, 0)", lineWidth: 2, priceLineVisible: false });
+  area.setData(btcChartData.map(function (p, i) { return { time: times[i], value: p.price }; }));
+  var ma7 = computeMA(closes, 7);
+  var ma25 = computeMA(closes, 25);
+  var s7 = btcChart.addLineSeries({ color: c.ma7, lineWidth: 1, priceLineVisible: false });
+  s7.setData(btcChartData.map(function (p, i) {
+    return ma7[i] === null ? null : { time: times[i], value: ma7[i] };
+  }).filter(function (x) { return !!x; }));
+  var s25 = btcChart.addLineSeries({ color: c.ma25, lineWidth: 1, priceLineVisible: false });
+  s25.setData(btcChartData.map(function (p, i) {
+    return ma25[i] === null ? null : { time: times[i], value: ma25[i] };
+  }).filter(function (x) { return !!x; }));
+  btcChartSeries = { area: area, ma7: s7, ma25: s25 };
+  btcChartNote("价格线加 MA7 和 MA25，数据来自网关每 5 分钟记的历史。");
+}
+function applyBtcChartTheme() {
+  if (!btcChart || !btcChartSeries) { return; }
+  var c = btcChartColors();
+  try {
+    btcChart.applyOptions({
+      layout: { background: { type: "solid", color: c.bg }, textColor: c.text },
+      grid: { vertLines: { color: c.grid }, horzLines: { color: c.grid } },
+      rightPriceScale: { borderColor: c.grid }
+    });
+    btcChartSeries.area.applyOptions({ lineColor: c.area, topColor: c.areaTop });
+    btcChartSeries.ma7.applyOptions({ color: c.ma7 });
+    btcChartSeries.ma25.applyOptions({ color: c.ma25 });
+  } catch (e) {}
+}
+var btcChartResize = null;
+function watchBtcChartSize() {
+  var box = $("btc-chart");
+  if (!box || btcChartResize || !window.ResizeObserver) { return; }
+  btcChartResize = new ResizeObserver(function () {
+    if (btcChart && box.clientWidth) {
+      try { btcChart.applyOptions({ width: box.clientWidth }); } catch (e) {}
+    }
+  });
+  btcChartResize.observe(box);
+}
+watchBtcChartSize();
+/* ===== 交互工具6 BTC 价格走势图 结束 ===== */
+
+/* ===== 交互工具 主题跟随 开始 ===== */
+var themeFollowObserver = null;
+if (window.MutationObserver) {
+  themeFollowObserver = new MutationObserver(function () {
+    if (qdBoard) {
+      try { qdBoard.editor.setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light"); } catch (e) {}
+    }
+    applyBtcChartTheme();
+  });
+  themeFollowObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+}
+/* ===== 交互工具 主题跟随 结束 ===== */
 
 /* ===== 对话（走网关 /v1/chat/completions，流式） ===== */
 var chatMessages = []; /* [{role, content}]，存手机本地 */

@@ -154,6 +154,8 @@
         border-radius: var(--radius); padding: 9px; font-weight: 500;
       }
       .mode-note { font-size: 12.5px; color: var(--ink-2); margin: 9px 0 0; }
+      .ch-num { cursor: grab; touch-action: manipulation; }
+      .sort-ghost { opacity: 0.4; }
       .targetrow { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; color: var(--ink-2); }
       .targetrow select {
         flex: 1; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px;
@@ -541,6 +543,20 @@
           </div>
           <p class="mode-note" id="outlineStatus">填好右边的故事设定，点「生成大纲」，AI 先搭 20 章目录，再逐章写，每章约一万字。</p>
           <div id="outlineList" style="margin-top:10px"></div>
+          <p class="mode-note">章节顺序可以拖动调整：按住每行开头的章号拖动，调完自动存好。</p>
+          <div class="rowbtns">
+            <button class="stopbtn" id="btnMindmap" type="button" style="flex:1">大纲脑图</button>
+            <button class="stopbtn" id="btnMermaid" type="button" style="flex:1">人物关系和时间线</button>
+          </div>
+          <div id="mindmapWrap" hidden>
+            <p class="mode-note">点节点可以展开折合，大纲改了就重新点一次大纲脑图。</p>
+            <div id="mindmapBox" style="height:480px;overflow:auto;background:#fffdf9;border:1px solid var(--line);border-radius:10px"></div>
+          </div>
+          <div id="mermaidWrap" hidden>
+            <p class="mode-note">两张图都从现在这本小说算出来：人物从台词和大纲里找，时间线按 20 章大纲排。</p>
+            <div id="mmRelBox" style="margin-top:10px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px"></div>
+            <div id="mmTimeBox" style="margin-top:10px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px"></div>
+          </div>
         </section>
         <section id="secScript">
           <h2>剧本 <span class="sub">小说转剧本，台词照抄</span></h2>
@@ -1500,11 +1516,12 @@ function buildChapterRow(n) {
 var c = novel.outline[n - 1]
 var wrap = document.createElement('div')
 wrap.className = 'ch'
+wrap.setAttribute('data-old-n', String(n))
 var head = document.createElement('button')
 head.type = 'button'
 head.className = 'ch-head'
 head.setAttribute('aria-expanded', novelOpen[n] ? 'true' : 'false')
-var num = document.createElement('span'); num.className = 'ch-num'; num.textContent = '第' + n + '章'
+var num = document.createElement('span'); num.className = 'ch-num'; num.textContent = '第' + n + '章'; num.title = '按住拖动可以调顺序'
 var titleEl = document.createElement('span'); titleEl.className = 'ch-title'; titleEl.textContent = c.title
 var stateEl = document.createElement('span'); stateEl.className = 'ch-state'; stateEl.textContent = '未写'
 var wcEl = document.createElement('span'); wcEl.className = 'ch-wc'; wcEl.textContent = '0 字'
@@ -1592,7 +1609,304 @@ novel.outline.forEach(function (c, i) { box.appendChild(buildChapterRow(i + 1)) 
 staggerCards(box)
 for (var n = 1; n <= novel.outline.length; n++) updateChapterRow(n)
 updateBookProgress()
+initOutlineSortable()
 }
+
+/* ===== 交互工具1 大纲脑图 开始 ===== */
+var MARKMAP_CDN = "https://cdn.jsdelivr.net/npm/markmap-autoloader@0.18.13/dist/index.js";
+var MERMAID_CDN = "https://cdn.jsdelivr.net/npm/mermaid@11.6.0/dist/mermaid.min.js";
+var SORTABLE_CDN = "https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js";
+var libPromises = {};
+function loadLibScript(src) {
+  return new Promise(function (resolve, reject) {
+    var s = document.createElement("script");
+    s.src = src;
+    s.onload = function () { resolve(); };
+    s.onerror = function () { reject(new Error("load failed")); };
+    document.head.appendChild(s);
+  });
+}
+function loadLibOnce(key, src) {
+  if (!libPromises[key]) { libPromises[key] = loadLibScript(src); }
+  return libPromises[key];
+}
+function mmClean(s) {
+  return String(s || "").replace(/\s+/g, " ").replace(/^#+/, "").replace(/[#<>]/g, "").trim();
+}
+function buildMarkmapMarkdown(title, outline) {
+  var lines = [];
+  lines.push("# " + mmClean(title || "未命名"));
+  outline.forEach(function (c, i) {
+    lines.push("## 第" + (i + 1) + "章 " + mmClean(c.title));
+    if (c.summary) { lines.push("- " + mmClean(c.summary)); }
+  });
+  return lines.join("\n");
+}
+var mindmapOpen = false;
+function toggleMindmap() {
+  var wrap = $("mindmapWrap");
+  if (!wrap) { return; }
+  mindmapOpen = !mindmapOpen;
+  wrap.hidden = !mindmapOpen;
+  $("btnMindmap").textContent = mindmapOpen ? "收起脑图" : "大纲脑图";
+  if (mindmapOpen) { renderMindmap(); }
+}
+async function renderMindmap() {
+  var box = $("mindmapBox");
+  if (!box) { return; }
+  if (!novel.outline.length) {
+    box.innerHTML = "<p class=\"empty-note\">还没有大纲，先点「生成大纲」。</p>";
+    return;
+  }
+  box.innerHTML = "<p class=\"empty-note\">正在加载脑图…</p>";
+  try {
+    await loadLibOnce("markmap", MARKMAP_CDN);
+    var md = buildMarkmapMarkdown(novel.title, novel.outline);
+    box.innerHTML = "";
+    var div = document.createElement("div");
+    div.className = "markmap";
+    div.style.height = "100%";
+    var scr = document.createElement("script");
+    scr.type = "text/markdown";
+    scr.textContent = md;
+    div.appendChild(scr);
+    box.appendChild(div);
+    if (window.markmap && window.markmap.autoLoader && window.markmap.autoLoader.renderAll) {
+      window.markmap.autoLoader.renderAll();
+    } else {
+      box.innerHTML = "<p class=\"empty-note\">脑图库加载出来了，但渲染入口没找到，刷新页面再试一次。</p>";
+    }
+  } catch (e) {
+    box.innerHTML = "<p class=\"empty-note\">脑图库没加载出来，检查网络后重新点一次大纲脑图。</p>";
+  }
+}
+$("btnMindmap").addEventListener("click", toggleMindmap);
+/* ===== 交互工具1 大纲脑图 结束 ===== */
+
+/* ===== 交互工具2 人物关系图和剧情时间线 开始 ===== */
+function mq(s) {
+  return String(s || "").replace(/\s+/g, " ").replace(/["\[\]{}();:#<>]/g, "").trim();
+}
+function buildMermaidRelation(hero, chars, edges) {
+  var lines = ["flowchart LR"];
+  lines.push("  classDef hero fill:#f7e3df,stroke:#b23a2e,stroke-width:2px;");
+  var ids = {};
+  chars.forEach(function (name, i) {
+    ids[name] = "C" + i;
+    lines.push("  C" + i + "[\"" + mq(name) + "\"]");
+  });
+  if (hero && ids[hero] !== undefined) {
+    lines.push("  class " + ids[hero] + " hero;");
+  }
+  edges.forEach(function (e) {
+    if (ids[e[0]] !== undefined && ids[e[1]] !== undefined) {
+      lines.push("  " + ids[e[0]] + " --- " + ids[e[1]] + ";");
+    }
+  });
+  return lines.join("\n");
+}
+function buildMermaidTimeline(title, outline) {
+  var secs = [["起", 1, 5], ["承", 6, 10], ["转", 11, 15], ["合", 16, 20]];
+  var lines = ["timeline", "    title " + mq(title || "未命名")];
+  secs.forEach(function (s) {
+    var items = [];
+    for (var n = s[1]; n <= s[2] && n <= outline.length; n++) {
+      var c = outline[n - 1];
+      items.push("        第" + n + "章 " + mq(c.title) + " : " + mq((c.summary || "").slice(0, 30)));
+    }
+    if (items.length) {
+      lines.push("    section " + s[0]);
+      lines = lines.concat(items);
+    }
+  });
+  return lines.join("\n");
+}
+function heroName() {
+  var raw = ($("fHero").value || "").trim();
+  if (!raw) { return ""; }
+  var name = raw.split(/[,，、\s]/)[0] || "";
+  return name.slice(0, 6);
+}
+function collectNovelChars() {
+  var seen = {};
+  var chars = [];
+  function add(name) {
+    if (!name || name.length < 2 || name.length > 6) { return; }
+    if (seen[name]) { return; }
+    seen[name] = 1;
+    chars.push(name);
+  }
+  var hero = heroName();
+  if (hero) { add(hero); }
+  var allText = "";
+  for (var k in novel.chapters) { allText += "\n" + (novel.chapters[k] || ""); }
+  var sumText = novel.outline.map(function (c) { return c.title + " " + c.summary; }).join("\n");
+  var r1 = extractScriptDialogues(allText);
+  r1.chars.forEach(add);
+  var r2 = extractScriptDialogues(sumText);
+  r2.chars.forEach(add);
+  return chars.slice(0, 8);
+}
+function buildRelationEdges(chars) {
+  var edges = [];
+  var texts = [];
+  for (var k in novel.chapters) { texts.push(novel.chapters[k] || ""); }
+  texts.push(novel.outline.map(function (c) { return c.title + " " + c.summary; }).join("\n"));
+  for (var i = 0; i < chars.length; i++) {
+    for (var j = i + 1; j < chars.length; j++) {
+      var cnt = 0;
+      texts.forEach(function (t) {
+        if (t.indexOf(chars[i]) !== -1 && t.indexOf(chars[j]) !== -1) { cnt += 1; }
+      });
+      if (cnt > 0) { edges.push([chars[i], chars[j], cnt]); }
+    }
+  }
+  edges.sort(function (a, b) { return b[2] - a[2]; });
+  return edges.slice(0, 15);
+}
+function isDarkMode() {
+  return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+}
+var mermaidSeq = 0;
+var mermaidOpen = false;
+function renderMermaidInto(box, code) {
+  return new Promise(function (resolve) {
+    mermaidSeq += 1;
+    var id = "mmd" + mermaidSeq + "_" + Date.now();
+    try {
+      var out = window.mermaid.render(id, code);
+      if (out && typeof out.then === "function") {
+        out.then(function (r) {
+          box.innerHTML = r.svg;
+          resolve();
+        }).catch(function () {
+          box.innerHTML = "<p class=\"empty-note\">这张图画不出来，换个写法再试。</p>";
+          resolve();
+        });
+      } else if (out && out.svg) {
+        box.innerHTML = out.svg;
+        resolve();
+      } else {
+        box.innerHTML = "<p class=\"empty-note\">这张图画不出来，换个写法再试。</p>";
+        resolve();
+      }
+    } catch (e) {
+      box.innerHTML = "<p class=\"empty-note\">这张图画不出来，换个写法再试。</p>";
+      resolve();
+    }
+  });
+}
+async function renderMermaidAll() {
+  var relBox = $("mmRelBox");
+  var timeBox = $("mmTimeBox");
+  if (!relBox || !timeBox) { return; }
+  if (!novel.outline.length) {
+    relBox.innerHTML = "<p class=\"empty-note\">还没有大纲，先点「生成大纲」。</p>";
+    timeBox.innerHTML = "";
+    return;
+  }
+  relBox.innerHTML = "<p class=\"empty-note\">正在加载画图库…</p>";
+  timeBox.innerHTML = "";
+  try {
+    await loadLibOnce("mermaid", MERMAID_CDN);
+    var dark = isDarkMode();
+    window.mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default", securityLevel: "strict" });
+    var hero = heroName();
+    var chars = collectNovelChars();
+    var edges = buildRelationEdges(chars);
+    if (chars.length < 2) {
+      relBox.innerHTML = "<p class=\"empty-note\">人物太少，先写几章再画关系图。</p>";
+    } else {
+      await renderMermaidInto(relBox, buildMermaidRelation(hero, chars, edges));
+    }
+    await renderMermaidInto(timeBox, buildMermaidTimeline(novel.title, novel.outline));
+  } catch (e) {
+    relBox.innerHTML = "<p class=\"empty-note\">画图库没加载出来，检查网络后重新点一次。</p>";
+  }
+}
+function toggleMermaid() {
+  var wrap = $("mermaidWrap");
+  if (!wrap) { return; }
+  mermaidOpen = !mermaidOpen;
+  wrap.hidden = !mermaidOpen;
+  $("btnMermaid").textContent = mermaidOpen ? "收起关系图" : "人物关系和时间线";
+  if (mermaidOpen) { renderMermaidAll(); }
+}
+$("btnMermaid").addEventListener("click", toggleMermaid);
+if (window.matchMedia) {
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+    if (mermaidOpen) { renderMermaidAll(); }
+  });
+}
+/* ===== 交互工具2 人物关系图和剧情时间线 结束 ===== */
+
+/* ===== 交互工具5a 长篇大纲拖拽调序 开始 ===== */
+function reorderOutlineModel(outline, chapters, order) {
+  var newOutline = [];
+  var newChapters = {};
+  order.forEach(function (oldN, i) {
+    newOutline.push(outline[oldN - 1]);
+    if (chapters[oldN]) { newChapters[i + 1] = chapters[oldN]; }
+  });
+  return { outline: newOutline, chapters: newChapters };
+}
+var outlineSortable = null;
+var outlineSortableLoading = false;
+function initOutlineSortable() {
+  var box = $("outlineList");
+  if (!box) { return; }
+  if (novel.outline.length < 2) {
+    if (outlineSortable) { outlineSortable.destroy(); outlineSortable = null; }
+    return;
+  }
+  if (outlineSortable) { return; }
+  if (outlineSortableLoading) { return; }
+  if (!window.Sortable) {
+    outlineSortableLoading = true;
+    loadLibOnce("sortable", SORTABLE_CDN).then(function () {
+      outlineSortableLoading = false;
+      initOutlineSortable();
+    }).catch(function () { outlineSortableLoading = false; });
+    return;
+  }
+  outlineSortable = new Sortable(box, {
+    animation: 150,
+    handle: ".ch-num",
+    draggable: ".ch",
+    ghostClass: "sort-ghost",
+    delay: 120,
+    delayOnTouchOnly: true,
+    onEnd: function () { applyOutlineOrder(); }
+  });
+}
+function applyOutlineOrder() {
+  var box = $("outlineList");
+  if (!box) { return; }
+  var order = [];
+  var rows = box.querySelectorAll(".ch");
+  for (var i = 0; i < rows.length; i++) {
+    var oldN = parseInt(rows[i].getAttribute("data-old-n") || "0", 10);
+    if (oldN >= 1 && oldN <= novel.outline.length) { order.push(oldN); }
+  }
+  if (order.length !== novel.outline.length) { return; }
+  var res = reorderOutlineModel(novel.outline, novel.chapters, order);
+  novel.outline = res.outline;
+  novel.chapters = res.chapters;
+  var newOpen = {};
+  for (var k in novelOpen) {
+    var idx = order.indexOf(parseInt(k, 10));
+    if (idx !== -1) { newOpen[idx + 1] = true; }
+  }
+  novelOpen = newOpen;
+  chapterMsg = {};
+  chapterCounts = {};
+  if (outlineSortable) { outlineSortable.destroy(); outlineSortable = null; }
+  renderedOutlineSig = "";
+  saveNovel();
+  renderOutline();
+  toast("顺序已调，存好了");
+}
+/* ===== 交互工具5a 长篇大纲拖拽调序 结束 ===== */
 
 /* ── 生成大纲 ── */
 function outlineMessages() {
