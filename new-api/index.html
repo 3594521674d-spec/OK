@@ -1624,7 +1624,6 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
         <select class="select" id="chan-filter-type"><option value="">类型：全部</option></select>
         <select class="select" id="chan-filter-group"><option value="">分组：全部</option></select>
         <button class="btn" id="chan-refresh">刷新</button>
-        <button class="btn" id="chan-show-empty">显示没账号的</button>
         <div class="seg" id="chan-view"><button type="button" class="on" data-view="card">卡片</button><button type="button" data-view="table">表格</button></div>
       </div>
       <div id="channels-list"></div>
@@ -2445,7 +2444,6 @@ var chanProviders = [], chanAccounts = [], chanOps = {}, chanModels = [];
 var chanOrder = [], chanDisabled = [];
 var chanHealth = {}, chanHealthAt = 0;
 var chanSort = 'default', chanView = 'card';
-var chanShowEmpty = false;
 var KEY_PROVIDERS = {
   'openai': { label: 'OpenAI', base: 'https://api.openai.com/v1', baseRequired: false, hint: '去 platform.openai.com 建 API Key', ph: 'sk-...' },
   'deepseek': { label: 'DeepSeek', base: 'https://api.deepseek.com/v1', baseRequired: false, hint: '去 platform.deepseek.com 建 API Key', ph: 'sk-...' },
@@ -2487,7 +2485,7 @@ async function loadChannels() {
   var typeSel = $('chan-filter-type');
   if (typeSel) {
     var cur = typeSel.value;
-    typeSel.innerHTML = '<option value="">类型：全部</option>' + chanProviders.map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.name || p.id) + '</option>'; }).join('');
+    typeSel.innerHTML = '<option value="">类型：全部</option>' + chanProviders.filter(function (p) { return chanAccountsOf(p.id).length > 0; }).map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.name || p.id) + '</option>'; }).join('');
     typeSel.value = cur;
   }
   var groupSel = $('chan-filter-group');
@@ -2512,7 +2510,6 @@ function renderChannels() {
   var groupF = (($('chan-filter-group') || {}).value || '');
   var weights = chanOps.channelWeights || {};
   var groups = chanOps.channelGroups || {};
-  var noFilter = !nameF && !modelF && !stF && !typeF && !groupF;
   var list = chanProviders.slice();
   if (chanOrder.length > 0) {
     var seen = {};
@@ -2532,14 +2529,11 @@ function renderChannels() {
       var has = chanModels.some(function (m) { return String(m.id || '').indexOf('' + p.id + '/') === 0 && String(m.id || '').indexOf(modelF) !== -1; });
       if (!has) return false;
     }
-    if (!chanShowEmpty && noFilter && chanAccountsOf(p.id).length === 0) return false;
+    if (chanAccountsOf(p.id).length === 0) return false;
     return true;
   });
   if (chanSort === 'name') list.sort(function (a, b) { return (a.name || a.id).localeCompare(b.name || b.id, 'zh-CN'); });
   if (chanSort === 'accounts') list.sort(function (a, b) { return chanAccountsOf(b.id).length - chanAccountsOf(a.id).length; });
-  var emptyCount = chanProviders.filter(function (p) { return chanAccountsOf(p.id).length === 0; }).length;
-  var showBtn = $('chan-show-empty');
-  if (showBtn) showBtn.textContent = chanShowEmpty ? '隐藏没账号的' : '显示没账号的（' + emptyCount + ' 家）';
   setText('chan-total', 'Total ' + list.length);
   if (list.length === 0) { box.innerHTML = '<div class="panel"><p class="muted">没有符合条件的渠道。</p></div>'; return; }
   if (chanView === 'table') {
@@ -3595,10 +3589,6 @@ $('chan-add-account').addEventListener('click', function () { openAddAccount(fal
 $('chan-refresh').addEventListener('click', runHealth);
 $('chan-sort').addEventListener('click', function () {
   chanSort = chanSort === 'default' ? 'name' : (chanSort === 'name' ? 'accounts' : 'default');
-  renderChannels();
-});
-$('chan-show-empty').addEventListener('click', function () {
-  chanShowEmpty = !chanShowEmpty;
   renderChannels();
 });
 $('chan-view').querySelectorAll('button').forEach(function (s) {
