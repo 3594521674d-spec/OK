@@ -1417,7 +1417,6 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
             <div class="rowbtns"><button class="bigbtn" id="btnCopyShort" type="button">复制这篇</button></div>
           </div>
           <div class="tools" id="toolsShort" style="margin-top:12px">
-            <button class="tool" id="toolTitlesS" type="button"><b>起标题</b><span>按正文拟 5 个名</span></button>
             <button class="tool" id="toolCopyS" type="button"><b>复制文章</b><span>整篇复制走</span></button>
           </div>
           </div>
@@ -1456,9 +1455,6 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
             <button class="stopbtn" id="btnNewNovel" type="button" style="flex:1">新建长篇</button>
             <button class="stopbtn" id="btnExportNovel" type="button" style="flex:1">导出整本</button>
           </div>
-          </div>
-          <div class="tools" id="toolsLong" style="margin-top:12px">
-            <button class="tool" id="toolTitlesL" type="button"><b>起标题</b><span>按本章拟 5 个名</span></button>
           </div>
           <div class="copyrow" id="copyChapterRow">
             <span class="copyrow-lab">复制章节</span>
@@ -3463,7 +3459,7 @@ return false
 }
 function setBusy(on) {
 busy = on
-;['btnStory', 'btnResume', 'toolTitlesS', 'toolTitlesL'].forEach(function (id) { var el = $(id); if (el) el.disabled = on})
+;['btnStory', 'btnResume'].forEach(function (id) { var el = $(id); if (el) el.disabled = on})
 ;['btnStop'].forEach(function (id) { var el = $(id); if (el) el.disabled =!on})
 refreshAutoBtn()
 }
@@ -3713,8 +3709,6 @@ b.addEventListener('click', function () { if (target) { target.value = t; if (ta
 box.appendChild(b)
 })
 }
-$('toolTitlesS').addEventListener('click', function () { runTool('titles')})
-$('toolTitlesL').addEventListener('click', function () { runTool('titles')})
 async function copyPlainText(t, emptyMsg) {
 if (!t || !t.trim()) { toast(emptyMsg); return }
 var v = cleanGenText(t)
