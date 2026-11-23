@@ -338,6 +338,9 @@
   .panel h2 { font-size: 14px; font-weight: 650; margin-bottom: 10px; }
   .panel .muted { font-size: 13px; color: var(--color-muted, #6b7280); line-height: 1.8; }
   .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--color-border, #e5e7eb); overflow-x: auto; }
+  [hidden] { display: none !important; }
+  #page-overview .navtabs, #page-prompt .navtabs, #page-redeem .navtabs { display: none; }
+  @media (max-width: 1023px) { #page-overview .navtabs, #page-prompt .navtabs, #page-redeem .navtabs { display: flex; } }
   .tab {
     padding: 8px 12px; font-size: 13.5px; color: var(--color-muted, #6b7280); cursor: pointer; min-height: 44px;
     background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; font: inherit;
@@ -979,6 +982,8 @@
       }
 #page-writing .tabbar button.wb-on { background: var(--accent-soft); color: var(--accent); font-weight: 700; border-color: var(--accent); }
 #page-writing #wb-tabs { display: none; }
+#page-writing .wb-subtabs { display: none; }
+#page-writing #wb-tabs, #page-writing .wb-subtabs { background: var(--surface); }
 @media (max-width: 1023px) {#page-writing .wb-layout { grid-template-columns: 1fr; padding: 10px 10px 96px; gap: 10px; }
 #page-writing .rail { position: static; max-height: none; }
 #page-writing .tabbar { display: flex; }
@@ -990,7 +995,11 @@
 #page-writing .paper { padding: 16px 15px 12px; }
 #page-writing #editor { min-height: 34vh; font-size: 17px; }
 #page-writing .editor-foot, #page-writing .editor-foot .mini, #page-writing .rail { scroll-margin-bottom: 110px; }
-#page-writing .wb-brand { font-size: 16px; }}
+#page-writing .wb-brand { font-size: 16px; }
+#page-writing .wb-subtabs:not([hidden]) { display: flex; flex: 1 1 100%; margin: 0; border-bottom: 0; }
+#page-writing #outlineList { max-height: 300px; overflow-y: auto; }
+#page-writing #scriptDlgList { max-height: 320px; overflow-y: auto; }
+#page-writing #msList { max-height: 380px; overflow-y: auto; }}
 #page-writing .scrim {
         position: fixed; inset: 0; z-index: var(--z-modal, 1300); background: rgba(18, 14, 10, 0.52);
         display: none; align-items: flex-end; justify-content: center;
@@ -1243,6 +1252,12 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
 
     <!-- ===== 概览 ===== -->
     <section class="page active" id="page-overview">
+      <div class="tabs navtabs" id="ov-tabs">
+        <button type="button" class="tab active" data-navtab="conn">连接</button>
+        <button type="button" class="tab" data-navtab="data">概览</button>
+        <button type="button" class="tab" data-navtab="perf">性能</button>
+        <button type="button" class="tab" data-navtab="charts">图表</button>
+      </div>
       <div class="panel" id="gw-panel">
         <div class="row space">
           <h2>网关连接</h2>
@@ -1258,7 +1273,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
         <p class="muted" id="gw-msg" style="margin-top:8px"></p>
       </div>
 
-      <div class="cards">
+      <div class="cards" id="ov-sec-cards">
         <div class="mini-card"><div class="k">余额（上游积分）</div><div class="v" id="ov-balance">—</div></div>
         <div class="mini-card"><div class="k">API 密钥</div><div class="v" id="ov-keys">—</div></div>
         <div class="mini-card"><div class="k" id="ov-req-k">今日请求</div><div class="v" id="ov-req">—</div></div>
@@ -1267,7 +1282,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
         <div class="mini-card"><div class="k">平均响应</div><div class="v" id="ov-avg">—</div></div>
       </div>
 
-      <div class="panel">
+      <div class="panel" id="ov-sec-guide">
         <div class="row space">
           <h2>新手引导 · 几分钟接好你的中转站</h2>
           <span class="tagline">空壳预览 · 未接后端</span>
@@ -1284,7 +1299,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
         <div class="code" id="ov-curl">curl $API_BASE/v1/chat/completions -H "Authorization: Bearer $YOUR_KEY" -d '{"model": "—"}'</div>
       </div>
 
-      <div class="grid2">
+      <div class="grid2" id="ov-sec-perf">
         <div class="panel">
           <div class="row space">
             <h2>性能健康</h2>
@@ -1307,14 +1322,14 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
         </div>
       </div>
       <p class="page-note" id="note-dashboard" hidden></p>
-      <div class="panel">
+      <div class="panel" id="ov-sec-quota">
         <div class="row space">
           <h2>额度分布</h2>
           <div class="seg" id="db-quota-seg"><button type="button" class="on" data-mode="bar">柱状图</button><button type="button" data-mode="area">面积图</button></div>
         </div>
         <div class="chart" id="db-quota-chart">图表区 · 未接数据</div>
       </div>
-      <div class="panel">
+      <div class="panel" id="ov-sec-model">
         <div class="row space">
           <h2 id="db-model-title">模型调用分析</h2>
           <div class="seg" id="db-model-seg"><button type="button" class="on" data-mode="trend">调用趋势</button><button type="button" data-mode="share">调用分布</button><button type="button" data-mode="rank">调用排行</button></div>
@@ -1518,6 +1533,26 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
         <button type="button" class="tab" data-wbtab="settings">设定</button>
         <button type="button" class="tab" data-wbtab="ms">稿件</button>
       </div>
+      <div class="tabs wb-subtabs" id="wb-sub-short" hidden>
+        <button type="button" class="tab" data-wbsub="short-write">写文</button>
+        <button type="button" class="tab" data-wbsub="short-skill">写法</button>
+      </div>
+      <div class="tabs wb-subtabs" id="wb-sub-long" hidden>
+        <button type="button" class="tab" data-wbsub="long-title">书名</button>
+        <button type="button" class="tab" data-wbsub="long-outline">大纲</button>
+        <button type="button" class="tab" data-wbsub="long-book">整本</button>
+        <button type="button" class="tab" data-wbsub="long-check">检查</button>
+        <button type="button" class="tab" data-wbsub="long-mind">脑图</button>
+      </div>
+      <div class="tabs wb-subtabs" id="wb-sub-script" hidden>
+        <button type="button" class="tab" data-wbsub="script-main">剧本</button>
+        <button type="button" class="tab" data-wbsub="script-dlg">台词</button>
+        <button type="button" class="tab" data-wbsub="script-prompt">提示词</button>
+      </div>
+      <div class="tabs wb-subtabs" id="wb-sub-settings" hidden>
+        <button type="button" class="tab" data-wbsub="set-base">基础</button>
+        <button type="button" class="tab" data-wbsub="set-style">风格</button>
+      </div>
     </header>
 
     <div class="wb-layout">
@@ -1529,6 +1564,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
         </div>
         <section id="secShort">
           <h2>短篇小说 <span class="sub">整篇一次写完</span></h2>
+          <div id="secShortWrite">
           <button class="bigbtn" id="btnStory" type="button">写一整篇短篇</button>
           <div class="rowbtns">
             <button class="stopbtn" id="btnResume" type="button" style="flex:1">接着写完</button>
@@ -1546,6 +1582,8 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
             <div class="bar"><div class="fill" id="progressFill"></div></div>
             <div class="ptext" id="progressText"></div>
           </div>
+          </div>
+          <div id="secShortSkill" hidden>
           <button class="skilltoggle" id="skillToggle" type="button" aria-pressed="true">
             <span class="skilltoggle-main"><span class="skilldot"></span>三边榜单写法 · 已内置</span>
             <span class="skilltoggle-sub">第十七批 100 本已装 · 本次开写自动带上</span>
@@ -1556,9 +1594,11 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
           <div class="rowbtns">
             <button class="stopbtn" id="btnShortScript" type="button" style="flex:1">按这篇出剧本</button>
           </div>
+          </div>
         </section>
         <section id="secLong" hidden>
           <h2>长篇小说 <span class="sub">20 章 · 每章约一万字</span></h2>
+          <div id="secLongTitle">
           <div class="wb-field">
             <label for="novelTitle">书名</label>
             <div class="titlerow">
@@ -1574,9 +1614,15 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
             <div class="bar"><div class="fill" id="novelProgressFill"></div></div>
             <div class="ptext" id="novelProgressText">还没有大纲</div>
           </div>
+          </div>
+          <div id="secLongOutline" hidden>
           <div class="rowbtns">
             <button class="bigbtn" id="btnOutline" type="button">生成大纲</button>
           </div>
+          <p class="mode-note" id="outlineStatus">填好右边的故事设定，点「生成大纲」，AI 先搭 20 章目录，再逐章写，每章约一万字；点「自动写完全本」，写完一章自动写下一章，不用逐章点。</p>
+          <div id="outlineList" style="margin-top:10px"></div>
+          </div>
+          <div id="secLongBook" hidden>
           <div class="rowbtns">
             <button class="bigbtn" id="btnAutoWrite" type="button" style="flex:1">自动写完全本</button>
           </div>
@@ -1587,8 +1633,8 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
           <div class="rowbtns">
             <button class="stopbtn" id="btnBookScript" type="button" style="flex:1">出整本剧本</button>
           </div>
-          <p class="mode-note" id="outlineStatus">填好右边的故事设定，点「生成大纲」，AI 先搭 20 章目录，再逐章写，每章约一万字；点「自动写完全本」，写完一章自动写下一章，不用逐章点。</p>
-          <div id="outlineList" style="margin-top:10px"></div>
+          </div>
+          <div id="secLongCheck" hidden>
           <div id="outlineCheckWrap" style="margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px">
             <div class="row space">
               <strong style="font-size:14px">大纲检查清单</strong>
@@ -1599,6 +1645,8 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
             <p class="mode-note" id="outlineCheckSummary"></p>
           </div>
           <p class="mode-note">章节顺序可以拖动调整：按住每行开头的章号拖动，调完自动存好。</p>
+          </div>
+          <div id="secLongMind" hidden>
           <div class="rowbtns">
             <button class="stopbtn" id="btnMindmap" type="button" style="flex:1">大纲脑图</button>
             <button class="stopbtn" id="btnMermaid" type="button" style="flex:1">人物关系和时间线</button>
@@ -1612,9 +1660,11 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
             <div id="mmRelBox" style="margin-top:10px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px"></div>
             <div id="mmTimeBox" style="margin-top:10px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px"></div>
           </div>
+          </div>
         </section>
         <section id="secScript">
           <h2>剧本 <span class="sub">小说转剧本，台词照抄</span></h2>
+          <div id="secScriptMain">
           <p class="mode-note" id="scriptStatus">还没有剧本。短篇写完点「按这篇出剧本」，长篇在章节里点「出剧本」，整本点「出整本剧本」。</p>
           <p class="mode-note" id="scriptScopeLabel"></p>
           <textarea id="scriptView" readonly placeholder="剧本会显示在这里。"></textarea>
@@ -1622,6 +1672,8 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
             <button class="stopbtn" id="btnCopyScript" type="button" style="flex:1">复制剧本</button>
             <button class="stopbtn" id="btnExportScript" type="button" style="flex:1">导出剧本</button>
           </div>
+          </div>
+          <div id="secScriptDlg" hidden>
           <div id="scriptDlgBox" hidden>
             <p class="mode-note" id="scriptDlgCount"></p>
             <p class="mode-note" id="scriptDlgChars"></p>
@@ -1631,6 +1683,8 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
             </div>
             <div class="scriptdlg" id="scriptDlgList"></div>
           </div>
+          </div>
+          <div id="secScriptPrompt" hidden>
           <div class="wb-field" style="margin-top:10px">
             <label for="scriptScene">想要的画面</label>
             <input id="scriptScene" type="text" placeholder="写一句想要的画面，例如：雨夜破庙，林小闲第一次亮出扫帚" autocomplete="off" />
@@ -1644,6 +1698,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
               <button class="stopbtn" id="btnCopyScriptPrompt" type="button" style="flex:1">复制提示词</button>
             </div>
             <div class="scriptverify" id="scriptPromptVerify" hidden></div>
+          </div>
           </div>
         </section>
         <section id="secTools">
@@ -1686,6 +1741,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
       <aside class="rail" id="railSide">
         <section id="secSettings">
           <h2>故事设定 <span class="sub">写之前填，越具体越对味</span></h2>
+          <div id="secSetBase">
           <div class="wb-field">
             <label for="fGenre">题材</label>
             <select id="fGenre">
@@ -1704,6 +1760,8 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
             <label for="fPremise">一句话梗概（可空，空了 AI 自拟）</label>
             <textarea id="fPremise" placeholder="如：一个专门给人写差评赚钱的人，接了一单骂自己的活"></textarea>
           </div>
+          </div>
+          <div id="secSetStyle" hidden>
           <div class="wb-field">
             <label for="fStyle">文风</label>
             <select id="fStyle">
@@ -1720,6 +1778,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
           <div class="wb-field">
             <label for="fExtra">补充要求（想加的元素、忌讳，可空）</label>
             <input id="fExtra" type="text" placeholder="如：结尾要反转；不要写悲剧" autocomplete="off" />
+          </div>
           </div>
         </section>
         <section id="secMs">
@@ -1784,7 +1843,13 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
     <!-- ===== 出提示词 ===== -->
     <section class="page" id="page-prompt">
       <p class="page-note" id="note-prompt" hidden></p>
-      <div class="panel">
+      <div class="tabs navtabs" id="prompt-nav-tabs">
+        <button type="button" class="tab active" data-navtab="input">出词</button>
+        <button type="button" class="tab" data-navtab="result">结果</button>
+        <button type="button" class="tab" data-navtab="board">分镜</button>
+        <button type="button" class="tab" data-navtab="compare">对比</button>
+      </div>
+      <div class="panel" id="prompt-sec-input">
         <div class="row" style="margin-bottom:10px">
           <select class="select" id="prompt-chapter" style="max-width:280px" aria-label="小说章节"><option value="">先读小说…</option></select>
           <select class="select" id="prompt-model" style="max-width:280px" aria-label="出提示词模型"><option value="">加载模型…</option></select>
@@ -1825,6 +1890,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
           <span class="muted" id="prompt-status" style="font-size:13px;color:var(--color-muted, #6b7280)"></span>
         </div>
       </div>
+      <div id="prompt-sec-result">
       <div class="panel" id="prompt-result-wrap" hidden>
         <h2>提示词</h2>
         <pre id="prompt-result" style="white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.8;margin:0"></pre>
@@ -1842,7 +1908,8 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
           <button class="btn" id="prompt-seg-reset">恢复原顺序</button>
         </div>
       </div>
-      <div class="panel">
+      </div>
+      <div class="panel" id="prompt-sec-board">
         <div class="row space">
           <h2>分镜画布</h2>
           <button class="btn" id="prompt-board-toggle">打开画布</button>
@@ -1857,7 +1924,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
           </div>
         </div>
       </div>
-      <div class="panel">
+      <div class="panel" id="prompt-sec-compare">
         <h2>图片对比</h2>
         <p class="muted" style="font-size:13px" id="prompt-compare-hint">先选两张图：左边放改前，右边放改后，选好就能拖滑块左右对比。适合同一资产改版前后、海报两版放一起看。</p>
         <div class="row" style="margin-top:10px">
@@ -2027,7 +2094,12 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
     <!-- ===== 兑换码 ===== -->
     <section class="page" id="page-redeem">
       <p class="page-note" id="note-redeem" hidden></p>
-      <div class="panel">
+      <div class="tabs navtabs" id="redeem-tabs">
+        <button type="button" class="tab active" data-navtab="create">新建</button>
+        <button type="button" class="tab" data-navtab="use">核销</button>
+        <button type="button" class="tab" data-navtab="list">列表</button>
+      </div>
+      <div class="panel" id="redeem-sec-create">
         <h2>新建兑换码</h2>
         <p class="muted">码只在创建成功那一下显示出来，复制好再走；列表里看不到明文。</p>
         <div class="row" style="margin-top:10px">
@@ -2039,7 +2111,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
         </div>
         <div class="redeem-code-out" id="redeem-new-code" hidden></div>
       </div>
-      <div class="panel">
+      <div class="panel" id="redeem-sec-use">
         <h2>核销</h2>
         <p class="muted">把一张码的额度充进某个子密钥的上限里。</p>
         <div class="row" style="margin-top:10px">
@@ -2048,7 +2120,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
           <button class="btn btn-primary" id="redeem-do">核销</button>
         </div>
       </div>
-      <div class="panel">
+      <div class="panel" id="redeem-sec-list">
         <h2>兑换码列表</h2>
         <div class="tbl-wrap tbl-cards-wrap" style="margin-top:10px">
           <table class="tbl tbl-cards">
@@ -3914,6 +3986,7 @@ async function sendPrompt() {
   $('prompt-go').disabled = true;
   if (status) status.textContent = '正在按技能出提示词…';
   if (wrap) wrap.hidden = false;
+  if (typeof promptTabs !== "undefined" && promptTabs) promptTabs.select("result");
   if (out) out.textContent = '…';
   promptResultText = '';
   if ($('prompt-verify')) $('prompt-verify').hidden = true;
@@ -5716,6 +5789,48 @@ var wbTab = 'edit'
 var wbMq = window.matchMedia('(max-width: 1023px)')
 var WB_VIEW = { short: 'write', long: 'write', script: 'write', tools: 'write', edit: 'edit', settings: 'side', ms: 'side' }
 function wbIsMobile() { return wbMq.matches }
+/* ── 写作页二级导航：长篇短篇剧本设定再拆一层，手机上点哪个只显示哪个 ── */
+var WB_SUB = {
+  short: { row: 'wb-sub-short', first: 'short-write', groups: { 'short-write': 'secShortWrite', 'short-skill': 'secShortSkill' } },
+  long: { row: 'wb-sub-long', first: 'long-title', groups: { 'long-title': 'secLongTitle', 'long-outline': 'secLongOutline', 'long-book': 'secLongBook', 'long-check': 'secLongCheck', 'long-mind': 'secLongMind' } },
+  script: { row: 'wb-sub-script', first: 'script-main', groups: { 'script-main': 'secScriptMain', 'script-dlg': 'secScriptDlg', 'script-prompt': 'secScriptPrompt' } },
+  settings: { row: 'wb-sub-settings', first: 'set-base', groups: { 'set-base': 'secSetBase', 'set-style': 'secSetStyle' } }
+}
+var wbSubTab = { short: 'short-write', long: 'long-title', script: 'script-main', settings: 'set-base' }
+function applyWbSubTabs() {
+  var mobile = wbIsMobile()
+  var cfg = WB_SUB[wbTab]
+  if (cfg && wbSubTab[wbTab] === undefined) wbSubTab[wbTab] = cfg.first
+  var rows = ['wb-sub-short', 'wb-sub-long', 'wb-sub-script', 'wb-sub-settings']
+  rows.forEach(function (id) {
+    var row = $(id)
+    if (row) row.hidden = !(mobile && cfg && cfg.row === id)
+  })
+  Object.keys(WB_SUB).forEach(function (k) {
+    var groups = WB_SUB[k].groups
+    Object.keys(groups).forEach(function (sk) {
+      var el = $(groups[sk])
+      if (!el) return
+      if (!mobile) { el.hidden = false; return }
+      el.hidden = !(cfg && k === wbTab && wbSubTab[wbTab] === sk)
+    })
+  })
+  if (mobile && cfg) {
+    var row = $(cfg.row)
+    if (row) row.querySelectorAll('.tab').forEach(function (t) {
+      t.classList.toggle('active', t.getAttribute('data-wbsub') === wbSubTab[wbTab])
+    })
+  }
+}
+function selectWbSubTab(sub) {
+  var cfg = WB_SUB[wbTab]
+  if (!cfg || cfg.groups[sub] === undefined) return
+  wbSubTab[wbTab] = sub
+  applyWbSubTabs()
+  var m = document.querySelector('main')
+  if (m) m.scrollTop = 0
+}
+
 function applyWbSections() {
 var tabs = $('wb-tabs')
 var m = (typeof mode === 'string' ? mode : 'short')
@@ -5726,6 +5841,7 @@ $('secScript').hidden = false
 $('secTools').hidden = (m !== 'short')
 var ss = $('secSettings'); if (ss) ss.hidden = false
 var sm = $('secMs'); if (sm) sm.hidden = false
+applyWbSubTabs()
 return
 }
 var map = { short: 'secShort', long: 'secLong', script: 'secScript', tools: 'secTools', settings: 'secSettings', ms: 'secMs' }
@@ -5735,6 +5851,7 @@ var el = $(id)
 if (el) el.hidden = (map[wbTab] !== id)
 })
 if (tabs) tabs.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-wbtab') === wbTab) })
+applyWbSubTabs()
 }
 function refreshScriptTab() {
 loadScripts()
@@ -5746,6 +5863,7 @@ else showScript('', 0)
 function selectWbTab(tab) {
 if (WB_VIEW[tab] === undefined) return
 wbTab = tab
+if (WB_SUB[tab]) wbSubTab[tab] = WB_SUB[tab].first
 if (tab === 'short' || tab === 'long') setMode(tab)
 else if (tab === 'tools' && (typeof mode === 'string' ? mode : 'short') !== 'short') setMode('short')
 var view = WB_VIEW[tab]
@@ -5760,7 +5878,62 @@ if (m) m.scrollTop = 0
 document.querySelectorAll('#wb-tabs .tab').forEach(function (b) {
 b.addEventListener('click', function () { selectWbTab(b.getAttribute('data-wbtab')) })
 })
+document.querySelectorAll('.wb-subtabs .tab').forEach(function (b) {
+b.addEventListener('click', function () { selectWbSubTab(b.getAttribute('data-wbsub')) })
+})
 if (wbMq.addEventListener) wbMq.addEventListener('change', function () { applyWbSections() })
+
+/* 页内导航标签：概览、出提示词、兑换码三页，手机上点哪个只显示哪个，不用一直往下拉 */
+var navMq = window.matchMedia("(max-width: 1023px)");
+function navIsMobile() { return navMq.matches; }
+function makeNavTabs(barId, map, initial) {
+  var cur = initial;
+  function apply() {
+    var bar = document.getElementById(barId);
+    var mobile = navIsMobile();
+    Object.keys(map).forEach(function (k) {
+      map[k].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.hidden = mobile && (k !== cur);
+      });
+    });
+    if (bar) bar.querySelectorAll(".tab").forEach(function (t) {
+      t.classList.toggle("active", t.getAttribute("data-navtab") === cur);
+    });
+  }
+  function select(tab) {
+    if (map[tab] === undefined) return;
+    cur = tab;
+    apply();
+    var m = document.querySelector("main");
+    if (m) m.scrollTop = 0;
+    window.scrollTo(0, 0);
+  }
+  var bar = document.getElementById(barId);
+  if (bar) bar.querySelectorAll(".tab").forEach(function (b) {
+    b.addEventListener("click", function () { select(b.getAttribute("data-navtab")); });
+  });
+  if (navMq.addEventListener) navMq.addEventListener("change", apply);
+  apply();
+  return { select: select, apply: apply };
+}
+var ovTabs = makeNavTabs("ov-tabs", {
+  conn: ["gw-panel"],
+  data: ["ov-sec-cards", "ov-sec-guide"],
+  perf: ["ov-sec-perf"],
+  charts: ["ov-sec-quota", "ov-sec-model"]
+}, "conn");
+var promptTabs = makeNavTabs("prompt-nav-tabs", {
+  input: ["prompt-sec-input"],
+  result: ["prompt-sec-result"],
+  board: ["prompt-sec-board"],
+  compare: ["prompt-sec-compare"]
+}, "input");
+var redeemTabs = makeNavTabs("redeem-tabs", {
+  create: ["redeem-sec-create"],
+  use: ["redeem-sec-use"],
+  list: ["redeem-sec-list"]
+}, "create");
 
 /* ── 长篇模式：20 章，每章约一万字 ── */
 var NOVEL_KEY = 'wb_novel_v1'
