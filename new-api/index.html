@@ -1088,8 +1088,12 @@
 #page-writing .ch-head {
         width: 100%; display: flex; align-items: center; gap: 8px;
         border: 0; background: none; color: var(--ink);
-        padding: 11px 10px; min-height: 3rem; text-align: left;
+        padding: 11px 10px; min-height: 3rem; text-align: left; cursor: pointer;
       }
+#page-writing .ch-head-copy { flex: none; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; font-weight: 700; min-height: 2rem; }
+#page-writing #shortResult { margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+#page-writing .sr-title { font-size: 16px; font-weight: 700; }
+#page-writing .sr-meta { font-size: 12.5px; color: var(--ink-2); margin: 6px 0 10px; }
 #page-writing .ch-head:active { background: var(--surface-2); }
 #page-writing .ch-num { flex: none; font-size: 13px; font-weight: 700; color: var(--accent); }
 #page-writing .ch-title { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1587,6 +1591,11 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
             <div class="bar"><div class="fill" id="progressFill"></div></div>
             <div class="ptext" id="progressText"></div>
           </div>
+          <div id="shortResult" hidden>
+            <div class="sr-title" id="shortResultTitle">未命名</div>
+            <div class="sr-meta" id="shortResultMeta"></div>
+            <div class="rowbtns"><button class="bigbtn" id="btnCopyShort" type="button">复制这篇</button></div>
+          </div>
           </div>
           <div id="secShortSkill" hidden>
           <button class="skilltoggle" id="skillToggle" type="button" aria-pressed="true">
@@ -1725,9 +1734,9 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
         </div>
         <div class="paper">
           <input id="titleInput" type="text" placeholder="给这篇小说起个名（可让 AI 起）" autocomplete="off" />
-          <textarea id="editor" placeholder="正文会写在这里，你也可以自己直接打字。
+          <textarea id="editor" placeholder="这里是手写正文，你可以自己直接打字。
 
-点左边（手机上点下面的「写作」）的「写一整篇短篇」，AI 就按故事设定一口气写完整篇，约一万字，不要章节。
+点「写一整篇短篇」，AI 写完后只在短篇那页显示书名和复制按钮，正文不显示在这里，点复制就能拿走。
 
 写之前先在「设定」里填一下题材和梗概，写出来更对味；不填也能写，AI 会自己构思一个故事。"></textarea>
           <div class="editor-foot">
@@ -5451,7 +5460,7 @@ return parts.join('\n')
 function target() { return Number($('targetSel').value) || 10000}
 
 function storyMessages(isResume, finishing) {
-var text = editor.value
+var text = shortStory.text
 var n = countChars(text)
 var T = target()
 if (!isResume) {
@@ -5490,35 +5499,36 @@ async function generateStory(resume) {
 if (busy) return
 if (!ensureKey()) return
 if (!resume) {
-if (editor.value.trim()) stashDraft('（自动存档）')
-editor.value = ''
-} else if (!editor.value.trim()) {
+if (shortStory.text.trim()) stashShortStory('（自动存档）')
+shortStory.text = ''
+saveShortStory()
+renderShortResult()
+} else if (!shortStory.text.trim()) {
 toast('正文是空的，先点「写一整篇短篇」')
 return
 }
-refreshCounts(); setBusy(true)
-selectWbTab('edit')
+setBusy(true)
+selectWbTab('short')
 setStatus(resume? '正在接着写…': '正在写…')
-showProgress(true, countChars(editor.value))
+refreshShortProgress()
 var stalls = 0, rounds = 0, err = null, aborted = false
 try {
 while (rounds < 16) {
-var n = countChars(editor.value)
+var n = countChars(shortStory.text)
 if (n >= target() + 300) break
 var finishing = (target() - n) <= 2800
 var before = n
 await streamChat(storyMessages(rounds > 0 || resume, finishing), {
 temperature: 0.9,
 onDelta: function (d) {
-editor.value += cleanGenText(d)
-editor.scrollTop = editor.scrollHeight
-var c = countChars(editor.value)
-$('wcNow').textContent = c.toLocaleString('zh-CN')
+shortStory.text += cleanGenText(d)
+var c = countChars(shortStory.text)
 showProgress(true, c)
+renderShortResult()
 }
 })
 rounds++
-var gained = countChars(editor.value) - before
+var gained = countChars(shortStory.text) - before
 if (gained < 30) { stalls++; if (stalls >= 2) break} else stalls = 0
 if (finishing && gained >= 30) break
 }
@@ -5526,8 +5536,9 @@ if (finishing && gained >= 30) break
 if (e.name === 'AbortError') aborted = true; else err = e
 }
 setBusy(false)
-var final = refreshCounts()
-showProgress(true, final)
+saveShortStory()
+var final = countChars(shortStory.text)
+refreshShortProgress()
 if (aborted) { setStatus('已停止，已写 ' + final.toLocaleString('zh-CN') + ' 字，点「接着写完」可继续'); toast('已停止')}
 else if (err) { setStatus('中断了：' + err.message + '。已写 ' + final.toLocaleString('zh-CN') + ' 字，点「接着写完」继续'); toast('生成中断：' + err.message)}
 else { setStatus('写完了，共 ' + final.toLocaleString('zh-CN') + ' 字'); toast('写完了，共 ' + final.toLocaleString('zh-CN') + ' 字')}
@@ -5592,11 +5603,12 @@ messages = [
 ]
 openSheet(mode === 'expand'? '扩写结果': '润色结果', '满意就点「替换原文」换掉选中段，或插入到光标处。', mode)
 } else if (mode === 'titles') {
-if (!full.trim()) { toast('正文是空的，先写出正文再起标题'); return}
+var storyText = currentShortText()
+if (!storyText.trim()) { toast('正文是空的，先写出正文再起标题'); return}
 sheetCtx = { mode: 'titles', start: 0, end: 0}
 messages = [
 { role: 'system', content: effectiveTitleSystem()},
-{ role: 'user', content: '下面是一篇短篇小说的开头部分，请给它拟 5 个标题，每个一行，不要编号、不要引号、不要解释，每个标题不超过 14 个字，要能勾起点击欲：\n\n' + full.slice(0, 1600) + '\n\n参考书名（只学起名的路子，不要照抄）：\n' + TITLE_EXAMPLES}
+{ role: 'user', content: '下面是一篇短篇小说的开头部分，请给它拟 5 个标题，每个一行，不要编号、不要引号、不要解释，每个标题不超过 14 个字，要能勾起点击欲：\n\n' + storyText.slice(0, 1600) + '\n\n参考书名（只学起名的路子，不要照抄）：\n' + TITLE_EXAMPLES}
 ]
 openSheet('标题候选', '点任意一个标题，就填到正文上方的标题栏。', mode)
 }
@@ -5711,9 +5723,10 @@ try { await navigator.clipboard.writeText(cleanGenText(editor.value)); toast('�
 catch (e) { editor.select(); document.execCommand('copy'); toast('全文已复制')}
 })
 $('btnExport').addEventListener('click', function () {
-if (!editor.value.trim()) { toast('正文是空的，没什么可导出'); return}
-var name = (titleInput.value.trim() || '未命名短篇') + '.txt'
-var content = (titleInput.value.trim()? titleInput.value.trim() + '\n\n': '') + cleanGenText(editor.value)
+var t = currentShortText()
+if (!t.trim()) { toast('正文是空的，没什么可导出'); return}
+var name = (currentShortTitle() || '未命名短篇') + '.txt'
+var content = (currentShortTitle()? currentShortTitle() + '\n\n': '') + cleanGenText(t)
 if ((scripts.short || "").trim()) { content += "\n\n剧本\n\n" + cleanGenText(scripts.short) }
 var blob = new Blob([content], { type: 'text/plain;charset=utf-8'})
 var a = document.createElement('a')
@@ -5972,6 +5985,70 @@ if (n >= 1 && n <= 20 && typeof d.chapters[k] === 'string') novel.chapters[n] = 
 } catch (e) { novel = { title: '', synopsis: '', outline: [], chapters: {} } }
 }
 
+/* ── 短篇输出：只显示书名加复制按钮，正文不进编辑器 ── */
+var SHORT_KEY = 'wb_short_v1'
+var shortStory = { title: '', text: '' }
+function saveShortStory() {
+try { localStorage.setItem(SHORT_KEY, JSON.stringify(shortStory)) } catch (e) {}
+}
+function loadShortStory() {
+try {
+var raw = localStorage.getItem(SHORT_KEY)
+if (!raw) return
+var d = JSON.parse(raw)
+if (!d || typeof d.text !== 'string') return
+shortStory.title = typeof d.title === 'string' ? d.title : ''
+shortStory.text = d.text
+} catch (e) { shortStory = { title: '', text: '' } }
+}
+function currentShortText() {
+return (shortStory.text || '').trim() ? shortStory.text : editor.value
+}
+function currentShortTitle() {
+return (titleInput.value || '').trim() || shortStory.title || ''
+}
+function renderShortResult() {
+var box = $('shortResult')
+if (!box) return
+var t = currentShortTitle() || '未命名'
+var n = countChars(shortStory.text)
+box.hidden = !shortStory.text.trim()
+$('shortResultTitle').textContent = t
+$('shortResultMeta').textContent = n ? '已写 ' + n.toLocaleString('zh-CN') + ' 字' : ''
+}
+function refreshShortProgress() {
+var n = countChars(shortStory.text)
+showProgress(true, n)
+renderShortResult()
+}
+function stashShortStory(tag) {
+if (!shortStory.text.trim()) return
+manuscripts.unshift({
+id: ++msSeq,
+title: (currentShortTitle() || '未命名') + (tag || ''),
+text: shortStory.text,
+time: new Date()
+})
+currentMsId = msSeq
+renderMs()
+}
+$('btnCopyShort').addEventListener('click', async function () {
+if (!shortStory.text.trim()) { toast('正文是空的'); return }
+try { await navigator.clipboard.writeText(cleanGenText(shortStory.text)); toast('已复制') }
+catch (e) {
+var ta = document.createElement('textarea')
+ta.value = cleanGenText(shortStory.text)
+document.body.appendChild(ta); ta.select()
+try { document.execCommand('copy'); toast('已复制') } catch (_) { toast('复制失败，请手动选中复制') }
+ta.remove()
+}
+})
+titleInput.addEventListener('input', function () {
+shortStory.title = titleInput.value
+saveShortStory()
+renderShortResult()
+})
+
 /* 模式切换：短篇和长篇各存各的内容，切换不丢 */
 function setMode(m) {
 saveNovel()
@@ -6211,15 +6288,19 @@ var c = novel.outline[n - 1]
 var wrap = document.createElement('div')
 wrap.className = 'ch'
 wrap.setAttribute('data-old-n', String(n))
-var head = document.createElement('button')
-head.type = 'button'
+var head = document.createElement('div')
 head.className = 'ch-head'
 head.setAttribute('aria-expanded', novelOpen[n] ? 'true' : 'false')
 var num = document.createElement('span'); num.className = 'ch-num'; num.textContent = '第' + n + '章'; num.title = '按住拖动可以调顺序'
 var titleEl = document.createElement('span'); titleEl.className = 'ch-title'; titleEl.textContent = c.title
 var stateEl = document.createElement('span'); stateEl.className = 'ch-state'; stateEl.textContent = '未写'
 var wcEl = document.createElement('span'); wcEl.className = 'ch-wc'; wcEl.textContent = '0 字'
-head.appendChild(num); head.appendChild(titleEl); head.appendChild(stateEl); head.appendChild(wcEl)
+var btnCopy = document.createElement('button')
+btnCopy.type = 'button'
+btnCopy.className = 'ch-head-copy'
+btnCopy.textContent = '复制'
+btnCopy.addEventListener('click', function (ev) { ev.stopPropagation(); copyChapter(n) })
+head.appendChild(num); head.appendChild(titleEl); head.appendChild(stateEl); head.appendChild(wcEl); head.appendChild(btnCopy)
 head.addEventListener('click', function () { toggleChapter(n) })
 var body = document.createElement('div')
 body.className = 'ch-body'
@@ -6256,7 +6337,6 @@ var btnResume = mkBtn('接着写完', function () { writeChapter(n, true) })
 var btnRetitle = mkBtn('换标题梗概', function () { retitleChapter(n) })
 var btnRewrite = mkBtn('重写本章', function () { rewriteChapter(n) })
 var btnDel = mkBtn('删除正文', function () { deleteChapter(n) })
-var btnCopy = mkBtn('复制本章', function () { copyChapter(n) })
 var btnScript = mkBtn("出剧本", function () { generateScript("chapter", n) })
 var btnStop = mkBtn('停止', function () { stopGen() }, 'nl-stop')
 btnStop.hidden = true
@@ -6266,23 +6346,12 @@ var fillEl = document.createElement('div'); fillEl.className = 'fill'
 bar.appendChild(fillEl)
 var ptextEl = document.createElement('div'); ptextEl.className = 'ptext'
 prog.appendChild(bar); prog.appendChild(ptextEl)
-var textEl = document.createElement('textarea')
-textEl.className = 'ch-text'
-textEl.placeholder = '本章正文，点「写这一章」让 AI 写，也可以自己打字。'
-textEl.value = novel.chapters[n] || ''
-textEl.addEventListener('input', function () {
-novel.chapters[n] = textEl.value
-chapterMsg[n] = ''
-updateChapterRow(n)
-updateBookProgress()
-saveNovelSoon()
-})
 var skelEl = document.createElement('div')
 skelEl.className = 'ch-skel'; skelEl.hidden = true
 skelEl.innerHTML = '<div class="skel" style="width:100%"></div><div class="skel" style="width:96%"></div><div class="skel" style="width:88%"></div><div class="skel" style="width:62%"></div>'
-body.appendChild(labT); body.appendChild(labS); body.appendChild(acts); body.appendChild(prog); body.appendChild(skelEl); body.appendChild(textEl)
+body.appendChild(labT); body.appendChild(labS); body.appendChild(acts); body.appendChild(prog); body.appendChild(skelEl)
 wrap.appendChild(head); wrap.appendChild(body)
-chapterEls[n] = { head: head, body: body, titleEl: titleEl, stateEl: stateEl, wcEl: wcEl, titleInput: titleInput, sumInput: sumInput, textEl: textEl, skelEl: skelEl, fillEl: fillEl, ptextEl: ptextEl, btnWrite: btnWrite, btnResume: btnResume, btnRetitle: btnRetitle, btnRewrite: btnRewrite, btnDel: btnDel, btnCopy: btnCopy, btnScript: btnScript, btnStop: btnStop }
+chapterEls[n] = { head: head, body: body, titleEl: titleEl, stateEl: stateEl, wcEl: wcEl, titleInput: titleInput, sumInput: sumInput, skelEl: skelEl, fillEl: fillEl, ptextEl: ptextEl, btnWrite: btnWrite, btnResume: btnResume, btnRetitle: btnRetitle, btnRewrite: btnRewrite, btnDel: btnDel, btnCopy: btnCopy, btnScript: btnScript, btnStop: btnStop }
 return wrap
 }
 function renderOutline() {
@@ -6761,8 +6830,6 @@ if (resume && !cur.trim()) { toast('本章是空的，先点「写这一章」')
 if (resume && countChars(cur) >= CHAPTER_TARGET) { toast('本章已经写满目标字数了，想换写法点「重写本章」'); return }
 if (!resume) {
 novel.chapters[n] = ''
-var els0 = chapterEls[n]
-if (els0) els0.textEl.value = ''
 }
 openChapter(n)
 setBusy(true); novelGenN = n; refreshAllRows(); updateBookProgress()
@@ -6781,11 +6848,6 @@ onDelta: function (d) {
 hideChapterSkel(n)
 d = cleanGenText(d)
 novel.chapters[n] = (novel.chapters[n] || '') + d
-var e2 = chapterEls[n]
-if (e2) {
-e2.textEl.value += d
-e2.textEl.scrollTop = e2.textEl.scrollHeight
-}
 updateChapterRow(n)
 updateBookProgress()
 }
@@ -6855,8 +6917,6 @@ if (!(novel.chapters[n] || '').trim()) { toast('本章正文是空的'); return 
 if (!confirm('确定要删除本章正文吗？大纲和标题梗概会保留。')) return
 novel.chapters[n] = ''
 chapterMsg[n] = ''
-var elsDel = chapterEls[n]
-if (elsDel) elsDel.textEl.value = ''
 saveNovel()
 updateChapterRow(n); updateBookProgress()
 toast('本章正文已删除')
@@ -7167,14 +7227,12 @@ var els = chapterEls[n]
 if (!els || !els.skelEl) return
 if ((novel.chapters[n] || '').trim()) return
 els.skelEl.hidden = false
-els.textEl.hidden = true
 }
 function hideChapterSkel(n) {
 var els = chapterEls[n]
 if (!els || !els.skelEl) return
 if (els.skelEl.hidden) return
 els.skelEl.hidden = true
-els.textEl.hidden = false
 }
 
 /* 按压水波纹：点哪个按钮，就从触点扩开一圈金色涟漪 */
@@ -7344,7 +7402,7 @@ function scriptSystem(skill) {
 function shortScriptMessages(skill) {
   return [
     { role: "system", content: scriptSystem(skill) },
-    { role: "user", content: "下面是一篇短篇小说，请按剧本技能把它转成短剧剧本。标题：" + (titleInput.value.trim() || "未命名短篇") + "\n\n小说正文：\n" + editor.value + "\n\n只输出剧本正文，不要写解释，不要加标题说明。" }
+    { role: "user", content: "下面是一篇短篇小说，请按剧本技能把它转成短剧剧本。标题：" + (titleInput.value.trim() || "未命名短篇") + "\n\n小说正文：\n" + currentShortText() + "\n\n只输出剧本正文，不要写解释，不要加标题说明。" }
   ];
 }
 
@@ -7370,7 +7428,7 @@ async function generateScript(kind, n) {
   if (scriptBusy || busy) { return; }
   if (!ensureKey()) { return; }
   if (kind === "short") {
-    if (!editor.value.trim()) { toast("正文是空的，先写出短篇"); return; }
+    if (!currentShortText().trim()) { toast("正文是空的，先写出短篇"); return; }
   } else if (kind === "chapter") {
     if (!(novel.chapters[n] || "").trim()) { toast("本章是空的，先写出本章"); return; }
   }
@@ -7726,6 +7784,9 @@ fillModelSelect(FALLBACK_MODELS)
 loadMs()
 refreshCounts(); refreshConn(); renderMs(); syncTabs(); renderSkillToggle()
 loadNovel()
+loadShortStory()
+if (shortStory.title && !titleInput.value.trim()) titleInput.value = shortStory.title
+renderShortResult()
 loadScripts()
 $('novelTitle').value = novel.title || ''
 $('novelSynopsis').value = novel.synopsis || ''
