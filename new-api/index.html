@@ -1412,7 +1412,8 @@ function renderKeys() {
         '<td data-label="IP 限制">' + esc((lim.allowedIps || []).length === 0 ? '全部' : lim.allowedIps.join(', ')) + '</td>' +
         '<td data-label="创建时间">' + esc(fmtDateFull(k.createdAt)) + '</td>' +
         '<td data-label="过期时间">' + esc(lim.expiresAt > 0 ? fmtDateFull(lim.expiresAt) : '永不过期') + '</td>' +
-        '<td data-label="操作"><button class="mini-btn" data-act="toggle" data-id="' + esc(k.id) + '">' + (k.enabled ? '停用' : '启用') + '</button>' +
+        '<td data-label="操作"><button class="mini-btn" data-act="edit" data-id="' + esc(k.id) + '">编辑</button>' +
+        '<button class="mini-btn" data-act="toggle" data-id="' + esc(k.id) + '">' + (k.enabled ? '停用' : '启用') + '</button>' +
         '<button class="mini-btn" data-act="reset-usage" data-id="' + esc(k.id) + '">清用量</button>' +
         '<button class="mini-btn" data-act="reset-key" data-id="' + esc(k.id) + '">重置密钥</button>' +
         '<button class="mini-btn danger" data-act="remove" data-id="' + esc(k.id) + '">删除</button></td></tr>';
@@ -1438,6 +1439,7 @@ async function keyAction(act, id) {
   var k = keysCache.find(function (x) { return x.id === id; });
   if (!k) return;
   var r;
+  if (act === 'edit') { openEditKey(id); return; }
   if (act === 'toggle') {
     r = await api('/admin/apikeys/update', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: id, enabled: !k.enabled }) });
     if (!r.ok) { showToast('操作失败：' + JSON.stringify(r.body)); return; }
@@ -1471,6 +1473,7 @@ function openCreateKey() {
     '<div class="field"><label for="ck-tok">Token 上限（0 = 不限）</label><input class="input" id="ck-tok" type="number" min="0" value="0"></div>' +
     '<div class="field"><label for="ck-win">窗口（小时，默认 24，0 = 不重置）</label><input class="input" id="ck-win" type="number" min="0" value="24"></div>' +
     '<div class="field"><label for="ck-models">允许的模型（逗号分隔，空 = 全部）</label><input class="input" id="ck-models" placeholder="buddy/glm-5.3-flash, openai/gpt-5"></div>' +
+    '<div class="field"><label for="ck-group">分组（空 = 不分组）</label><input class="input" id="ck-group" placeholder="比如：郝爷；1 到 32 个字母、数字、下划线、中划线，可中文"></div>' +
     '<div class="field"><label for="ck-days">有效期（天，空 = 永不过期）</label><input class="input" id="ck-days" type="number" min="0" placeholder="留空永不过期"></div>' +
     '<div class="row"><button class="btn btn-primary" id="ck-submit">创建</button><button class="btn" id="ck-cancel">取消</button></div>' +
     '<p class="muted" id="ck-msg" style="margin-top:8px"></p>');
@@ -1484,7 +1487,7 @@ function openCreateKey() {
       models: ($('ck-models').value || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean),
       allowedIps: [],
       expiresAt: days > 0 ? Date.now() + days * 86400000 : 0,
-      group: '',
+      group: ($('ck-group').value || '').trim(),
       rateLimitPerMin: 0,
     };
     var r = await api('/admin/apikeys', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: ($('ck-name').value || '未命名').trim(), limits: limits }) });
@@ -1497,6 +1500,43 @@ function openCreateKey() {
       '<div class="row"><button class="btn btn-primary" id="mk-copy">复制密钥</button><button class="btn" id="mk-done">知道了</button></div>');
     $('mk-copy').addEventListener('click', function (e) { copyText(r.body.key, e.target); });
     $('mk-done').addEventListener('click', closeModal);
+    loadKeys();
+  });
+}
+/* ===== 编辑 API Key：分组必须能改（新建时填的分组以后也能改） ===== */
+/* 注意：后端 update 会整体替换 limits，所以这里发的是完整 limits（原值 + 新分组），不是只发 group。 */
+function openEditKey(id) {
+  var k = keysCache.find(function (x) { return x.id === id; });
+  if (!k) return;
+  var lim = k.limits || {};
+  var daysLeft = lim.expiresAt > 0 ? Math.max(0, Math.ceil((lim.expiresAt - Date.now()) / 86400000)) : '';
+  openModal('编辑 API Key',
+    '<div class="field"><label for="ek-name">名称</label><input class="input" id="ek-name" value="' + esc(k.name || '') + '"></div>' +
+    '<div class="field"><label for="ek-group">分组（空 = 不分组）</label><input class="input" id="ek-group" placeholder="比如：郝爷；1 到 32 个字母、数字、下划线、中划线，可中文" value="' + esc(lim.group || '') + '"></div>' +
+    '<div class="field"><label for="ek-req">请求上限（0 = 不限）</label><input class="input" id="ek-req" type="number" min="0" value="' + esc(String(lim.maxRequests || 0)) + '"></div>' +
+    '<div class="field"><label for="ek-tok">Token 上限（0 = 不限）</label><input class="input" id="ek-tok" type="number" min="0" value="' + esc(String(lim.maxTokens || 0)) + '"></div>' +
+    '<div class="field"><label for="ek-win">窗口（小时，默认 24，0 = 不重置）</label><input class="input" id="ek-win" type="number" min="0" value="' + esc(String(lim.windowHours === undefined ? 24 : lim.windowHours)) + '"></div>' +
+    '<div class="field"><label for="ek-models">允许的模型（逗号分隔，空 = 全部）</label><input class="input" id="ek-models" value="' + esc((lim.models || []).join(', ')) + '"></div>' +
+    '<div class="field"><label for="ek-days">有效期（天，空 = 永不过期）</label><input class="input" id="ek-days" type="number" min="0" placeholder="留空永不过期" value="' + esc(String(daysLeft)) + '"></div>' +
+    '<div class="row"><button class="btn btn-primary" id="ek-submit">保存</button><button class="btn" id="ek-cancel">取消</button></div>' +
+    '<p class="muted" id="ek-msg" style="margin-top:8px"></p>');
+  $('ek-cancel').addEventListener('click', closeModal);
+  $('ek-submit').addEventListener('click', async function () {
+    var days = Number(($('ek-days').value || '') || 0);
+    var limits = {
+      maxRequests: Number($('ek-req').value || 0),
+      maxTokens: Number($('ek-tok').value || 0),
+      windowHours: Number($('ek-win').value || 24),
+      models: ($('ek-models').value || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean),
+      allowedIps: lim.allowedIps || [],
+      expiresAt: days > 0 ? Date.now() + days * 86400000 : 0,
+      group: ($('ek-group').value || '').trim(),
+      rateLimitPerMin: lim.rateLimitPerMin || 0,
+    };
+    var r = await api('/admin/apikeys/update', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: id, name: ($('ek-name').value || '未命名').trim(), limits: limits }) });
+    if (!r.ok) { $('ek-msg').textContent = '保存失败：' + JSON.stringify(r.body); return; }
+    closeModal();
+    showToast('已保存。');
     loadKeys();
   });
 }
@@ -1835,9 +1875,22 @@ async function chanCardAction(act, pid) {
         return '<div class="acct-row"><span class="uid">' + esc(a.uid) + '</span><span>' + esc(a.nickname || '') + '</span>' +
           '<span class="chip ' + (state === '正常' ? 'green' : '') + '">' + state + '</span>' +
           '<span>成功 ' + fmtNum(a.successCount || 0) + ' · 失败 ' + fmtNum(a.errTotal || 0) + '</span>' +
+          '<span class="chip">分组 · ' + esc((a.group || '') === '' ? '未分组' : a.group) + '</span>' +
           '<span style="margin-left:auto"></span>' +
+          '<input class="input" style="width:110px" data-acct-group="' + esc(a.uid) + '" value="' + esc(a.group || '') + '" placeholder="分组，如 郝爷" aria-label="账号分组">' +
+          '<button class="mini-btn" data-acct-save-group="' + esc(a.uid) + '" data-realm="' + esc(a._realm || 'cn') + '">保存分组</button>' +
           '<button class="mini-btn" data-acct-toggle="' + esc(a.uid) + '" data-realm="' + esc(a._realm || 'cn') + '" data-off="' + (a.disabled ? '1' : '0') + '">' + (a.disabled ? '启用' : '停用') + '</button></div>';
       }).join('');
+      box.querySelectorAll('[data-acct-save-group]').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          var input = box.querySelector('[data-acct-group="' + btn.dataset.acctSaveGroup + '"]');
+          var group = input ? input.value.trim() : '';
+          var r = await api('/admin/accounts/attrs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ uid: btn.dataset.acctSaveGroup, realm: btn.dataset.realm, group: group }) });
+          if (!r.ok) { showToast('保存分组失败：' + JSON.stringify(r.body)); return; }
+          showToast('分组已保存。');
+          loadChannels();
+        });
+      });
       box.querySelectorAll('[data-acct-toggle]').forEach(function (btn) {
         btn.addEventListener('click', async function () {
           var r = await api('/admin/accounts/toggle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ uid: btn.dataset.acctToggle, realm: btn.dataset.realm, disabled: btn.dataset.off !== '1' }) });
