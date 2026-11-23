@@ -989,7 +989,20 @@
 #page-writing #wb-tabs { display: none; }
 #page-writing .wb-subtabs { display: none; }
 #page-writing #wb-tabs, #page-writing .wb-subtabs { background: var(--surface); }
-@media (max-width: 1023px) {#page-writing .wb-layout { grid-template-columns: 1fr; padding: 10px 10px 96px; gap: 10px; }
+@media (max-width: 1023px) {
+/* 写作页整屏固定，不许整页滑动（2026-11-24 第三段视频反馈：中间那块一滑就动，顶栏跟着跑）
+   锁法：写作页激活时 body 挂 page-writing，面板 main 禁止滚动，面板自带的“写作”标题隐藏，
+   #page-writing 变成定高 flex 列，顶栏和底部 tabbar 定死两头，中间 wb-layout 不整块滚，
+   只有当前可见的那一栏（左栏/正文/右栏）在自己内部滚。桌面端不受影响。 */
+body.page-writing .layout > main { overflow: hidden; overscroll-behavior: none; padding: 0; }
+body.page-writing #page-title, body.page-writing #page-sub { display: none; }
+#page-writing.active { display: flex; flex-direction: column; height: 100%; overflow: hidden; overscroll-behavior: none; }
+#page-writing .topbar { position: static; flex: none; max-width: 100%; }
+#page-writing .wb-layout { display: block; flex: 1; min-height: 0; overflow: hidden; padding: 10px 10px 12px; gap: 10px; }
+#page-writing .rail, #page-writing .editor-col { height: 100%; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+#page-writing .tabbar { position: static; flex: none; }
+#page-writing #wb-tabs, #page-writing .wb-subtabs { overflow-x: auto; }
+#page-writing .wb-layout { grid-template-columns: 1fr; }
 #page-writing .rail { position: static; max-height: none; }
 #page-writing .tabbar { display: flex; }
 #page-writing #wb-tabs { display: flex; flex: 1 1 100%; margin: 0; border-bottom: 0; }
@@ -2158,6 +2171,8 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
     pages.forEach(function (p) { p.classList.remove('active'); });
     var pg = document.getElementById('page-' + item.dataset.page);
     if (pg) { pg.classList.add('active'); }
+    // 写作页激活时给 body 挂 page-writing，面板 main 禁止整页滚动；切走就摘掉
+    document.body.classList.toggle('page-writing', item.dataset.page === 'writing');
     if (push) { try { history.replaceState(null, '', '#' + item.dataset.title); } catch (e) {} }
     sidebar.classList.remove('open');
     overlay.classList.remove('show');
@@ -7374,7 +7389,7 @@ function showScript(kind, n) {
   var view = $("scriptView");
   var label = $("scriptScopeLabel");
   var t = currentScriptText();
-  if (view) { view.value = t || "还没有剧本。短篇写完点“按这篇出剧本”，长篇在章节里点“出剧本”，整本点“出整本剧本”。"; }
+  if (view) { view.value = t || ""; }
   if (label) { label.textContent = t ? ("当前：" + scriptScopeName()) : ""; }
   renderScriptDialogues();
 }
