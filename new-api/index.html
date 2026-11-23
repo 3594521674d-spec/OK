@@ -89,6 +89,10 @@
     border: 1px solid var(--color-border, #e5e7eb); border-bottom-width: 2px; border-radius: 4px;
     padding: 0 4px; background: var(--color-surface, #ffffff); color: var(--color-muted, #6b7280);
   }
+  .header-search input {
+    border: 0; background: none; font: inherit; color: inherit; outline: none; flex: 1; min-width: 0; padding: 0;
+  }
+  .header-search input::placeholder { color: var(--color-muted, #6b7280); }
   .header-right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
   .icon-btn {
     width: 44px; height: 44px; border: 0; background: none; border-radius: 6px;
@@ -240,7 +244,6 @@
     table.tbl-cards td { border: 0; padding: 6px 0; }
     table.tbl-cards td::before { content: attr(data-label); display: block; font-size: 11.5px; color: var(--color-muted, #6b7280); }
     table.tbl-cards td[colspan]::before { display: none; }
-    table.tbl-cards td:first-child { display: none; }
     #page-usage .tbl th:nth-child(1), #page-usage .tbl td:nth-child(1):not([colspan]),
     #page-usage .tbl th:nth-child(2), #page-usage .tbl td:nth-child(2):not([colspan]),
     #page-usage .tbl th:nth-child(3), #page-usage .tbl td:nth-child(3):not([colspan]),
@@ -467,8 +470,8 @@
     <div class="brand-mark">页</div>
     <span class="brand-name">page工作台</span>
   </div>
-  <div class="header-search">
-    <span>搜索菜单、渠道、密钥…</span>
+  <div class="header-search" id="header-search-box">
+    <input id="header-search" placeholder="搜索菜单…" aria-label="搜索菜单" autocomplete="off">
     <kbd>⌘ K</kbd>
   </div>
   <div class="header-right">
@@ -476,14 +479,6 @@
       <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
       <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
     </button>
-    <button class="icon-btn" title="通知" aria-label="通知">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-    </button>
-    <span class="lang">简体中文</span>
-    <button class="icon-btn" title="设置" aria-label="设置">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-    </button>
-    <div class="avatar">郝</div>
   </div>
 </header>
 
@@ -583,10 +578,6 @@
           <p class="muted" id="ov-apiinfo">网关地址：—<br>支持的协议：—</p>
         </div>
         <div class="panel">
-          <h2>公告</h2>
-          <p class="muted">网关不提供公告。</p>
-        </div>
-        <div class="panel">
           <h2>运行状态</h2>
           <p class="muted" id="ov-run">—</p>
         </div>
@@ -600,14 +591,12 @@
         <button type="button" class="tab active" data-tab="overview">概览</button>
         <button type="button" class="tab" data-tab="models">模型调用</button>
         <button type="button" class="tab" data-tab="traffic">流量</button>
-        <button type="button" class="tab" data-tab="users">用户</button>
+        <button type="button" class="tab" data-tab="users">按账号</button>
       </div>
       <div class="row space mb">
         <div class="row">
           <select class="select" id="dash-days" title="时间窗口"><option value="7" selected>最近 7 天</option><option value="1">今日</option><option value="30">最近 30 天</option><option value="0">全部</option></select>
           <span class="chip">粒度：天</span>
-        </div>
-        <div class="row">
         </div>
       </div>
       <div class="cards">
@@ -618,14 +607,6 @@
         <div class="mini-card"><div class="k">缓存写</div><div class="v" id="db-cache-w">—</div></div>
         <div class="mini-card"><div class="k">平均 RPM</div><div class="v" id="db-rpm">—</div></div>
         <div class="mini-card"><div class="k">平均 TPM</div><div class="v" id="db-tpm">—</div></div>
-      </div>
-      <div class="panel">
-        <h2>性能健康</h2>
-        <div class="kv">
-          <div><div class="k">成功率</div><div class="v" id="db-rate">—</div></div>
-          <div><div class="k">平均延迟</div><div class="v" id="db-lat">—</div></div>
-          <div><div class="k">吞吐</div><div class="v" id="db-tps">—</div></div>
-        </div>
       </div>
       <div class="panel">
         <div class="row space">
@@ -889,31 +870,23 @@
       </div>
       <div class="tbl-wrap tbl-cards-wrap" style="border-radius:12px 12px 0 0">
         <table class="tbl tbl-cards">
-          <thead><tr><th><input type="checkbox" aria-label="全选"></th><th>Name</th><th>Status</th><th>API Key</th><th>Quota</th><th>Group</th><th>Models</th><th>IP Restriction</th><th>Time</th><th>Expires</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Status</th><th>API Key</th><th>Quota</th><th>Group</th><th>Models</th><th>IP Restriction</th><th>Time</th><th>Expires</th><th>Actions</th></tr></thead>
           <tbody id="keys-tbody">
           </tbody>
         </table>
       </div>
-      <div class="pager"><span id="keys-total">Total 0</span><span>Rows per page</span><select class="select" aria-label="每页行数"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager"><span id="keys-total">Total 0</span></div>
     </section>
 
     <!-- ===== 使用日志 ===== -->
     <section class="page" id="page-usage">
       <p class="page-note" id="note-usage" hidden></p>
-      <div class="row space mb">
-        <div></div>
-        <div class="seg" id="usage-scope"><button type="button" class="on" data-scope="all">全部</button><button type="button" data-scope="mine">仅我的</button></div>
-      </div>
       <div class="panel">
         <div class="row mb">
           <input class="input" type="datetime-local" id="usage-from" aria-label="用量开始时间">
           <span style="color:var(--color-muted, #6b7280)">至</span>
           <input class="input" type="datetime-local" id="usage-to" aria-label="用量结束时间">
           <input class="input" placeholder="Model Name" id="usage-model" aria-label="按模型筛选用量">
-          <select class="select" aria-label="用量分组"><option>分组：全部</option></select>
-          <select class="select" aria-label="用量类型"><option>类型：全部</option></select>
-          <button class="btn" id="usage-expand">展开</button>
-          <button class="btn" id="usage-eye">👁</button>
           <button class="btn" id="usage-export">导出</button>
         </div>
         <div class="row space">
@@ -925,7 +898,6 @@
           <div class="row">
             <button class="btn" id="usage-reset">重置</button>
             <button class="btn btn-primary" id="usage-search">搜索</button>
-            <button class="btn" id="usage-cols">列显示</button>
           </div>
         </div>
       </div>
@@ -936,16 +908,12 @@
           </tbody>
         </table>
       </div>
-      <div class="pager"><span id="usage-total">Total 0</span><span>Rows per page</span><select class="select" aria-label="每页行数"><option>100</option><option>20</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager"><span id="usage-total">Total 0</span></div>
     </section>
 
     <!-- ===== 审计日志 ===== -->
     <section class="page" id="page-audit">
       <p class="page-note" id="note-audit" hidden></p>
-      <div class="row space mb">
-        <div></div>
-        <div class="seg" id="audit-scope"><button type="button" class="on" data-scope="all">全部</button><button type="button" data-scope="mine">仅我的</button></div>
-      </div>
       <div class="panel">
         <div class="row mb">
           <input class="input" type="datetime-local" id="audit-from" aria-label="审计开始时间">
@@ -953,12 +921,10 @@
           <input class="input" type="datetime-local" id="audit-to" aria-label="审计结束时间">
           <select class="select" id="audit-result" aria-label="审计结果筛选"><option value="">结果：全部</option><option value="ok">成功</option><option value="fail">失败</option></select>
           <select class="select" id="audit-cat" aria-label="审计分类筛选"><option value="">分类：全部</option><option value="login">登录</option><option value="security">账号安全</option><option value="ops">操作审计</option><option value="token">访问令牌</option></select>
-          <button class="btn" id="audit-expand">展开</button>
         </div>
         <div class="row" style="justify-content:flex-end">
           <button class="btn" id="audit-reset">重置</button>
           <button class="btn btn-primary" id="audit-search">搜索</button>
-          <button class="btn" id="audit-cols">列显示</button>
         </div>
       </div>
       <div class="tbl-wrap" style="border-radius:12px 12px 0 0">
@@ -968,27 +934,15 @@
           </tbody>
         </table>
       </div>
-      <div class="pager"><span id="audit-total">Total 0</span><span>Rows per page</span><select class="select" aria-label="每页行数"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager"><span id="audit-total">Total 0</span></div>
     </section>
 
     <!-- ===== 任务日志 ===== -->
     <section class="page" id="page-task">
       <p class="page-note" id="note-task" hidden></p>
-      <div class="row space mb">
-        <div></div>
-        <div class="seg" id="task-scope"><button type="button" class="on" data-scope="all">全部</button><button type="button" data-scope="mine">仅我的</button></div>
-      </div>
-      <div class="tabs">
-        <button type="button" class="tab" data-ttab="drawing">Drawing Logs</button>
-        <button type="button" class="tab active" data-ttab="task">Task Logs</button>
-      </div>
       <div class="panel">
         <div class="row">
-          <input class="input" type="datetime-local" id="task-from" aria-label="任务开始时间">
-          <span style="color:var(--color-muted, #6b7280)">至</span>
-          <input class="input" type="datetime-local" id="task-to" aria-label="任务结束时间">
-          <input class="input" placeholder="Filter by task ID" id="task-id" aria-label="按任务 ID 筛选">
-          <input class="input" placeholder="Channel ID" id="task-channel" aria-label="按渠道筛选">
+          <input class="input" placeholder="填 Task ID 查单个任务" id="task-id" aria-label="按任务 ID 筛选">
           <button class="btn btn-primary" id="task-search">搜索</button>
           <button class="btn" id="task-reset">重置</button>
         </div>
@@ -1000,19 +954,18 @@
           </tbody>
         </table>
       </div>
-      <div class="pager"><span id="task-total">Total 0</span><span>Rows per page</span><select class="select" aria-label="每页行数"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager"><span id="task-total">Total 0</span></div>
     </section>
 
     <!-- ===== 渠道 ===== -->
     <section class="page" id="page-channels">
       <p class="page-note" id="note-channels" hidden></p>
       <div class="row space mb">
-        <span class="chip" id="chan-retries">Max Retries: —</span>
+        <div></div>
         <div class="row">
           <button class="btn" id="chan-sort">排序</button>
           <button class="btn btn-primary" id="chan-add-account">+ 添加账号</button>
           <button class="btn btn-primary" id="chan-create">+ 创建渠道</button>
-          <button class="btn" id="chan-more">⋯</button>
         </div>
       </div>
       <div class="row mb">
@@ -1021,12 +974,11 @@
         <select class="select" id="chan-filter-status"><option value="">状态：全部</option><option value="ok">正常</option><option value="off">已关闭</option></select>
         <select class="select" id="chan-filter-type"><option value="">类型：全部</option></select>
         <select class="select" id="chan-filter-group"><option value="">分组：全部</option></select>
-        <button class="btn" id="chan-eye">👁</button>
         <button class="btn" id="chan-refresh">刷新</button>
         <div class="seg" id="chan-view"><button type="button" class="on" data-view="card">卡片</button><button type="button" data-view="table">表格</button></div>
       </div>
       <div id="channels-list"></div>
-      <div class="pager pager-boxed"><span id="chan-total">Total 0</span><span>Rows per page</span><select class="select" aria-label="每页行数"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager pager-boxed"><span id="chan-total">Total 0</span></div>
     </section>
 
     <!-- ===== 模型 ===== -->
@@ -1035,29 +987,24 @@
       <div class="tabs" id="models-tabs">
         <button type="button" class="tab active" data-mtab="models">Models</button>
         <button type="button" class="tab" data-mtab="vendors">Vendors</button>
-        <button type="button" class="tab" data-mtab="deploy">Deployments</button>
       </div>
       <div class="row space mb">
         <div></div>
         <div class="row">
-          <button class="btn" id="models-more">⋯</button>
         </div>
       </div>
       <div class="row mb">
         <input class="input wide" id="models-filter-name" placeholder="Filter by model name..." aria-label="按模型名称筛选">
-        <select class="select"><option>展示策略：全部</option></select>
-        <select class="select"><option>模型广场：全部</option></select>
         <select class="select" id="models-filter-vendor"><option value="">厂商：全部</option></select>
-        <select class="select"><option>同步策略：全部</option></select>
       </div>
       <div class="tbl-wrap tbl-cards-wrap" style="border-radius:12px 12px 0 0">
         <table class="tbl tbl-cards">
-          <thead><tr><th><input type="checkbox" aria-label="全选"></th><th>Model</th><th>Pricing</th><th>模型广场</th><th>渠道与分组</th><th>Tags</th><th>同步策略</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Model</th><th>Pricing</th><th>渠道与分组</th><th>Tags</th><th>Actions</th></tr></thead>
           <tbody id="models-tbody">
           </tbody>
         </table>
       </div>
-      <div class="pager"><span id="models-total">Total 0</span><span>Rows per page</span><select class="select" aria-label="每页行数"><option>20</option><option>10</option><option>50</option></select><span>‹ 1 / 1 ›</span></div>
+      <div class="pager"><span id="models-total">Total 0</span></div>
     </section>
 
     <!-- ===== 兑换码 ===== -->
@@ -1169,6 +1116,41 @@
   if (themeBtn) {
     themeBtn.addEventListener('click', function () {
       setTheme(!document.documentElement.classList.contains('dark'));
+    });
+  }
+
+  // 顶栏搜索：输入即筛左侧菜单，回车跳到第一个匹配项，Esc 清空；Ctrl 或 Cmd 加 K 聚焦
+  var navSearch = document.getElementById('header-search');
+  if (navSearch) {
+    function filterNav(q) {
+      q = (q || '').trim().toLowerCase();
+      items.forEach(function (el) {
+        var hay = ((el.dataset.title || '') + ' ' + (el.dataset.desc || '')).toLowerCase();
+        el.style.display = (!q || hay.indexOf(q) !== -1) ? '' : 'none';
+      });
+      document.querySelectorAll('.nav-group').forEach(function (g) {
+        var any = false;
+        g.querySelectorAll('.nav-item').forEach(function (el) { if (el.style.display !== 'none') any = true; });
+        g.style.display = any ? '' : 'none';
+      });
+    }
+    navSearch.addEventListener('input', function () { filterNav(navSearch.value); });
+    navSearch.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        var first = null;
+        items.forEach(function (el) { if (!first && el.style.display !== 'none') first = el; });
+        if (first) { select(first, true); navSearch.blur(); }
+      } else if (e.key === 'Escape') {
+        filterNav('');
+        navSearch.value = '';
+        navSearch.blur();
+      }
+    });
+    document.addEventListener('keydown', function (e) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        navSearch.focus();
+      }
     });
   }
 </script>
@@ -1388,9 +1370,6 @@ async function loadDashboard() {
   setText('db-tokens', fmtTokens((b.inputTokens || 0) + (b.outputTokens || 0)));
   setText('db-rpm', mins > 0 ? (b.total / mins).toFixed(2) : '—');
   setText('db-tpm', mins > 0 ? (((b.inputTokens || 0) + (b.outputTokens || 0)) / mins).toFixed(1) : '—');
-  setText('db-rate', b.total > 0 ? (b.ok / b.total * 100).toFixed(1) + '%' : '—');
-  setText('db-lat', fmtMs(b.avgMs));
-  setText('db-tps', fmtNum(b.total) + ' 次');
   /* 额度分布：上游各账号剩余积分（面积图切到按供应商汇总） */
   if (rc.ok && rc.body && Array.isArray(rc.body.accounts)) {
     var balRows = rc.body.accounts
@@ -1459,11 +1438,11 @@ function renderKeys() {
     return true;
   });
   if (rows.length === 0) {
-    tb.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--color-muted, #6b7280)">没有符合条件的密钥</td></tr>';
+    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--color-muted, #6b7280)">没有符合条件的密钥</td></tr>';
   } else {
     tb.innerHTML = rows.map(function (k) {
       var lim = k.limits || {};
-      return '<tr><td><input type="checkbox" aria-label="选择此行"></td>' +
+      return '<tr>' +
         '<td data-label="名称">' + esc(k.name) + '</td>' +
         '<td data-label="状态">' + (k.enabled ? '<span class="chip green">启用</span>' : '<span class="chip">禁用</span>') + '</td>' +
         '<td data-label="密钥" style="font-family:ui-monospace,Menlo,monospace">' + esc(k.prefix || '') + '…</td>' +
@@ -1783,7 +1762,6 @@ async function loadChannels() {
     groupSel.innerHTML = '<option value="">分组：全部</option><option value="默认">默认</option>' + gnames.map(function (g) { return '<option value="' + esc(g) + '">' + esc(g) + '</option>'; }).join('');
     groupSel.value = curG;
   }
-  setText('chan-retries', 'Max Retries: —（网关失败只重试 1 次，无此配置）');
   renderChannels();
 }
 function chanAccountsOf(pid) { return chanAccounts.filter(function (a) { return (a.provider || 'buddy') === pid; }); }
@@ -2297,7 +2275,7 @@ function renderModels() {
     return true;
   });
   if (rows.length === 0) {
-    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--color-muted, #6b7280)">没有符合条件的模型</td></tr>';
+    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--color-muted, #6b7280)">没有符合条件的模型</td></tr>';
   } else {
     tb.innerHTML = rows.map(function (m) {
       var id = String(m.id || '');
@@ -2306,11 +2284,11 @@ function renderModels() {
       var bare = slash > 0 ? id.slice(slash + 1) : id;
       var agg = prov === 'aggregate';
       var off = false;
-      return '<tr><td><input type="checkbox" aria-label="选择此行"></td>' +
+      return '<tr>' +
         '<td data-label="模型" style="font-family:ui-monospace,Menlo,monospace">' + esc(id) + '</td>' +
-        '<td data-label="倍率">' + esc(priceText(m.priceFactor)) + '</td><td data-label="模型广场">—</td>' +
+        '<td data-label="倍率">' + esc(priceText(m.priceFactor)) + '</td>' +
         '<td data-label="渠道与分组">' + esc((m.providerName || prov) + (m.realm ? ' · ' + m.realm : '')) + '</td>' +
-        '<td data-label="标签">' + esc(m.kind || '—') + '</td><td data-label="同步策略">—</td>' +
+        '<td data-label="标签">' + esc(m.kind || '—') + '</td>' +
         '<td data-label="操作">' + (agg ? '<span style="color:var(--color-muted, #6b7280);font-size:12.5px">聚合模型</span>' :
           '<button class="mini-btn" data-mtoggle="' + esc(prov) + '|' + esc(bare) + '" data-off="' + (off ? '1' : '0') + '">停用</button>') + '</td></tr>';
     }).join('');
@@ -2351,15 +2329,15 @@ function renderVendors() {
   var tb = $('models-tbody');
   if (!tb) return;
   if (modelsProviders.length === 0) {
-    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--color-muted, #6b7280)">暂无供应商数据</td></tr>';
+    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--color-muted, #6b7280)">暂无供应商数据</td></tr>';
     return;
   }
   tb.innerHTML = modelsProviders.map(function (p) {
     var n = chanAccountsOf(p.id).length;
     var caps = p.capabilities || {};
     var capText = ['login', 'balance', 'checkin', 'listModels'].filter(function (k) { return caps[k]; }).join(' · ') || '—';
-    return '<tr><td><input type="checkbox" aria-label="选择此行"></td><td data-label="供应商">' + esc(p.name || p.id) + '</td><td data-label="倍率">—</td><td data-label="模型广场">—</td>' +
-      '<td data-label="渠道与分组">账号 ' + n + ' 个</td><td data-label="标签">' + esc(capText) + '</td><td data-label="同步策略">—</td><td data-label="操作">—</td></tr>';
+    return '<tr><td data-label="供应商">' + esc(p.name || p.id) + '</td><td data-label="倍率">—</td>' +
+      '<td data-label="渠道与分组">账号 ' + n + ' 个</td><td data-label="标签">' + esc(capText) + '</td><td data-label="操作">—</td></tr>';
   }).join('');
   setText('models-total', 'Total ' + modelsProviders.length);
 }
@@ -2928,7 +2906,14 @@ $('gw-test').addEventListener('click', function () { testConnection($('gw-msg'))
 $('ov-hide-guide').addEventListener('click', function () {
   var p = $('ov-create-key').closest('.panel');
   if (p) p.hidden = true;
+  try { localStorage.setItem('page-guide-hidden', '1'); } catch (e) {}
 });
+try {
+  if (localStorage.getItem('page-guide-hidden') === '1') {
+    var gp = $('ov-create-key').closest('.panel');
+    if (gp) gp.hidden = true;
+  }
+} catch (e) {}
 $('ov-create-key').addEventListener('click', openCreateKey);
 $('keys-create').addEventListener('click', openCreateKey);
 $('keys-apiaddr').addEventListener('click', function (e) { copyText(API_BASE, e.target); });
@@ -2974,17 +2959,6 @@ $('usage-reset').addEventListener('click', function () {
 });
 $('usage-model').addEventListener('input', renderUsageRows);
 $('usage-export').addEventListener('click', exportUsageCsv);
-$('usage-expand').addEventListener('click', function () { showNote('note-usage', '没有更多可展开的筛选（网关只支持按天窗口查用量）。'); });
-$('usage-eye').addEventListener('click', function () { showNote('note-usage', '列显示：网关的用量只有按模型汇总这一组列。'); });
-$('usage-cols').addEventListener('click', function () { showNote('note-usage', '列显示：网关的用量只有按模型汇总这一组列。'); });
-$('usage-scope').querySelectorAll('button').forEach(function (s) {
-  s.addEventListener('click', function () {
-    $('usage-scope').querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
-    s.classList.add('on');
-    if (s.dataset.scope === 'mine') showNote('note-usage', '网关用量不分用户，都是全站合计；「仅我的」没有单独的数据。');
-    else hideNote('note-usage');
-  });
-});
 
 /* 审计日志 */
 $('audit-search').addEventListener('click', loadAudit);
@@ -2995,34 +2969,12 @@ $('audit-reset').addEventListener('click', function () {
 });
 $('audit-result').addEventListener('change', renderAuditRows);
 $('audit-cat').addEventListener('change', renderAuditRows);
-$('audit-expand').addEventListener('click', function () { showNote('note-audit', '没有更多可展开的筛选。'); });
-$('audit-cols').addEventListener('click', function () { showNote('note-audit', '列显示：网关的日志只有这几列。'); });
-$('audit-scope').querySelectorAll('button').forEach(function (s) {
-  s.addEventListener('click', function () {
-    $('audit-scope').querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
-    s.classList.add('on');
-    if (s.dataset.scope === 'mine') showNote('note-audit', '日志不分用户。');
-    else hideNote('note-audit');
-  });
-});
 
 /* 任务日志 */
 $('task-search').addEventListener('click', loadTask);
 $('task-reset').addEventListener('click', function () {
-  $('task-id').value = ''; $('task-channel').value = '';
+  $('task-id').value = '';
   loadTask();
-});
-document.querySelectorAll('#page-task .tab').forEach(function (t) {
-  t.addEventListener('click', function () {
-    document.querySelectorAll('#page-task .tab').forEach(function (x) { x.classList.remove('active'); });
-    t.classList.add('active');
-  });
-});
-$('task-scope').querySelectorAll('button').forEach(function (s) {
-  s.addEventListener('click', function () {
-    $('task-scope').querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
-    s.classList.add('on');
-  });
 });
 
 /* 渠道 */
@@ -3033,8 +2985,6 @@ $('chan-sort').addEventListener('click', function () {
   chanSort = chanSort === 'default' ? 'name' : (chanSort === 'name' ? 'accounts' : 'default');
   renderChannels();
 });
-$('chan-more').addEventListener('click', function () { showNote('note-channels', '没有更多操作。'); });
-$('chan-eye').addEventListener('click', function () { showNote('note-channels', '列显示：渠道卡片只有这些字段。'); });
 $('chan-view').querySelectorAll('button').forEach(function (s) {
   s.addEventListener('click', function () {
     $('chan-view').querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
@@ -3055,20 +3005,13 @@ $('chan-view').querySelectorAll('button').forEach(function (s) {
 /* 模型 */
 $('models-filter-name').addEventListener('input', renderModels);
 $('models-filter-vendor').addEventListener('change', renderModels);
-$('models-more').addEventListener('click', function () { showNote('note-models', '没有更多操作。'); });
 $('models-tabs').querySelectorAll('.tab').forEach(function (t) {
   t.addEventListener('click', function () {
     $('models-tabs').querySelectorAll('.tab').forEach(function (x) { x.classList.remove('active'); });
     t.classList.add('active');
     var tab = t.dataset.mtab;
     if (tab === 'models') { hideNote('note-models'); renderModels(); }
-    else if (tab === 'vendors') { hideNote('note-models'); renderVendors(); }
-    else {
-      showNote('note-models', '网关没有部署（deployments）概念。');
-      var tb = $('models-tbody');
-      if (tb) tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--color-muted, #6b7280)">网关没有部署（deployments）概念</td></tr>';
-      setText('models-total', 'Total 0');
-    }
+    else { hideNote('note-models'); renderVendors(); }
   });
 });
 
