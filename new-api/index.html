@@ -1633,10 +1633,6 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
     <!-- ===== 模型 ===== -->
     <section class="page" id="page-models">
       <p class="page-note" id="note-models" hidden></p>
-      <div class="tabs" id="models-tabs">
-        <button type="button" class="tab active" data-mtab="models">Models</button>
-        <button type="button" class="tab" data-mtab="vendors">Vendors</button>
-      </div>
       <div class="row space mb">
         <div></div>
         <div class="row">
@@ -2931,7 +2927,7 @@ function renderLoomySmsForm() {
 }
 
 /* ===== 模型 ===== */
-var modelsCache = [], modelsProviders = [];
+var modelsCache = [];
 function priceText(f) {
   if (f === undefined || f === null || f === Infinity) return '—';
   if (f === 0) return '免费';
@@ -2980,14 +2976,12 @@ function renderModels() {
 async function loadModels() {
   if (!masterKey()) { showNote('note-models', '请先在「概览」页设置主密钥，才能查看模型。'); return; }
   var rm = await cachedApi('models', 300000, '/v1/models');
-  var rp = await cachedApi('providers', 300000, '/admin/providers');
   if (!rm.ok || !rm.body) {
     showNote('note-models', rm.status === 401 ? '密钥无效：网关返回 401。' : '加载失败（HTTP ' + rm.status + '）。');
     return;
   }
   hideNote('note-models');
   modelsCache = rm.body.data || [];
-  if (rp.ok && rp.body) modelsProviders = rp.body.providers || [];
   var sel = $('models-filter-vendor');
   if (sel) {
     var cur = sel.value;
@@ -2998,23 +2992,6 @@ async function loadModels() {
   }
   renderModels();
 }
-function renderVendors() {
-  var tb = $('models-tbody');
-  if (!tb) return;
-  if (modelsProviders.length === 0) {
-    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--color-muted, #6b7280)">暂无供应商数据</td></tr>';
-    return;
-  }
-  tb.innerHTML = modelsProviders.map(function (p) {
-    var n = chanAccountsOf(p.id).length;
-    var caps = p.capabilities || {};
-    var capText = ['login', 'balance', 'checkin', 'listModels'].filter(function (k) { return caps[k]; }).join(' · ') || '—';
-    return '<tr><td data-label="供应商">' + esc(p.name || p.id) + '</td><td data-label="倍率">—</td>' +
-      '<td data-label="渠道与分组">账号 ' + n + ' 个</td><td data-label="标签">' + esc(capText) + '</td><td data-label="操作">—</td></tr>';
-  }).join('');
-  setText('models-total', 'Total ' + modelsProviders.length);
-}
-
 /* ===== 调度与启动 ===== */
 function redeemStatusText(s) { return s === 'active' ? '可用' : s === 'disabled' ? '已禁用' : s === 'used' ? '已兑完' : (s || '—'); }
 async function loadRedeem() {
@@ -3611,15 +3588,6 @@ $('chan-view').querySelectorAll('button').forEach(function (s) {
 /* 模型 */
 $('models-filter-name').addEventListener('input', renderModels);
 $('models-filter-vendor').addEventListener('change', renderModels);
-$('models-tabs').querySelectorAll('.tab').forEach(function (t) {
-  t.addEventListener('click', function () {
-    $('models-tabs').querySelectorAll('.tab').forEach(function (x) { x.classList.remove('active'); });
-    t.classList.add('active');
-    var tab = t.dataset.mtab;
-    if (tab === 'models') { hideNote('note-models'); renderModels(); }
-    else { hideNote('note-models'); renderVendors(); }
-  });
-});
 
 /* ===== BTC 盯盘（只看不下单） ===== */
 function fmtUsd(n) {
