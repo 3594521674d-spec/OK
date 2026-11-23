@@ -517,7 +517,7 @@
   </aside>
 
   <main>
-    <h1 class="page-title" id="page-title">概览</h1>
+    <h1 class="page-title" id="page-title" tabindex="-1">概览</h1>
     <div class="page-sub" id="page-sub">余额、密钥、请求、消费、Token 一眼看完</div>
 
     <!-- ===== 概览 ===== -->
@@ -1084,6 +1084,8 @@
     window.scrollTo(0, 0);
     var main = document.querySelector('main');
     if (main) { main.scrollTop = 0; }
+    // 切页时把焦点移到新页标题，键盘与读屏器能感知内容已换（ao.169；只在点菜单时移，初次打开按地址栏恢复不移）
+    if (push && title) { try { title.focus({ preventScroll: true }); } catch (e) {} }
     // 切页时加载该页的数据（loadPage 在后面的脚本里定义；没定义好之前不报错）
     if (typeof loadPage === 'function') { loadPage(item.dataset.page); }
   }
