@@ -259,6 +259,9 @@
   }
   .overlay.show { display: block; }
 
+  /* 导航打开时锁住中间内容滚动：写作页中间那块能上下动，动起来会盖到导航上；导航开着时把它定住，关了再恢复滚动 */
+  body.nav-open .layout > main { overflow: hidden; }
+
   /* ===== 内容区 ===== */
   main {
     flex: 1; min-width: 0; height: 100%; overflow-y: auto;
@@ -2037,6 +2040,7 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
     if (push) { try { history.replaceState(null, '', '#' + item.dataset.title); } catch (e) {} }
     sidebar.classList.remove('open');
     overlay.classList.remove('show');
+    document.body.classList.remove('nav-open');
     window.scrollTo(0, 0);
     var main = document.querySelector('main');
     if (main) { main.scrollTop = 0; }
@@ -2053,11 +2057,13 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
   document.getElementById('hamburger').addEventListener('click', function () {
     var open = sidebar.classList.toggle('open');
     overlay.classList.toggle('show', open);
+    document.body.classList.toggle('nav-open', open);
     document.getElementById('hamburger').setAttribute('aria-expanded', open ? 'true' : 'false');
   });
   overlay.addEventListener('click', function () {
     sidebar.classList.remove('open');
     overlay.classList.remove('show');
+    document.body.classList.remove('nav-open');
     document.getElementById('hamburger').setAttribute('aria-expanded', 'false');
   });
   document.addEventListener('keydown', function (e) {
@@ -2065,10 +2071,12 @@ html.dark #page-writing .skel::after { background: linear-gradient(90deg, transp
       e.preventDefault();
       var open = sidebar.classList.toggle('open');
       overlay.classList.toggle('show', open);
+      document.body.classList.toggle('nav-open', open);
       document.getElementById('hamburger').setAttribute('aria-expanded', open ? 'true' : 'false');
     } else if (e.key === 'Escape' && sidebar.classList.contains('open')) {
       sidebar.classList.remove('open');
       overlay.classList.remove('show');
+      document.body.classList.remove('nav-open');
       document.getElementById('hamburger').setAttribute('aria-expanded', 'false');
     }
   });
