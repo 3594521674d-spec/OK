@@ -406,6 +406,16 @@
         font-family: "Noto Serif SC", "Songti SC", serif; font-size: 15.5px; line-height: 1.9;
         min-height: 16rem; resize: vertical; padding: 10px;
       }
+      #scriptView, #scriptPromptResult {
+        width: 100%; box-sizing: border-box; margin-top: 10px;
+        border: 1px solid var(--line); border-radius: 8px;
+        background: var(--surface); color: var(--ink);
+        font-family: "Noto Serif SC", "Songti SC", serif; font-size: 14.5px; line-height: 1.8;
+        min-height: 12rem; resize: vertical; padding: 10px;
+      }
+      .scriptdlg label { display: flex; align-items: flex-start; gap: 8px; min-height: 44px; padding: 8px 0; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 13.5px; line-height: 1.6; }
+      .scriptdlg input[type="checkbox"] { flex: none; width: 20px; height: 20px; margin-top: 2px; }
+      .scriptverify { font-size: 13px; color: var(--ink-2); margin-top: 8px; line-height: 1.7; }
 
       /* 3D 纵深 */
       .skilltoggle {
@@ -498,6 +508,9 @@
           </button>
           <p class="skillnote" id="skillNote">仓颉重蒸第十七批（2026-11-20）：起点《玄鉴仙族》《诡秘之主》《神宠供应商》《夜无疆》《让仙门再次伟大》《请勿高考时渡劫》《没钱修什么仙？》《剑烛大荒》《异度旅社》《青山》《廓晋》《绍宋》《临圣》《有仙则名》《灵境行者》《还不起学贷的我只好兼职猎魔》《仙人之上》《原来我是仙道天骄》《我的青梅是宗门圣女》《成尊》《元始法则》《捞尸人》《斗破苍穹》《圣墟》《遮天》《大奉打更人》《深海余烬》《1984：从川菜馆开始》《我的超能道具随机刷新》《武道！》《哨响之前》《天父》、七猫《盖世神医》《警报！真龙出狱！》《鸿蒙霸体诀》《高武严父，永远比儿子高五个境界》《逍遥四公子》《桃花劫》《封总，太太想跟你离婚很久了》《离婚后她惊艳了世界》《皇叔借点功德，王妃把符画猛了》《朱门春闺》《夫人反差太大，司总沦陷了！》《错嫁随军：新婚夜冷面军少沦陷了》《下山第一天，逮个美女总裁暴力宠》《都市大猛仙》《我医武双绝，体内有尊神农鼎》《大道仙炉》《开局破庙托付，阴阳大道成就武神！》《高冷校花香香软软，凭啥还舔你啊》《荒古武神》《葬天神帝》《师叔，你的法宝太不正经了》《男人野性》《极道剑尊》《小司机的美女总裁老婆》《嫡姐惨死？她抬棺杀疯京城！》《谢总，夫人已改嫁，让你跪远点》《婚前不熟，婚后失控》《皇后令》《唯她是图》《裴先生，暗恋她已十二年》《被逼自刎，嫡女重生撕婚书覆皇朝》《第五年重逢，驰先生再度失控》《凤池生春》《形婚两年不同房，改嫁大佬被宠坏》、晋江《十二月花事》《将军的继室》《如露如电》《长夜难抑》《大龄贵妃》《沉迷关系》《昭暮》《高冷太子的克星》《单方面隐婚》《绿叶》《在这个圈子，叫“跟”》《缠珑》《我有一座安全城》《天阶夜色》《花中娇客》《新婚倒计时》《你或像你的人》《绵羊小姐与狼》《升龙》《御兽师，我打工养你啊》《穿进修仙世界做女大》《从维多利亚时代开始》《宇智波带子拒绝修罗场》《[快穿]南韩体验卡》《偏偏宠爱》《难哄》《砸锅卖铁去上学》《偷偷藏不住》《穿进赛博游戏后干掉BOSS成功上位》《坠落》《绝色美人随军躺平日常》《从小妾到翻译官[年代]》《在大学路开饭馆[千禧]》《明日新婚［先婚后爱］》，只读免费章节提炼，VIP 章节未读：开篇钩子、节奏、对话、人物、反转与收尾。关掉后，本次按普通写法写。</p>
           <p class="mode-note">点一次，AI 按右边的故事设定写完整篇：不分章节、不加小标题，一口气写到结局。中途断了，点「接着写完」从断点继续。</p>
+          <div class="rowbtns">
+            <button class="stopbtn" id="btnShortScript" type="button" style="flex:1">按这篇出剧本</button>
+          </div>
         </section>
         <section id="secLong" hidden>
           <h2>长篇小说 <span class="sub">20 章 · 每章约一万字</span></h2>
@@ -523,8 +536,44 @@
             <button class="stopbtn" id="btnNewNovel" type="button" style="flex:1">新建长篇</button>
             <button class="stopbtn" id="btnExportNovel" type="button" style="flex:1">导出整本</button>
           </div>
+          <div class="rowbtns">
+            <button class="stopbtn" id="btnBookScript" type="button" style="flex:1">出整本剧本</button>
+          </div>
           <p class="mode-note" id="outlineStatus">填好右边的故事设定，点「生成大纲」，AI 先搭 20 章目录，再逐章写，每章约一万字。</p>
           <div id="outlineList" style="margin-top:10px"></div>
+        </section>
+        <section id="secScript">
+          <h2>剧本 <span class="sub">小说转剧本，台词照抄</span></h2>
+          <p class="mode-note" id="scriptStatus">还没有剧本。短篇写完点「按这篇出剧本」，长篇在章节里点「出剧本」，整本点「出整本剧本」。</p>
+          <p class="mode-note" id="scriptScopeLabel"></p>
+          <textarea id="scriptView" readonly placeholder="剧本会显示在这里。"></textarea>
+          <div class="rowbtns">
+            <button class="stopbtn" id="btnCopyScript" type="button" style="flex:1">复制剧本</button>
+            <button class="stopbtn" id="btnExportScript" type="button" style="flex:1">导出剧本</button>
+          </div>
+          <div id="scriptDlgBox" hidden>
+            <p class="mode-note" id="scriptDlgCount"></p>
+            <p class="mode-note" id="scriptDlgChars"></p>
+            <div class="rowbtns">
+              <button class="stopbtn" id="btnScriptDlgAll" type="button" style="flex:1">台词全选</button>
+              <button class="stopbtn" id="btnScriptDlgNone" type="button" style="flex:1">台词全不选</button>
+            </div>
+            <div class="scriptdlg" id="scriptDlgList"></div>
+          </div>
+          <div class="field" style="margin-top:10px">
+            <label for="scriptScene">想要的画面</label>
+            <input id="scriptScene" type="text" placeholder="写一句想要的画面，例如：雨夜破庙，林小闲第一次亮出扫帚" autocomplete="off" />
+          </div>
+          <div class="rowbtns">
+            <button class="bigbtn" id="btnScriptPromptGo" type="button">按剧本出提示词</button>
+          </div>
+          <div id="scriptPromptWrap" hidden>
+            <textarea id="scriptPromptResult" readonly placeholder="提示词会显示在这里。"></textarea>
+            <div class="rowbtns">
+              <button class="stopbtn" id="btnCopyScriptPrompt" type="button" style="flex:1">复制提示词</button>
+            </div>
+            <div class="scriptverify" id="scriptPromptVerify" hidden></div>
+          </div>
         </section>
         <section id="secTools">
           <h2>选中文字工具 <span class="sub">先在正文里选中一段</span></h2>
@@ -862,7 +911,7 @@ return [
 var head = text.slice(0, 400)
 var tail = text.length > 2200? text.slice(-2200): text
 var instr = finishing
-? '这是最后一轮：请在这轮里把故事写完——收回前面的伏笔，给出有力量的结局，写完自然停笔。'
+? '这是最后一轮：请在这轮里把故事写完，收回前面的伏笔，给出有力量的结局，写完自然停笔。'
 : '不要写结局，把冲突继续推高或抛出新转折，停在一个让人想往下看的地方。'
 return [
 { role: 'system', content: effectiveSystem()},
@@ -1110,6 +1159,7 @@ $('btnExport').addEventListener('click', function () {
 if (!editor.value.trim()) { toast('正文是空的，没什么可导出'); return}
 var name = (titleInput.value.trim() || '未命名短篇') + '.txt'
 var content = (titleInput.value.trim()? titleInput.value.trim() + '\n\n': '') + cleanGenText(editor.value)
+if ((scripts.short || "").trim()) { content += "\n\n剧本\n\n" + cleanGenText(scripts.short) }
 var blob = new Blob([content], { type: 'text/plain;charset=utf-8'})
 var a = document.createElement('a')
 a.href = URL.createObjectURL(blob); a.download = name
@@ -1422,6 +1472,7 @@ els.btnRetitle.disabled = locked
 els.btnRewrite.disabled = locked || !text.trim()
 els.btnDel.disabled = locked || !text.trim()
 els.btnCopy.disabled = !text.trim()
+els.btnScript.disabled = locked || !text.trim()
 els.btnStop.hidden = (novelGenN !== n)
 els.btnStop.disabled = (novelGenN !== n)
 }
@@ -1495,6 +1546,7 @@ var btnRetitle = mkBtn('换标题梗概', function () { retitleChapter(n) })
 var btnRewrite = mkBtn('重写本章', function () { rewriteChapter(n) })
 var btnDel = mkBtn('删除正文', function () { deleteChapter(n) })
 var btnCopy = mkBtn('复制本章', function () { copyChapter(n) })
+var btnScript = mkBtn("出剧本", function () { generateScript("chapter", n) })
 var btnStop = mkBtn('停止', function () { stopGen() }, 'nl-stop')
 btnStop.hidden = true
 var prog = document.createElement('div'); prog.className = 'progress on ch-progress'
@@ -1519,7 +1571,7 @@ skelEl.className = 'ch-skel'; skelEl.hidden = true
 skelEl.innerHTML = '<div class="skel" style="width:100%"></div><div class="skel" style="width:96%"></div><div class="skel" style="width:88%"></div><div class="skel" style="width:62%"></div>'
 body.appendChild(labT); body.appendChild(labS); body.appendChild(acts); body.appendChild(prog); body.appendChild(skelEl); body.appendChild(textEl)
 wrap.appendChild(head); wrap.appendChild(body)
-chapterEls[n] = { head: head, body: body, titleEl: titleEl, stateEl: stateEl, wcEl: wcEl, titleInput: titleInput, sumInput: sumInput, textEl: textEl, skelEl: skelEl, fillEl: fillEl, ptextEl: ptextEl, btnWrite: btnWrite, btnResume: btnResume, btnRetitle: btnRetitle, btnRewrite: btnRewrite, btnDel: btnDel, btnCopy: btnCopy, btnStop: btnStop }
+chapterEls[n] = { head: head, body: body, titleEl: titleEl, stateEl: stateEl, wcEl: wcEl, titleInput: titleInput, sumInput: sumInput, textEl: textEl, skelEl: skelEl, fillEl: fillEl, ptextEl: ptextEl, btnWrite: btnWrite, btnResume: btnResume, btnRetitle: btnRetitle, btnRewrite: btnRewrite, btnDel: btnDel, btnCopy: btnCopy, btnScript: btnScript, btnStop: btnStop }
 return wrap
 }
 function renderOutline() {
@@ -1743,6 +1795,16 @@ lines.push('第' + (i + 1) + '章 ' + c.title, '')
 var t = novel.chapters[i + 1] || ''
 lines.push(t.trim() ? cleanGenText(t) : '（本章未写）', '')
 })
+var anyScript = false
+novel.outline.forEach(function (c, i) {
+var s = scripts.chapters[i + 1] || ""
+if (s.trim()) {
+if (!anyScript) { lines.push("剧本", ""); anyScript = true }
+lines.push("第" + (i + 1) + "章 " + c.title + " 剧本", "")
+lines.push(cleanGenText(s), "")
+}
+})
+if ((scripts.book || "").trim()) { lines.push("整本剧本", ""); lines.push(cleanGenText(scripts.book), "") }
 var safeName = bookTitle.replace(/[\\/:*?"<>|]/g, '').trim() || '未命名长篇'
 var blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
 var a = document.createElement('a')
@@ -2101,13 +2163,476 @@ setTimeout(function () { sheet.style.transition = '' }, 200)
 })
 })();
 
+/* ── 剧本技能：小说 → 剧本 → 提示词 ── */
+var SCRIPT_KEY = "wb_script_v1";
+var JUBEN_DIGEST_URL = "../skills/juben/DIGEST.md";
+var JUBEN_SKILL_URL = "../skills/juben/SKILL.md";
+var JB_FALLBACK = "剧本技能精简规则：小说转剧本先定档位与赛道，再定情绪契约与人物圣经，按单集结构写正文。台词一字不改照抄，这是铁律：剧本里的每句台词必须逐字取自小说原文，不改词，不缩写，不补全，不编新台词。动作行每两到四句对白穿插一条实质性动作，括号里只写具体手部或身体小动作加发声方式。独白每集不超过一处，旁白每集不超过一处。断章不用悬念问句，不停在独白收尾。";
+var jubenCache = {};
+var scripts = { title: "", short: "", chapters: {}, book: "" };
+var scriptScope = { kind: "", n: 0 };
+var scriptBusy = false;
+var scriptDlg = { list: [], chars: [] };
+var scriptPromptText = "";
+
+function saveScripts() {
+  try { localStorage.setItem(SCRIPT_KEY, JSON.stringify(scripts)); } catch (e) {}
+}
+
+function loadScripts() {
+  try {
+    var raw = localStorage.getItem(SCRIPT_KEY);
+    if (!raw) { return; }
+    var d = JSON.parse(raw);
+    if (!d || typeof d !== "object") { return; }
+    if (typeof d.title === "string") { scripts.title = d.title; }
+    if (typeof d.short === "string") { scripts.short = d.short; }
+    if (typeof d.book === "string") { scripts.book = d.book; }
+    if (d.chapters && typeof d.chapters === "object") {
+      for (var k in d.chapters) {
+        var n = parseInt(k, 10);
+        if (n >= 1 && n <= 20 && typeof d.chapters[k] === "string") { scripts.chapters[n] = d.chapters[k]; }
+      }
+    }
+  } catch (e) {}
+}
+
+function setScriptStatus(msg) {
+  var el = $("scriptStatus");
+  if (el) { el.textContent = msg; }
+}
+
+function currentScriptText() {
+  if (scriptScope.kind === "short") { return scripts.short || ""; }
+  if (scriptScope.kind === "chapter") { return scripts.chapters[scriptScope.n] || ""; }
+  if (scriptScope.kind === "book") { return scripts.book || ""; }
+  return "";
+}
+
+function scriptScopeName() {
+  if (scriptScope.kind === "short") { return "短篇剧本"; }
+  if (scriptScope.kind === "chapter") { return "第" + scriptScope.n + "章剧本"; }
+  if (scriptScope.kind === "book") { return "整本剧本"; }
+  return "";
+}
+
+function showScript(kind, n) {
+  scriptScope = { kind: kind, n: n || 0 };
+  var view = $("scriptView");
+  var label = $("scriptScopeLabel");
+  var t = currentScriptText();
+  if (view) { view.value = t || "还没有剧本。短篇写完点“按这篇出剧本”，长篇在章节里点“出剧本”，整本点“出整本剧本”。"; }
+  if (label) { label.textContent = t ? ("当前：" + scriptScopeName()) : ""; }
+  renderScriptDialogues();
+}
+
+async function getJubenSkillText(scope) {
+  var url = scope === "full" ? JUBEN_SKILL_URL : JUBEN_DIGEST_URL;
+  if (jubenCache[scope]) { return jubenCache[scope]; }
+  try {
+    var r = await fetch(url);
+    if (!r.ok) { throw new Error("HTTP " + r.status); }
+    var t = await r.text();
+    if (!t.trim()) { throw new Error("空文件"); }
+    jubenCache[scope] = t;
+    return t;
+  } catch (e) {
+    jubenCache[scope] = JB_FALLBACK;
+    return JB_FALLBACK;
+  }
+}
+
+function scriptSystem(skill) {
+  return "你是短剧编剧，按下面剧本技能包把小说转成短剧剧本。只学写法与规则，不搬整条原文，每处引用不超 50 字。\n\n铁律：剧本里的台词必须一字不改照抄小说原文，不改词，不缩写，不补全，不编新台词，不把甲的台词安到乙头上。没有台词的段落不要硬写台词。\n\n剧本格式：用纯文本，分场写。每场先写场景头（一行，写时间加地点，例如：夜，外，破庙），再写动作行，再写对白行。对白行写说话人加冒号加引号台词，例如：林小闲：“这话你也信。”动作行只写摄影机能拍到的动作与物证，不写心理描写，不写否定句。\n\n技能参考：\n" + skill;
+}
+
+function shortScriptMessages(skill) {
+  return [
+    { role: "system", content: scriptSystem(skill) },
+    { role: "user", content: "下面是一篇短篇小说，请按剧本技能把它转成短剧剧本。标题：" + (titleInput.value.trim() || "未命名短篇") + "\n\n小说正文：\n" + editor.value + "\n\n只输出剧本正文，不要写解释，不要加标题说明。" }
+  ];
+}
+
+function chapterScriptMessages(n, skill) {
+  var c = novel.outline[n - 1];
+  return [
+    { role: "system", content: scriptSystem(skill) },
+    { role: "user", content: "下面是长篇小说第" + n + "章《" + c.title + "》，本章梗概：" + c.summary + "。请按剧本技能把本章转成短剧剧本，台词一字不改照抄本章原文。\n\n本章正文：\n" + (novel.chapters[n] || "") + "\n\n只输出剧本正文，不要写解释。" }
+  ];
+}
+
+async function callScriptOnce(messages) {
+  var acc = "";
+  await streamChat(messages, {
+    temperature: 0.7,
+    maxTokens: 12000,
+    onDelta: function (d) { acc += cleanGenText(d); }
+  });
+  return acc;
+}
+
+async function generateScript(kind, n) {
+  if (scriptBusy || busy) { return; }
+  if (!ensureKey()) { return; }
+  if (kind === "short") {
+    if (!editor.value.trim()) { toast("正文是空的，先写出短篇"); return; }
+  } else if (kind === "chapter") {
+    if (!(novel.chapters[n] || "").trim()) { toast("本章是空的，先写出本章"); return; }
+  }
+  scriptBusy = true;
+  setBusy(true);
+  scriptScope = { kind: kind, n: n || 0 };
+  var view = $("scriptView");
+  if (view) { view.value = ""; }
+  setScriptStatus("正在出" + scriptScopeName() + "…");
+  var acc = "";
+  var err = null;
+  var aborted = false;
+  try {
+    var skill = await getJubenSkillText("digest");
+    var messages = kind === "short" ? shortScriptMessages(skill) : chapterScriptMessages(n, skill);
+    await streamChat(messages, {
+      temperature: 0.7,
+      maxTokens: 12000,
+      onDelta: function (d) {
+        acc += cleanGenText(d);
+        if (view) { view.value = acc; view.scrollTop = view.scrollHeight; }
+      }
+    });
+  } catch (e) {
+    if (e.name === "AbortError") { aborted = true; } else { err = e; }
+  }
+  scriptBusy = false;
+  setBusy(false);
+  if (aborted) {
+    setScriptStatus("已停止，" + scriptScopeName() + "只出了一部分");
+    toast("已停止");
+  } else if (err) {
+    setScriptStatus("出错：" + err.message);
+    toast(err.message);
+  } else {
+    if (kind === "short") { scripts.short = acc; scripts.title = titleInput.value.trim() || ""; }
+    if (kind === "chapter") { scripts.chapters[n] = acc; }
+    saveScripts();
+    showScript(kind, n);
+    setScriptStatus(scriptScopeName() + "已出完");
+    toast(scriptScopeName() + "已出完");
+  }
+}
+
+async function generateBookScript() {
+  if (scriptBusy || busy) { return; }
+  if (!ensureKey()) { return; }
+  if (!novel.outline.length) { toast("还没有大纲，先生成大纲"); return; }
+  var written = [];
+  for (var i = 1; i <= novel.outline.length; i++) {
+    if ((novel.chapters[i] || "").trim()) { written.push(i); }
+  }
+  if (!written.length) { toast("还没有写好的章节"); return; }
+  scriptBusy = true;
+  setBusy(true);
+  try {
+    var skill = await getJubenSkillText("digest");
+    for (var k = 0; k < written.length; k++) {
+      var n = written[k];
+      if (!(scripts.chapters[n] || "").trim()) {
+        setScriptStatus("正在出第" + n + "章剧本，共" + written.length + "章，已出" + k + "章…");
+        scripts.chapters[n] = await callScriptOnce(chapterScriptMessages(n, skill));
+        saveScripts();
+      }
+    }
+    var parts = [];
+    written.forEach(function (n) {
+      parts.push("第" + n + "章 " + novel.outline[n - 1].title + "\n\n" + scripts.chapters[n]);
+    });
+    scripts.book = parts.join("\n\n");
+    scripts.title = novel.title || "";
+    saveScripts();
+    showScript("book", 0);
+    setScriptStatus("整本剧本已出，共" + written.length + "章");
+    toast("整本剧本已出");
+  } catch (e) {
+    if (e.name === "AbortError") { setScriptStatus("已停止，整本剧本没出完"); toast("已停止"); }
+    else { setScriptStatus("出错：" + e.message); toast(e.message); }
+  }
+  scriptBusy = false;
+  setBusy(false);
+}
+
+async function copyTextNow(text, okMsg) {
+  if (!text.trim()) { toast("内容是空的"); return; }
+  try { await navigator.clipboard.writeText(text); toast(okMsg); }
+  catch (e) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); toast(okMsg); } catch (_) { toast("复制失败，请手动选中复制"); }
+    ta.remove();
+  }
+}
+
+function downloadTextFile(name, text) {
+  var blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+}
+
+function safeFileName(name) {
+  var badCodes = [47, 92, 58, 42, 63, 34, 60, 62, 124];
+  var safe = name || "";
+  badCodes.forEach(function (code) { safe = safe.split(String.fromCharCode(code)).join(""); });
+  safe = safe.trim();
+  return safe || "未命名";
+}
+
+/* 台词抽取：规则法（引号加说话人提示词），本地跑，不调模型 */
+var SCRIPT_DLG_VERBS = "说道|低声道|轻声道|冷笑道|笑骂道|咬牙道|颤声道|沉声道|缓缓道|淡淡道|追问道|反问道|嘀咕道|喃喃道|骂道|喊道|叫道|嚷道|答道|应道|接道|叹道|吼道|喝道|讥讽道|嘲讽道|调侃道|安慰道|劝道|命令道|吩咐道|提醒道|警告道|解释道|笑道|说道|道|说|问|喊|叫";
+
+function cleanScriptSpeaker(name) {
+  if (!name) { return ""; }
+  var bad = ["然后", "接着", "随即", "连忙", "赶紧", "忽然", "突然", "终于", "悄悄", "缓缓", "淡淡", "冷冷", "轻声", "低声", "小声", "大声", "顿了顿", "想了想", "皱了皱眉", "抬起头", "转过身"];
+  for (var i = 0; i < bad.length; i++) {
+    var at = name.indexOf(bad[i]);
+    if (at !== -1) { name = name.slice(0, at); }
+  }
+  if (!name) { return ""; }
+  if (/[顿想皱抬转走跑站坐哭叹摇点摆挥指拍推拉抱摸擦喝吃抽低轻冷淡缓悄忽突终连赶]/.test(name)) { return ""; }
+  return name;
+}
+
+function extractScriptDialogues(text) {
+  var out = { list: [], chars: [] };
+  if (!text) { return out; }
+  var beforeRe = new RegExp("(?:^|[，。、；：\\s的])([\\u4e00-\\u9fa5·]{1,4}?)(?:" + SCRIPT_DLG_VERBS + ")[：:,，\\s]{0,}$");
+  var afterRe = new RegExp("^[，、\\s]{0,}([\\u4e00-\\u9fa5·]{1,4}?)(?:" + SCRIPT_DLG_VERBS + ")");
+  var re = /[“「]([^”」\n]{1,200})[”」]/g;
+  var seenChars = {};
+  var pronouns = { "他": 1, "她": 1, "它": 1, "我": 1, "你": 1, "您": 1, "咱们": 1, "我们": 1, "你们": 1, "他们": 1, "她们": 1 };
+  var m;
+  while ((m = re.exec(text)) !== null) {
+    var dlg = m[1].trim();
+    if (!dlg) { continue; }
+    var before = text.slice(Math.max(0, m.index - 40), m.index);
+    var after = text.slice(m.index + m[0].length, m.index + m[0].length + 40);
+    var speaker = "";
+    var bm = before.match(beforeRe);
+    if (bm) { speaker = cleanScriptSpeaker(bm[1]); }
+    if (!speaker) {
+      var am = after.match(afterRe);
+      if (am) { speaker = cleanScriptSpeaker(am[1]); }
+    }
+    if (!speaker) {
+      var sm = before.match(/([\u4e00-\u9fa5·]{1,4})[：:]\s{0,}$/);
+      if (sm) { speaker = cleanScriptSpeaker(sm[1]); }
+    }
+    if (speaker && !pronouns[speaker] && !seenChars[speaker]) { seenChars[speaker] = 1; out.chars.push(speaker); }
+    out.list.push({ n: out.list.length + 1, speaker: speaker, text: dlg, checked: true });
+  }
+  return out;
+}
+
+function renderScriptDialogues() {
+  var box = $("scriptDlgBox");
+  var listEl = $("scriptDlgList");
+  var countEl = $("scriptDlgCount");
+  var charsEl = $("scriptDlgChars");
+  if (!box || !listEl) { return; }
+  var t = currentScriptText();
+  if (!t.trim()) {
+    scriptDlg = { list: [], chars: [] };
+    box.hidden = true;
+    return;
+  }
+  var r = extractScriptDialogues(t);
+  scriptDlg = { list: r.list, chars: r.chars };
+  box.hidden = false;
+  if (countEl) { countEl.textContent = "共" + r.list.length + "句 · 已选" + r.list.length + "句"; }
+  if (charsEl) { charsEl.textContent = r.chars.length ? "出场人物：" + r.chars.join("、") : "出场人物：未识别到人名"; }
+  listEl.innerHTML = "";
+  if (!r.list.length) {
+    listEl.textContent = "本剧本没找到引号对话，生成时不会写台词。";
+    return;
+  }
+  r.list.forEach(function (d) {
+    var lab = document.createElement("label");
+    var cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = true;
+    cb.setAttribute("data-n", String(d.n));
+    cb.addEventListener("change", function () {
+      d.checked = cb.checked;
+      updateScriptDlgCount();
+    });
+    var sp = document.createElement("span");
+    sp.textContent = "[" + d.n + "] " + (d.speaker || "未知") + "：“" + d.text + "”";
+    lab.appendChild(cb);
+    lab.appendChild(sp);
+    listEl.appendChild(lab);
+  });
+}
+
+function updateScriptDlgCount() {
+  var countEl = $("scriptDlgCount");
+  if (!countEl) { return; }
+  var total = scriptDlg.list.length;
+  var sel = scriptDlg.list.filter(function (d) { return d.checked; }).length;
+  countEl.textContent = "共" + total + "句 · 已选" + sel + "句";
+}
+
+function setAllScriptDialogues(on) {
+  scriptDlg.list.forEach(function (d) { d.checked = on; });
+  var listEl = $("scriptDlgList");
+  if (listEl) {
+    var boxes = listEl.querySelectorAll("input[type=checkbox]");
+    for (var i = 0; i < boxes.length; i++) { boxes[i].checked = on; }
+  }
+  updateScriptDlgCount();
+}
+
+function cleanPromptText(s) {
+  var t = (s || "").replace(/[\u2014\u2013]+/g, "，").replace(/[\u2018\u2019\u0027]/g, "");
+  return t.split(String.fromCharCode(42)).join("");
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function verifyScriptDialogues() {
+  var box = $("scriptPromptVerify");
+  if (!box) { return; }
+  if (!scriptPromptText) { box.hidden = true; return; }
+  var re = /[“「\"]([^”」\"\n]{1,200})[”」\"]/g;
+  var m;
+  var seen = {};
+  var lines = [];
+  while ((m = re.exec(scriptPromptText)) !== null) {
+    var t = m[1].trim();
+    if (!t || seen[t]) { continue; }
+    if (!/[\u4e00-\u9fa5]/.test(t)) { continue; }
+    seen[t] = 1;
+    lines.push(t);
+  }
+  if (!lines.length) { box.hidden = true; return; }
+  var src = currentScriptText();
+  box.hidden = false;
+  if (!src) {
+    box.textContent = "台词核对：没读到剧本，输出里" + lines.length + "句带引号的台词这次没法核对。";
+    return;
+  }
+  var srcNorm = src.replace(/\s+/g, "");
+  var found = 0;
+  var missing = [];
+  lines.forEach(function (t) {
+    var core = t.replace(/\s+/g, "").replace(/[。！？；，、…·]+$/g, "");
+    if (core.length < 2) { return; }
+    if (srcNorm.indexOf(core) !== -1) { found += 1; } else { missing.push(t); }
+  });
+  var total = found + missing.length;
+  if (!total) {
+    box.textContent = "台词核对：输出里的引号台词太短，没法核对。";
+    return;
+  }
+  var html = "台词核对：输出里带引号的台词共" + total + "句，" + found + "句在剧本中找到";
+  if (missing.length) {
+    html += "，" + missing.length + "句在剧本里没找到（可能是模型自己编的）：";
+    missing.forEach(function (t) {
+      var short = t.length > 40 ? t.slice(0, 40) + "…" : t;
+      html += "<br>没找到：“" + escHtml(short) + "”";
+    });
+  } else {
+    html += "，全部来自剧本原文。";
+  }
+  box.innerHTML = html;
+}
+
+async function sendScriptPrompt() {
+  if (scriptBusy || busy) { return; }
+  var scene = ($("scriptScene").value || "").trim();
+  if (!scene) { toast("先写一句想要什么画面"); return; }
+  if (!ensureKey()) { return; }
+  var src = currentScriptText();
+  if (!src.trim()) { toast("还没有剧本，先出剧本"); return; }
+  scriptBusy = true;
+  setBusy(true);
+  var statusEl = $("scriptStatus");
+  var wrap = $("scriptPromptWrap");
+  var out = $("scriptPromptResult");
+  var verifyBox = $("scriptPromptVerify");
+  var goBtn = $("btnScriptPromptGo");
+  if (goBtn) { goBtn.disabled = true; }
+  if (wrap) { wrap.hidden = false; }
+  if (out) { out.value = "…"; }
+  scriptPromptText = "";
+  if (verifyBox) { verifyBox.hidden = true; }
+  try {
+    var skill = await getJubenSkillText("digest");
+    var sys = "你是视频提示词专家。按下面剧本技能包的写法出提示词，只学写法套路，不搬整条提示词原文，每处引用不超 50 字。\n\n硬规则：每段开头写“输出 1280×720”；画面里不出现可读的文字、字幕和水印；不要背景音乐；人物外形和衣服按剧本原文锁定，每段逐字复用，不改长相；台词只能从下面“台词清单”里一字不改地抄，不许编新台词、不许改字、不许把甲的台词安到乙头上，说话人标注仅供参考，抄台词只抄引号内的字；某段没有对应台词就别写台词，别硬凑；资产提示词里的人物名、服装、道具只能用剧本里有的，不许编；出场人物只用清单里出现过的人物名；英文提示词里不要用单引号和星号。\n\n技能参考：\n" + skill;
+    var dlgBlock = "";
+    if (!scriptDlg.list.length) {
+      dlgBlock = "本剧本没找到引号对话，本次不要写任何台词。\n\n";
+    } else {
+      var selDlg = scriptDlg.list.filter(function (d) { return d.checked; });
+      if (selDlg.length) {
+        dlgBlock = "本剧本台词清单（下面每一句都是剧本原文，一字不改，台词只能从这里抄）：\n" + selDlg.map(function (d) { return d.n + ". " + (d.speaker || "未知") + "：“" + d.text + "”"; }).join("\n") + "\n\n";
+      } else {
+        dlgBlock = "本剧本台词：用户一张都没勾，本次不要写任何台词。\n\n";
+      }
+    }
+    var askLine = "请按 30 秒幸运7模板出提示词：6 段，每段 5 秒，每段给中文画面描述、一段英文视频生成提示词；只有清单里有对应台词的段才写台词，没有就留空。台词一律写在中文双引号里。揭示点放在 7.4 到 9.6 秒。先出资产提示词（人物、场景、道具各一段），再出 6 段视频提示词。";
+    var user = "剧本（" + scriptScopeName() + "）：\n" + src + "\n\n" + dlgBlock + "想要的画面：" + scene + "\n\n" + askLine;
+    await streamChat([
+      { role: "system", content: sys },
+      { role: "user", content: user }
+    ], {
+      temperature: 0.8,
+      maxTokens: 8000,
+      onDelta: function (d) {
+        scriptPromptText += cleanPromptText(d);
+        if (out) { out.value = scriptPromptText; out.scrollTop = out.scrollHeight; }
+      }
+    });
+    if (statusEl) { statusEl.textContent = "提示词已出完"; }
+    verifyScriptDialogues();
+  } catch (e) {
+    if (e.name === "AbortError") { if (statusEl) { statusEl.textContent = "已停止"; } toast("已停止"); }
+    else { if (statusEl) { statusEl.textContent = "出错：" + e.message; } toast(e.message); }
+  }
+  scriptBusy = false;
+  setBusy(false);
+  if (goBtn) { goBtn.disabled = false; }
+}
+
+$("btnShortScript").addEventListener("click", function () { generateScript("short", 0); });
+$("btnBookScript").addEventListener("click", generateBookScript);
+$("btnCopyScript").addEventListener("click", function () { copyTextNow(currentScriptText(), "剧本已复制"); });
+$("btnExportScript").addEventListener("click", function () {
+  var t = currentScriptText();
+  if (!t.trim()) { toast("还没有剧本"); return; }
+  var name = safeFileName((scripts.title || "未命名") + scriptScopeName()) + ".txt";
+  downloadTextFile(name, cleanGenText(t));
+  toast("已导出 " + name);
+});
+$("btnScriptDlgAll").addEventListener("click", function () { setAllScriptDialogues(true); });
+$("btnScriptDlgNone").addEventListener("click", function () { setAllScriptDialogues(false); });
+$("btnScriptPromptGo").addEventListener("click", sendScriptPrompt);
+$("btnCopyScriptPrompt").addEventListener("click", function () { copyTextNow(scriptPromptText, "提示词已复制"); });
+
 /* ── 初始化 ── */
 fillModelSelect(FALLBACK_MODELS)
 refreshCounts(); refreshConn(); renderMs(); syncTabs(); renderSkillToggle()
 loadNovel()
+loadScripts()
 $('novelTitle').value = novel.title || ''
 $('novelSynopsis').value = novel.synopsis || ''
 setMode(localStorage.getItem('wb_mode') === 'long' ? 'long' : 'short')
+if (scripts.short) { showScript("short", 0); } else if (scripts.book) { showScript("book", 0); } else { showScript("", 0); }
 if (cfg.key) verifyConn(true)
 </script>
 </body>

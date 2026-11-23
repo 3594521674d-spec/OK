@@ -798,6 +798,18 @@
             <button type="button" class="tab" data-scope="full">参考全文</button>
           </div>
         </div>
+        <div id="prompt-dialogue" hidden>
+          <div class="row" style="margin-bottom:8px">
+            <strong style="font-size:14px">本章台词</strong>
+            <span class="muted" id="prompt-dlg-count" style="font-size:12.5px"></span>
+            <span style="flex:1"></span>
+            <button type="button" class="btn" id="prompt-dlg-all" style="min-height:44px">全选</button>
+            <button type="button" class="btn" id="prompt-dlg-none" style="min-height:44px">全不选</button>
+          </div>
+          <div id="prompt-dlg-chars" class="muted" style="font-size:12.5px;margin-bottom:8px"></div>
+          <div id="prompt-dlg-list" style="max-height:240px;overflow-y:auto;border:1px solid var(--color-border, #e5e7eb);border-radius:10px;padding:4px 10px;background:var(--color-surface, #ffffff)"></div>
+          <p class="muted" style="font-size:12.5px;margin:6px 0 10px">勾上的台词会原样放进出提示词的要求里，模型只能照抄，不许改字、不许新编。生成完会在结果下面逐句核对。</p>
+        </div>
         <textarea class="input" id="prompt-scene" rows="3" style="width:100%;resize:vertical" placeholder="想要什么画面？比如：第 3 章，豆奶在老周炒粉铺躲钱哥，钱哥带人走进巷子"></textarea>
         <div class="row" style="margin-top:10px">
           <button class="btn btn-primary" id="prompt-go">出提示词</button>
@@ -808,6 +820,7 @@
       <div class="panel" id="prompt-result-wrap" hidden>
         <h2>提示词</h2>
         <pre id="prompt-result" style="white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.8;margin:0"></pre>
+        <div id="prompt-verify" hidden style="margin-top:12px;padding:10px 12px;border:1px solid var(--color-border, #e5e7eb);border-radius:10px;font-size:13px;line-height:1.7"></div>
       </div>
       <p class="muted" style="font-size:13px;color:var(--color-muted, #6b7280)">小说不用粘贴：直接读写作页存在手机本地的那本（标题、大纲和已写好的章节）。参考摘要 4 千字，又便宜又快；参考全文 11 万字，更准但一次花得多。出的提示词按 30 秒幸运7模板：6 段，每段 5 秒。</p>
     </section>
@@ -2518,6 +2531,151 @@ function promptNovelText(novel, chapN) {
   }
   return parts.join('\n');
 }
+/* 台词抽取：规则法（引号 + 说话人提示词），本地跑，不再调模型。
+   思路取自 extract-dialogue（引号对话 + 说话人归属，输出 {role, dialogue}）
+   和 DialogueTagger（引号 + 人名 + 说/道等提示词匹配说话人）；
+   归属拿不准就标“未知”，不硬猜，清单由用户在页内勾选确认。 */
+var PROMPT_DLG_VERBS = '说道|低声道|轻声道|冷笑道|笑骂道|咬牙道|颤声道|沉声道|缓缓道|淡淡道|追问道|反问道|嘀咕道|喃喃道|骂道|喊道|叫道|嚷道|答道|应道|接道|叹道|吼道|喝道|讥讽道|嘲讽道|调侃道|安慰道|劝道|命令道|吩咐道|提醒道|警告道|解释道|笑道|说道|道|说|问|喊|叫';
+var promptDialogues = { chapter: 0, list: [], chars: [] };
+function cleanPromptSpeaker(name) {
+  if (!name) return '';
+  var bad = ['然后', '接着', '随即', '连忙', '赶紧', '忽然', '突然', '终于', '悄悄', '缓缓', '淡淡', '冷冷', '轻声', '低声', '小声', '大声', '顿了顿', '想了想', '皱了皱眉', '抬起头', '转过身'];
+  for (var i = 0; i < bad.length; i++) {
+    var at = name.indexOf(bad[i]);
+    if (at !== -1) name = name.slice(0, at);
+  }
+  if (!name) return '';
+  if (/[顿想皱抬转走跑站坐哭叹摇点摆挥指拍推拉抱摸擦喝吃抽低轻冷淡缓悄忽突终连赶]/.test(name)) return '';
+  return name;
+}
+function extractPromptDialogues(text) {
+  var out = { list: [], chars: [] };
+  if (!text) return out;
+  var beforeRe = new RegExp('(?:^|[，。、；：\\s的])([\\u4e00-\\u9fa5·]{1,4}?)(?:' + PROMPT_DLG_VERBS + ')[：:,，\\s]*$');
+  var afterRe = new RegExp('^[，、\\s]*([\\u4e00-\\u9fa5·]{1,4}?)(?:' + PROMPT_DLG_VERBS + ')');
+  var re = /[“「]([^”」\n]{1,200})[”」]/g;
+  var seenChars = {};
+  var pronouns = { '他': 1, '她': 1, '它': 1, '我': 1, '你': 1, '您': 1, '咱们': 1, '我们': 1, '你们': 1, '他们': 1, '她们': 1 };
+  var m;
+  while ((m = re.exec(text)) !== null) {
+    var dlg = m[1].trim();
+    if (!dlg) continue;
+    var before = text.slice(Math.max(0, m.index - 40), m.index);
+    var after = text.slice(m.index + m[0].length, m.index + m[0].length + 40);
+    var speaker = '';
+    var bm = before.match(beforeRe);
+    if (bm) speaker = cleanPromptSpeaker(bm[1]);
+    if (!speaker) {
+      var am = after.match(afterRe);
+      if (am) speaker = cleanPromptSpeaker(am[1]);
+    }
+    if (speaker && !pronouns[speaker] && !seenChars[speaker]) { seenChars[speaker] = 1; out.chars.push(speaker); }
+    out.list.push({ n: out.list.length + 1, speaker: speaker, text: dlg, checked: true });
+  }
+  return out;
+}
+function renderPromptDialogues() {
+  var box = $('prompt-dialogue');
+  var listEl = $('prompt-dlg-list');
+  var countEl = $('prompt-dlg-count');
+  var charsEl = $('prompt-dlg-chars');
+  if (!box || !listEl) return;
+  var novel = readLocalNovel();
+  var chapN = parseInt(($('prompt-chapter').value || '0'), 10) || 0;
+  if (!novel || !chapN || !novel.chapters[chapN]) {
+    promptDialogues = { chapter: 0, list: [], chars: [] };
+    box.hidden = true;
+    return;
+  }
+  var r = extractPromptDialogues(novel.chapters[chapN]);
+  promptDialogues = { chapter: chapN, list: r.list, chars: r.chars };
+  box.hidden = false;
+  if (countEl) countEl.textContent = '共 ' + r.list.length + ' 句 · 已选 ' + r.list.length + ' 句';
+  if (charsEl) charsEl.textContent = r.chars.length ? '出场人物：' + r.chars.join('、') : '出场人物：未识别到人名';
+  listEl.innerHTML = '';
+  if (!r.list.length) {
+    listEl.textContent = '本章没找到引号对话，生成时不会写台词。';
+    return;
+  }
+  r.list.forEach(function (d) {
+    var lab = document.createElement('label');
+    lab.style.cssText = 'display:flex;align-items:flex-start;gap:8px;min-height:44px;padding:8px 0;border-bottom:1px solid var(--color-border, #e5e7eb);cursor:pointer;font-size:13.5px;line-height:1.6';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = true;
+    cb.setAttribute('data-n', String(d.n));
+    cb.style.cssText = 'flex:none;width:20px;height:20px;margin-top:2px';
+    var sp = document.createElement('span');
+    sp.textContent = '[' + d.n + '] ' + (d.speaker || '未知') + '：“' + d.text + '”';
+    lab.appendChild(cb);
+    lab.appendChild(sp);
+    listEl.appendChild(lab);
+  });
+}
+function updatePromptDlgCount() {
+  var countEl = $('prompt-dlg-count');
+  if (!countEl) return;
+  var total = promptDialogues.list.length;
+  var sel = promptDialogues.list.filter(function (d) { return d.checked; }).length;
+  countEl.textContent = '共 ' + total + ' 句 · 已选 ' + sel + ' 句';
+}
+function setAllPromptDialogues(on) {
+  promptDialogues.list.forEach(function (d) { d.checked = on; });
+  var listEl = $('prompt-dlg-list');
+  if (listEl) {
+    var boxes = listEl.querySelectorAll('input[type=checkbox]');
+    for (var i = 0; i < boxes.length; i++) boxes[i].checked = on;
+  }
+  updatePromptDlgCount();
+}
+/* 生成后本地核对：输出里引号内的中文台词，逐句在章节原文里找 */
+function verifyPromptDialogues() {
+  var box = $('prompt-verify');
+  if (!box) return;
+  if (!promptResultText) { box.hidden = true; return; }
+  var re = /[“「"]([^”」"\n]{1,200})[”」"]/g;
+  var m, seen = {}, lines = [];
+  while ((m = re.exec(promptResultText)) !== null) {
+    var t = m[1].trim();
+    if (!t || seen[t]) continue;
+    if (!/[\u4e00-\u9fa5]/.test(t)) continue;
+    seen[t] = 1;
+    lines.push(t);
+  }
+  if (!lines.length) { box.hidden = true; return; }
+  var novel = readLocalNovel();
+  var chapN = parseInt(($('prompt-chapter').value || '0'), 10) || 0;
+  var chapText = (novel && chapN && novel.chapters[chapN]) || '';
+  box.hidden = false;
+  if (!chapText) {
+    box.textContent = '台词核对：没选章节，输出里 ' + lines.length + ' 句带引号的台词这次没法核对。';
+    return;
+  }
+  var chapNorm = chapText.replace(/\s+/g, '');
+  var found = 0, missing = [];
+  lines.forEach(function (t) {
+    var core = t.replace(/\s+/g, '').replace(/[。！？；，、…·]+$/g, '');
+    if (core.length < 2) return;
+    if (chapNorm.indexOf(core) !== -1) found += 1;
+    else missing.push(t);
+  });
+  var total = found + missing.length;
+  if (!total) {
+    box.textContent = '台词核对：输出里的引号台词太短，没法核对。';
+    return;
+  }
+  var html = '台词核对：输出里带引号的台词共 ' + total + ' 句，' + found + ' 句在原文中找到';
+  if (missing.length) {
+    html += '，' + missing.length + ' 句在原文里没找到（可能是模型自己编的）：';
+    missing.forEach(function (t) {
+      var short = t.length > 40 ? t.slice(0, 40) + '…' : t;
+      html += '<br>没找到：“' + esc(short) + '”';
+    });
+  } else {
+    html += '，全部来自原文。';
+  }
+  box.innerHTML = html;
+}
 async function getPromptSkillText() {
   if (skillDocs[promptScope]) return skillDocs[promptScope];
   var url = promptScope === 'full' ? '../skills/libtv/SKILL.md' : '../skills/libtv/DIGEST.md';
@@ -2561,6 +2719,7 @@ function loadPrompt() {
     if (info) info.textContent = '未读到小说';
     if (sel) sel.innerHTML = '<option value="0">不指定小说</option>';
     showNote('note-prompt', '没读到小说：先去「写作」页生成一本长篇，小说存在手机本地，这里直接读，不用粘贴。这次也可以只按画面和技能出。');
+    renderPromptDialogues();
     return;
   }
   hideNote('note-prompt');
@@ -2574,6 +2733,7 @@ function loadPrompt() {
     });
     sel.innerHTML = opts.join('');
   }
+  renderPromptDialogues();
 }
 async function sendPrompt() {
   if (promptSending) return;
@@ -2595,11 +2755,28 @@ async function sendPrompt() {
   if (wrap) wrap.hidden = false;
   if (out) out.textContent = '…';
   promptResultText = '';
+  if ($('prompt-verify')) $('prompt-verify').hidden = true;
   try {
     var skill = await getPromptSkillText();
-    var sys = '你是视频提示词专家。按下面 LibTV 画布提示词技能包的写法出提示词，只蒸写法套路，不搬整条提示词原文，每处引用不超 50 字。\n\n硬规则：每段开头写“输出 1280×720”；画面里不出现可读的文字、字幕和水印；不要背景音乐；人物外形和衣服按小说原文锁定，每段逐字复用，不改长相；台词用小说原句。\n\n技能参考：\n' + skill;
+    var sys = '你是视频提示词专家。按下面 LibTV 画布提示词技能包的写法出提示词，只蒸写法套路，不搬整条提示词原文，每处引用不超 50 字。\n\n硬规则：每段开头写“输出 1280×720”；画面里不出现可读的文字、字幕和水印；不要背景音乐；人物外形和衣服按小说原文锁定，每段逐字复用，不改长相；台词只能从下面“台词清单”里一字不改地抄，不许编新台词、不许改字、不许把甲的台词安到乙头上，说话人标注仅供参考，抄台词只抄引号内的字；某段没有对应台词就别写台词，别硬凑；资产提示词里的人物名、服装、道具只能用正文里有的，不许编；出场人物只用清单里出现过的人物名。\n\n技能参考：\n' + skill;
     var novelPart = novel ? promptNovelText(novel, chapN) + '\n\n' : '';
-    var user = novelPart + '想要的画面：' + scene + '\n\n请按 30 秒幸运7模板出提示词：6 段，每段 5 秒，每段给中文画面描述、一段英文视频生成提示词、台词。揭示点放在 7.4 到 9.6 秒。';
+    var dlgBlock = '';
+    if (chapN && promptDialogues.chapter === chapN) {
+      if (!promptDialogues.list.length) {
+        dlgBlock = '本章没找到引号对话，本次不要写任何台词。\n\n';
+      } else {
+        var selDlg = promptDialogues.list.filter(function (d) { return d.checked; });
+        if (selDlg.length) {
+          dlgBlock = '本章台词清单（下面每一句都是小说原文，一字不改，台词只能从这里抄）：\n' + selDlg.map(function (d) { return d.n + '. ' + (d.speaker || '未知') + '：“' + d.text + '”'; }).join('\n') + '\n\n';
+        } else {
+          dlgBlock = '本章台词：用户一张都没勾，本次不要写任何台词。\n\n';
+        }
+      }
+    }
+    var askLine = dlgBlock
+      ? '请按 30 秒幸运7模板出提示词：6 段，每段 5 秒，每段给中文画面描述、一段英文视频生成提示词；只有清单里有对应台词的段才写台词，没有就留空。揭示点放在 7.4 到 9.6 秒。'
+      : '请按 30 秒幸运7模板出提示词：6 段，每段 5 秒，每段给中文画面描述、一段英文视频生成提示词、台词。揭示点放在 7.4 到 9.6 秒。';
+    var user = novelPart + dlgBlock + '想要的画面：' + scene + '\n\n' + askLine;
     var res = await fetch(API_BASE + '/v1/chat/completions', {
       method: 'POST',
       headers: { authorization: 'Bearer ' + masterKey(), 'content-type': 'application/json' },
@@ -2647,6 +2824,7 @@ async function sendPrompt() {
       }
       if (!promptResultText && out) out.textContent = '（上游没有返回内容）';
     }
+    verifyPromptDialogues();
     if (status) status.textContent = promptScope === 'full' ? '已出（参考全文）' : '已出（参考摘要）';
     if (copyBtn) copyBtn.disabled = !promptResultText;
   } catch (e) {
@@ -2666,6 +2844,18 @@ document.querySelectorAll('#prompt-tabs .tab').forEach(function (t) {
     t.classList.add('active');
     promptScope = t.dataset.scope;
   });
+});
+$('prompt-chapter').addEventListener('change', renderPromptDialogues);
+$('prompt-dlg-all').addEventListener('click', function () { setAllPromptDialogues(true); });
+$('prompt-dlg-none').addEventListener('click', function () { setAllPromptDialogues(false); });
+$('prompt-dlg-list').addEventListener('change', function (e) {
+  var t = e.target;
+  if (t && t.type === 'checkbox') {
+    var n = parseInt(t.getAttribute('data-n'), 10);
+    var d = promptDialogues.list[n - 1];
+    if (d) d.checked = t.checked;
+    updatePromptDlgCount();
+  }
 });
 
 /* 密钥面板 */
