@@ -678,12 +678,21 @@
           <div id="msList"><p class="empty-note">还没有稿件。写完一篇点编辑器下方的「存入稿件」，可以存多篇来回切换；稿件已自动存在手机本地，关了再开还在，重要的稿子建议用「导出正文」存成文件备份。</p></div>
         </section>
       </aside>
+
+      <!-- 撸猫：互动撸猫模拟器 -->
+      <aside class="rail" id="railCat">
+        <section style="height:100%;display:flex;flex-direction:column">
+          <h2>撸猫 <span class="sub">写累了摸摸猫</span></h2>
+          <iframe src="https://pet-the-cat.pages.dev/" style="flex:1;width:100%;min-height:520px;border:1px solid var(--line);border-radius:10px;background:#fff" loading="lazy" title="撸猫模拟器"></iframe>
+        </section>
+      </aside>
     </div>
 
     <nav class="tabbar">
       <button type="button" data-tab="write">写作</button>
       <button type="button" data-tab="edit" class="on">正文</button>
       <button type="button" data-tab="side">设定·稿件</button>
+      <button type="button" data-tab="cat">撸猫</button>
     </nav>
 
     <!-- 网关设置 -->
@@ -2406,8 +2415,8 @@ anime({ targets: el, opacity: [0, 1], translateY: [8, 0], duration: 240, easing:
 }
 
 /* 页签切换加滑动 */
-var TAB_ORDER = ['write', 'edit', 'side']
-var TAB_COL = { write: '#railWrite', edit: '.editor-col', side: '#railSide' }
+var TAB_ORDER = ['write', 'edit', 'side', 'cat']
+var TAB_COL = { write: '#railWrite', edit: '.editor-col', side: '#railSide', cat: '#railCat' }
 function switchTab(v) {
 var cur = document.body.getAttribute('data-view') || 'edit'
 if (v === cur) return
