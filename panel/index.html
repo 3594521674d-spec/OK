@@ -522,6 +522,15 @@
   </div>
 </div>
 
+<!-- 撸猫悬浮按钮 -->
+<button id="cat-fab" type="button" title="撸猫" aria-label="撸猫" style="position:fixed;right:16px;bottom:16px;z-index:999;width:56px;height:56px;border-radius:50%;border:0;background:#f5b301;color:#fff;font-size:28px;box-shadow:0 4px 16px rgba(0,0,0,.3);cursor:pointer">🐱</button>
+<script>
+document.getElementById('cat-fab').addEventListener('click', function () {
+  var btn = document.querySelector('[data-section="cat"]');
+  if (btn) btn.click();
+});
+</script>
+
 </ion-app>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@ionic/core@8/dist/ionic/ionic.esm.js"></script>
 <script nomodule src="https://cdn.jsdelivr.net/npm/@ionic/core@8/dist/ionic/ionic.js"></script>
